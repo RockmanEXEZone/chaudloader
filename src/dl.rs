@@ -1,8 +1,12 @@
+//! Dynamic linker functions.
+
 use std::os::windows::ffi::OsStrExt;
 
+/// A module handle is a handle to a DLL.
 pub struct ModuleHandle(winapi::shared::minwindef::HMODULE);
 
 impl ModuleHandle {
+    /// Gets an already loaded module by its name.
     pub unsafe fn get(module: &str) -> Option<Self> {
         let module = module
             .encode_utf16()
@@ -16,6 +20,7 @@ impl ModuleHandle {
         }
     }
 
+    /// Loads a DLL by path.
     pub unsafe fn load(path: &std::path::Path) -> Option<Self> {
         let path_w = path
             .as_os_str()
@@ -30,6 +35,7 @@ impl ModuleHandle {
         }
     }
 
+    /// Gets a symbol address as a farproc, if it exists in the module.
     pub unsafe fn get_symbol_address(
         &self,
         symbol: &str,

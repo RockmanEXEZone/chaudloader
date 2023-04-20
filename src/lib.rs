@@ -4,7 +4,6 @@ mod datfile;
 mod dl;
 mod dxgi_shim;
 mod hooks;
-mod modules;
 
 pub fn main() -> Result<(), anyhow::Error> {
     unsafe {

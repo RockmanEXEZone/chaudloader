@@ -7,6 +7,9 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
+/// Repacks a .dat (zip) archive.
+///
+/// Files may be replaced via the replacements map, which contains a single-use reader to read from for each entry to replace the asset's contents with.
 pub fn repack(
     reader: impl std::io::Read + std::io::Seek,
     mut replacements: std::collections::HashMap<String, Box<dyn std::io::Read>>,

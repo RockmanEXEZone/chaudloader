@@ -1,8 +1,11 @@
-use crate::modules;
+use crate::dl;
 use retour::static_detour;
 
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::ffi::OsStringExt;
+
+pub static KERNEL32: std::sync::LazyLock<dl::ModuleHandle> =
+    std::sync::LazyLock::new(|| unsafe { dl::ModuleHandle::get("kernel32.dll").unwrap() });
 
 static_detour! {
     static CreateFileWHook: unsafe extern "system" fn(
@@ -30,13 +33,16 @@ static REPLACEMENTS: std::sync::LazyLock<
     std::sync::Mutex<std::collections::HashMap<std::path::PathBuf, std::path::PathBuf>>,
 > = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
 
+/// Sets interceptions for file reads.
+///
+/// Files listed here will instead be redirected to a different file to read.
 pub fn set_file_replacements(
     replacements: std::collections::HashMap<std::path::PathBuf, std::path::PathBuf>,
 ) {
     *REPLACEMENTS.lock().unwrap() = replacements;
 }
 
-unsafe fn create_file_w_hook(
+unsafe fn on_create_file_w(
     path: &std::path::Path,
     dw_desired_access: winapi::shared::minwindef::DWORD,
     dw_share_mode: winapi::shared::minwindef::DWORD,
@@ -75,11 +81,15 @@ unsafe fn create_file_w_hook(
     )
 }
 
+/// Install hooks into the process.
 pub unsafe fn install() -> Result<(), anyhow::Error> {
+    // BNLC actually uses both CreateFileA and CreateFileW... It seems like the third-party code uses CreateFileW but the BNLC code itself uses CreateFileA...
+    //
+    // Since we don't really care about the distincton, let's just normalize it here and hook it all via on_create_file_w.
     unsafe {
         CreateFileWHook
             .initialize(
-                std::mem::transmute(modules::KERNEL32.get_symbol_address("CreateFileW").unwrap()),
+                std::mem::transmute(KERNEL32.get_symbol_address("CreateFileW").unwrap()),
                 {
                     move |lp_file_name,
                           dw_desired_access,
@@ -88,7 +98,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                           dw_creation_disposition,
                           dw_flags_and_attributes,
                           handle| {
-                        create_file_w_hook(
+                        on_create_file_w(
                             &std::path::PathBuf::from(std::ffi::OsString::from_wide(
                                 std::slice::from_raw_parts(
                                     lp_file_name,
@@ -109,7 +119,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
 
         CreateFileAHook
             .initialize(
-                std::mem::transmute(modules::KERNEL32.get_symbol_address("CreateFileA").unwrap()),
+                std::mem::transmute(KERNEL32.get_symbol_address("CreateFileA").unwrap()),
                 {
                     move |lp_file_name,
                           dw_desired_access,
@@ -118,7 +128,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                           dw_creation_disposition,
                           dw_flags_and_attributes,
                           handle| {
-                        create_file_w_hook(
+                        on_create_file_w(
                             std::path::Path::new(std::ffi::OsStr::new(
                                 &std::ffi::CStr::from_ptr(lp_file_name)
                                     .to_string_lossy()

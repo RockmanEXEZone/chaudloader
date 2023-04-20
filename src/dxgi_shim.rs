@@ -1,3 +1,5 @@
+//! Contains shim functions that just forward dxgi.dll calls to the system dxgi.dll.
+
 use crate::dl;
 
 static DXGI: std::sync::LazyLock<dl::ModuleHandle> = std::sync::LazyLock::new(|| unsafe {
