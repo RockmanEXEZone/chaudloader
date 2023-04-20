@@ -1,17 +1,23 @@
 #![feature(lazy_cell)]
+#![feature(naked_functions)]
 
-mod d3d11_shim;
 mod dl;
+mod dxgi_shim;
 mod hooks;
 mod modules;
 
-fn main() -> Result<(), anyhow::Error> {
+pub fn main() -> Result<(), anyhow::Error> {
+    static INITIALIZED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+    if INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
+        return Ok(());
+    }
+
     unsafe {
         winapi::um::consoleapi::AllocConsole();
     }
 
     env_logger::Builder::from_default_env()
-        .filter(Some("d3d11"), log::LevelFilter::Info)
+        .filter(Some("dxgi"), log::LevelFilter::Info)
         .init();
     log::info!("mod loader ready!");
 
@@ -23,7 +29,6 @@ fn main() -> Result<(), anyhow::Error> {
 }
 
 #[no_mangle]
-#[allow(non_snake_case)]
 pub unsafe extern "system" fn DllMain(
     _module: winapi::shared::minwindef::HINSTANCE,
     call_reason: winapi::shared::minwindef::DWORD,
