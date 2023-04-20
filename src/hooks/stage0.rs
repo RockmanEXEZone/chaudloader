@@ -1,4 +1,5 @@
 use crate::{datfile, dl};
+use normpath::PathExt;
 use retour::static_detour;
 
 static_detour! {
@@ -57,7 +58,10 @@ unsafe fn init() -> Result<(), anyhow::Error> {
         datfile_names
             .iter()
             .map(|file_name| {
-                let path = std::path::Path::new(&format!("../exe/data/{}", file_name)).to_owned();
+                let path = std::path::Path::new(&format!("data/{}", file_name))
+                    .normalize_virtually()
+                    .unwrap()
+                    .into_path_buf();
                 (path.clone(), path)
             })
             .collect::<std::collections::HashMap<_, _>>(),

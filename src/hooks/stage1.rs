@@ -1,4 +1,5 @@
 use crate::dl;
+use normpath::PathExt;
 use retour::static_detour;
 
 use std::os::windows::ffi::OsStrExt;
@@ -50,7 +51,8 @@ unsafe fn on_create_file_w(
 ) -> winapi::shared::ntdef::HANDLE {
     let replacements = REPLACEMENTS.lock().unwrap();
 
-    let path = if let Some(replacement_path) = replacements.get(path) {
+    let path = path.normalize_virtually().unwrap().into_path_buf();
+    let path = if let Some(replacement_path) = replacements.get(&path) {
         log::info!(
             "redirecting {} -> {}",
             path.display(),
@@ -58,7 +60,7 @@ unsafe fn on_create_file_w(
         );
         replacement_path
     } else {
-        path
+        &path
     };
 
     let path_wstr = path
