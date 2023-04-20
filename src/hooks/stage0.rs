@@ -1,5 +1,4 @@
 use crate::{datfile, dl};
-use normpath::PathExt;
 use retour::static_detour;
 
 static_detour! {
@@ -41,7 +40,10 @@ unsafe fn init() -> Result<(), anyhow::Error> {
 
             let f = std::fs::File::open(entry.path())?;
 
-            Ok::<_, anyhow::Error>(Some((file_name, datfile::Repacker::new(f)?)))
+            Ok::<_, anyhow::Error>(Some((
+                std::path::Path::new("data").join(file_name),
+                datfile::Repacker::new(f)?,
+            )))
         })
         .flat_map(|v| match v {
             Ok(None) => None,
@@ -57,11 +59,7 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     super::stage1::set_file_replacements(
         datfiles
             .into_iter()
-            .map(|(file_name, repacker)| {
-                let path = std::path::Path::new(&format!("data/{}", file_name))
-                    .normalize_virtually()
-                    .unwrap()
-                    .into_path_buf();
+            .map(|(path, repacker)| {
                 let repacked_path = datfile::repack_and_keep(repacker)?;
                 Ok::<_, anyhow::Error>((path, repacked_path))
             })

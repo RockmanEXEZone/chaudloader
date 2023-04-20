@@ -52,6 +52,11 @@ unsafe fn on_create_file_w(
     let replacements = REPLACEMENTS.lock().unwrap();
 
     let path = path.normalize_virtually().unwrap().into_path_buf();
+    let path = path
+        .strip_prefix(std::env::current_dir().unwrap())
+        .unwrap_or(&path)
+        .to_path_buf();
+
     let path = if let Some(replacement_path) = replacements.get(&path) {
         log::info!(
             "redirecting {} -> {}",
