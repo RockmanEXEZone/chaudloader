@@ -110,6 +110,8 @@ unsafe fn on_create_file(
     if let Some(replaced_path) = asset_replacer.get_replaced_path(&path).unwrap() {
         log::info!("read to {} was redirected", path.display());
         path = replaced_path;
+
+        // We set FILE_SHARE_DELETE here and delete the file immediately after CreateFileW to avoid temporary files hanging out.
         dw_share_mode |= winapi::um::winnt::FILE_SHARE_DELETE;
         file_was_replaced = true;
     }
