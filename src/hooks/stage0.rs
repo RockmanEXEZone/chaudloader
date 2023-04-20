@@ -55,16 +55,17 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     log::info!("loaded datfiles: {:?}", datfile_names);
 
     super::stage1::set_file_replacements(
-        datfile_names
-            .iter()
-            .map(|file_name| {
+        datfiles
+            .into_iter()
+            .map(|(file_name, repacker)| {
                 let path = std::path::Path::new(&format!("data/{}", file_name))
                     .normalize_virtually()
                     .unwrap()
                     .into_path_buf();
-                (path.clone(), path)
+                let repacked_path = datfile::repack_and_keep(repacker)?;
+                Ok::<_, anyhow::Error>((path, repacked_path))
             })
-            .collect::<std::collections::HashMap<_, _>>(),
+            .collect::<Result<std::collections::HashMap<_, _>, _>>()?,
     );
 
     super::stage1::install()?;
