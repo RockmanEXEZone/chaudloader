@@ -11,9 +11,11 @@ pub unsafe extern "system" fn DllMain(
     call_reason: winapi::shared::minwindef::DWORD,
     _reserved: winapi::shared::minwindef::LPVOID,
 ) -> winapi::shared::minwindef::BOOL {
-    if call_reason != winapi::um::winnt::DLL_PROCESS_ATTACH {
-        return winapi::shared::minwindef::TRUE;
+    match call_reason {
+        winapi::um::winnt::DLL_PROCESS_ATTACH => {
+            hooks::stage0::install().unwrap();
+        }
+        _ => {}
     }
-    hooks::stage0::install().unwrap();
     winapi::shared::minwindef::TRUE
 }

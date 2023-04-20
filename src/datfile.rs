@@ -1,5 +1,3 @@
-use std::io::Write;
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("zip: {0}")]
@@ -58,11 +56,15 @@ where
     }
 }
 
+static TEMPDIR: std::sync::LazyLock<tempfile::TempDir> =
+    std::sync::LazyLock::new(|| tempfile::TempDir::new().unwrap());
+
 pub fn repack_and_keep<R>(repacker: Repacker<R>) -> Result<std::path::PathBuf, Error>
 where
     R: std::io::Read + std::io::Seek,
 {
-    let mut dest_f = tempfile::NamedTempFile::new()?;
+    let mut dest_f = tempfile::NamedTempFile::new_in(TEMPDIR.path())?;
     repacker.finish(&mut dest_f)?;
-    Ok(dest_f.keep()?.1)
+    let (_, path) = dest_f.keep()?;
+    Ok(path)
 }
