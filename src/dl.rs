@@ -30,11 +30,16 @@ impl ModuleHandle {
         }
     }
 
-    pub unsafe fn get_symbol_address(&self, symbol: &str) -> Option<usize> {
+    pub unsafe fn get_symbol_address(
+        &self,
+        symbol: &str,
+    ) -> Option<winapi::shared::minwindef::FARPROC> {
         let symbol_cstr = std::ffi::CString::new(symbol).unwrap();
-        match winapi::um::libloaderapi::GetProcAddress(self.0, symbol_cstr.as_ptr()) as usize {
-            0 => None,
-            n => Some(n),
+        let farproc = winapi::um::libloaderapi::GetProcAddress(self.0, symbol_cstr.as_ptr());
+        if farproc.is_null() {
+            None
+        } else {
+            Some(farproc)
         }
     }
 }

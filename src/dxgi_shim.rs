@@ -11,7 +11,7 @@ pub unsafe extern "system" fn DXGIDumpJournal(
     type Func =
         unsafe extern "system" fn(lpv_unk_0: *mut std::ffi::c_void) -> winapi::um::winnt::HRESULT;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
-        std::mem::transmute::<_, Func>(DXGI.get_symbol_address("DXGIDumpJournal").unwrap())
+        std::mem::transmute(DXGI.get_symbol_address("DXGIDumpJournal").unwrap())
     });
     ORIG(lpv_unk_0)
 }
@@ -26,7 +26,7 @@ pub unsafe extern "system" fn CreateDXGIFactory(
         pp_factory: *mut *mut std::ffi::c_void,
     ) -> winapi::um::winnt::HRESULT;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
-        std::mem::transmute::<_, Func>(DXGI.get_symbol_address("CreateDXGIFactory").unwrap())
+        std::mem::transmute(DXGI.get_symbol_address("CreateDXGIFactory").unwrap())
     });
     ORIG(riid, pp_factory)
 }
@@ -41,7 +41,7 @@ pub unsafe extern "system" fn CreateDXGIFactory1(
         pp_factory: *mut *mut std::ffi::c_void,
     ) -> winapi::um::winnt::HRESULT;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
-        std::mem::transmute::<_, Func>(DXGI.get_symbol_address("CreateDXGIFactory1").unwrap())
+        std::mem::transmute(DXGI.get_symbol_address("CreateDXGIFactory1").unwrap())
     });
     ORIG(riid, pp_factory)
 }
@@ -58,7 +58,7 @@ pub unsafe extern "system" fn CreateDXGIFactory2(
         pp_factory: *mut *mut std::ffi::c_void,
     ) -> winapi::um::winnt::HRESULT;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
-        std::mem::transmute::<_, Func>(DXGI.get_symbol_address("CreateDXGIFactory2").unwrap())
+        std::mem::transmute(DXGI.get_symbol_address("CreateDXGIFactory2").unwrap())
     });
     ORIG(flags, riid, pp_factory)
 }
@@ -81,7 +81,7 @@ pub unsafe extern "system" fn DXGID3D10CreateDevice(
         pp_device: *mut std::ffi::c_void,
     ) -> winapi::um::winnt::HRESULT;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
-        std::mem::transmute::<_, Func>(DXGI.get_symbol_address("DXGID3D10CreateDevice").unwrap())
+        std::mem::transmute(DXGI.get_symbol_address("DXGID3D10CreateDevice").unwrap())
     });
     ORIG(handle, p_factory, p_adapter, flags, riid, pp_device)
 }
@@ -102,7 +102,7 @@ pub unsafe extern "system" fn DXGID3D10CreateLayeredDevice(
         pp_device: *mut *mut std::ffi::c_void,
     ) -> winapi::um::winnt::HRESULT;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
-        std::mem::transmute::<_, Func>(
+        std::mem::transmute(
             DXGI.get_symbol_address("DXGID3D10CreateLayeredDevice")
                 .unwrap(),
         )
@@ -120,7 +120,7 @@ pub unsafe extern "system" fn DXGID3D10GetLayeredDeviceSize(
         num_layers: winapi::shared::minwindef::UINT,
     ) -> winapi::shared::basetsd::SIZE_T;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
-        std::mem::transmute::<_, Func>(
+        std::mem::transmute(
             DXGI.get_symbol_address("DXGID3D10GetLayeredDeviceSize")
                 .unwrap(),
         )
@@ -138,7 +138,7 @@ pub unsafe extern "system" fn DXGID3D10RegisterLayers(
         num_layers: winapi::shared::minwindef::UINT,
     ) -> winapi::um::winnt::HRESULT;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
-        std::mem::transmute::<_, Func>(DXGI.get_symbol_address("DXGID3D10RegisterLayers").unwrap())
+        std::mem::transmute(DXGI.get_symbol_address("DXGID3D10RegisterLayers").unwrap())
     });
     ORIG(layers, num_layers)
 }
@@ -155,7 +155,7 @@ pub unsafe extern "system" fn DXGIGetDebugInterface1(
         p_debug: *mut *mut std::ffi::c_void,
     ) -> winapi::um::winnt::HRESULT;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
-        std::mem::transmute::<_, Func>(DXGI.get_symbol_address("DXGIGetDebugInterface1").unwrap())
+        std::mem::transmute(DXGI.get_symbol_address("DXGIGetDebugInterface1").unwrap())
     });
     ORIG(flags, riid, p_debug)
 }
@@ -168,7 +168,7 @@ pub unsafe extern "system" fn DXGIReportAdapterConfiguration(
         dw_unk_0: winapi::shared::minwindef::DWORD,
     ) -> winapi::um::winnt::HRESULT;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
-        std::mem::transmute::<_, Func>(
+        std::mem::transmute(
             DXGI.get_symbol_address("DXGIReportAdapterConfiguration")
                 .unwrap(),
         )
