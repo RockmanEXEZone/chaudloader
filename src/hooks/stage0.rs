@@ -21,7 +21,7 @@ static_detour! {
 unsafe fn init() {
     winapi::um::consoleapi::AllocConsole();
     env_logger::Builder::from_default_env()
-        .filter(Some("dxgi"), log::LevelFilter::Info)
+        .filter(Some("bnlc_mod_loader"), log::LevelFilter::Info)
         .init();
     log::info!("hello!");
     super::stage1::install().unwrap();

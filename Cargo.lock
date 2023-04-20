@@ -68,7 +68,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bnlc-mod-loader-dxgi"
+name = "bnlc-mod-loader"
 version = "0.1.0"
 dependencies = [
  "anyhow",
