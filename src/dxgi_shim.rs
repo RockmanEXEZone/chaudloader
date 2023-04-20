@@ -1,9 +1,21 @@
 //! Contains shim functions that just forward dxgi.dll calls to the system dxgi.dll.
-
 use crate::dl;
+use std::os::windows::ffi::OsStringExt;
+
+fn get_system_directory() -> std::path::PathBuf {
+    unsafe {
+        let n = winapi::um::sysinfoapi::GetSystemDirectoryW(std::ptr::null_mut(), 0) as usize;
+        let mut buf = vec![0u16; n];
+        assert_eq!(
+            winapi::um::sysinfoapi::GetSystemDirectoryW(buf.as_mut_ptr(), n as u32) as usize,
+            n - 1
+        );
+        std::path::Path::new(&std::ffi::OsString::from_wide(&buf[..n - 1])).to_owned()
+    }
+}
 
 static DXGI: std::sync::LazyLock<dl::ModuleHandle> = std::sync::LazyLock::new(|| unsafe {
-    dl::ModuleHandle::load(std::path::Path::new("C:\\windows\\system32\\dxgi.dll")).unwrap()
+    dl::ModuleHandle::load(&get_system_directory().join("dxgi.dll")).unwrap()
 });
 
 #[no_mangle]
