@@ -7,11 +7,6 @@ mod hooks;
 mod modules;
 
 pub fn main() -> Result<(), anyhow::Error> {
-    static INITIALIZED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
-    if INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
-        return Ok(());
-    }
-
     unsafe {
         winapi::um::consoleapi::AllocConsole();
     }
