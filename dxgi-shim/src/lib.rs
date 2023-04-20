@@ -18,6 +18,11 @@ pub unsafe extern "system" fn DllMain(
 ) -> winapi::shared::minwindef::BOOL {
     match call_reason {
         winapi::um::winnt::DLL_PROCESS_ATTACH => {
+            // This is technically not safe, as per https://learn.microsoft.com/en-us/windows/win32/dlls/dynamic-link-library-best-practices:
+            // > You should never perform the following tasks from within DllMain:
+            // > - Call LoadLibrary or LoadLibraryEx (either directly or indirectly). This can cause a deadlock or a crash.
+            //
+            // Unfortunately, we don't have a better choice, so we hope Microsoft doesn't break this later.
             windows_libloader::ModuleHandle::load(
                 &std::env::current_exe()
                     .unwrap()
