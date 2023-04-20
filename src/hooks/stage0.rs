@@ -1,4 +1,4 @@
-use crate::dl;
+use crate::{datfile, dl};
 use retour::static_detour;
 
 static_detour! {
@@ -18,13 +18,43 @@ static_detour! {
     ) -> winapi::shared::windef::HWND;
 }
 
-unsafe fn init() {
+unsafe fn init() -> Result<(), anyhow::Error> {
     winapi::um::consoleapi::AllocConsole();
     env_logger::Builder::from_default_env()
         .filter(Some("bnlc_mod_loader"), log::LevelFilter::Info)
         .init();
     log::info!("hello!");
-    super::stage1::install().unwrap();
+
+    let datfiles = std::fs::read_dir("data")?
+        .map(|entry| {
+            let entry = entry?;
+            if entry.path().extension() != Some(&std::ffi::OsStr::new("dat")) {
+                return Ok(None);
+            }
+
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            if !file_name.starts_with("exe") && file_name != "reader.dat" && file_name != "rkb.dat"
+            {
+                return Ok(None);
+            }
+
+            let f = std::fs::File::open(entry.path())?;
+
+            Ok::<_, anyhow::Error>(Some((file_name, datfile::Repacker::new(f)?)))
+        })
+        .flat_map(|v| match v {
+            Ok(None) => None,
+            Ok(Some(v)) => Some(Ok(v)),
+            Err(e) => Some(Err(e)),
+        })
+        .collect::<Result<std::collections::HashMap<_, _>, _>>()?;
+
+    let mut datfile_names = datfiles.keys().collect::<Vec<_>>();
+    datfile_names.sort_unstable();
+    log::info!("loaded datfiles: {:?}", datfile_names);
+
+    super::stage1::install()?;
+    Ok(())
 }
 
 pub unsafe fn install() -> Result<(), anyhow::Error> {
@@ -56,7 +86,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                             static INITIALIZED: std::sync::atomic::AtomicBool =
                                 std::sync::atomic::AtomicBool::new(false);
                             if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
-                                init();
+                                init().unwrap();
                             } else {
                                 log::warn!("initialization was attempted more than once?");
                             }
