@@ -5,23 +5,6 @@ mod dl;
 mod dxgi_shim;
 mod hooks;
 
-pub fn main() -> Result<(), anyhow::Error> {
-    unsafe {
-        winapi::um::consoleapi::AllocConsole();
-    }
-
-    env_logger::Builder::from_default_env()
-        .filter(Some("dxgi"), log::LevelFilter::Info)
-        .init();
-    log::info!("mod loader ready!");
-
-    unsafe {
-        hooks::install()?;
-    }
-
-    Ok(())
-}
-
 #[no_mangle]
 pub unsafe extern "system" fn DllMain(
     _module: winapi::shared::minwindef::HINSTANCE,
@@ -31,6 +14,6 @@ pub unsafe extern "system" fn DllMain(
     if call_reason != winapi::um::winnt::DLL_PROCESS_ATTACH {
         return winapi::shared::minwindef::TRUE;
     }
-    main().unwrap();
+    hooks::stage0::install().unwrap();
     winapi::shared::minwindef::TRUE
 }
