@@ -1,6 +1,5 @@
 use crate::dl;
 use retour::static_detour;
-use std::os::windows::ffi::OsStringExt;
 
 static_detour! {
     static CreateWindowExA: unsafe extern "system" fn(
@@ -17,6 +16,15 @@ static_detour! {
         /* h_instance: */ winapi::shared::minwindef::HINSTANCE,
         /* lp_param: */ winapi::shared::minwindef::LPVOID
     ) -> winapi::shared::windef::HWND;
+}
+
+unsafe fn init() {
+    winapi::um::consoleapi::AllocConsole();
+    env_logger::Builder::from_default_env()
+        .filter(Some("dxgi"), log::LevelFilter::Info)
+        .init();
+    log::info!("hello!");
+    super::stage1::install().unwrap();
 }
 
 pub unsafe fn install() -> Result<(), anyhow::Error> {
@@ -48,12 +56,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                             static INITIALIZED: std::sync::atomic::AtomicBool =
                                 std::sync::atomic::AtomicBool::new(false);
                             if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
-                                winapi::um::consoleapi::AllocConsole();
-                                env_logger::Builder::from_default_env()
-                                    .filter(Some("dxgi"), log::LevelFilter::Info)
-                                    .init();
-                                log::info!("hello!");
-                                super::stage1::install().unwrap();
+                                init();
                             } else {
                                 log::warn!("initialization was attempted more than once?");
                             }
