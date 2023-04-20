@@ -7,12 +7,12 @@ pub struct ModuleHandle(winapi::shared::minwindef::HMODULE);
 
 impl ModuleHandle {
     /// Gets an already loaded module by its name.
-    pub unsafe fn get(module: &str) -> Option<Self> {
-        let module = module
+    pub unsafe fn get(module_name: &str) -> Option<Self> {
+        let module_name_w = module_name
             .encode_utf16()
             .chain(std::iter::once(0))
             .collect::<Vec<u16>>();
-        let hmodule = winapi::um::libloaderapi::GetModuleHandleW(module.as_ptr());
+        let hmodule = winapi::um::libloaderapi::GetModuleHandleW(module_name_w.as_ptr());
         if hmodule.is_null() {
             None
         } else {
