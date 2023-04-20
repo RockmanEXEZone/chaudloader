@@ -4,9 +4,6 @@ use retour::static_detour;
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::ffi::OsStringExt;
 
-pub static KERNEL32: std::sync::LazyLock<dl::ModuleHandle> =
-    std::sync::LazyLock::new(|| unsafe { dl::ModuleHandle::get("kernel32.dll").unwrap() });
-
 static_detour! {
     static CreateFileWHook: unsafe extern "system" fn(
         /* lp_file_name: */ winapi::shared::ntdef::LPCWSTR,
@@ -83,6 +80,9 @@ unsafe fn on_create_file_w(
 
 /// Install hooks into the process.
 pub unsafe fn install() -> Result<(), anyhow::Error> {
+    static KERNEL32: std::sync::LazyLock<dl::ModuleHandle> =
+        std::sync::LazyLock::new(|| unsafe { dl::ModuleHandle::get("kernel32.dll").unwrap() });
+
     // BNLC actually uses both CreateFileA and CreateFileW... It seems like the third-party code uses CreateFileW but the BNLC code itself uses CreateFileA...
     //
     // Since we don't really care about the distincton, let's just normalize it here and hook it all via on_create_file_w.
