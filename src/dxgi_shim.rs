@@ -1,6 +1,5 @@
 //! Contains shim functions that just forward dxgi.dll calls to the system dxgi.dll.
 use crate::dl;
-use std::os::windows::ffi::OsStringExt;
 
 static DXGI: std::sync::LazyLock<dl::ModuleHandle> = std::sync::LazyLock::new(|| unsafe {
     dl::ModuleHandle::load(&dl::get_system_directory().join("dxgi.dll")).unwrap()

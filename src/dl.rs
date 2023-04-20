@@ -1,6 +1,7 @@
 //! Dynamic linker functions.
 
 use std::os::windows::ffi::OsStrExt;
+use std::os::windows::ffi::OsStringExt;
 
 pub fn get_system_directory() -> std::path::PathBuf {
     unsafe {

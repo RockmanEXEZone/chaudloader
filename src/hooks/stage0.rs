@@ -53,6 +53,16 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     datfile_names.sort_unstable();
     log::info!("loaded datfiles: {:?}", datfile_names);
 
+    super::stage1::set_file_replacements(
+        datfile_names
+            .iter()
+            .map(|file_name| {
+                let path = std::path::Path::new(&format!("../exe/data/{}", file_name)).to_owned();
+                (path.clone(), path)
+            })
+            .collect::<std::collections::HashMap<_, _>>(),
+    );
+
     super::stage1::install()?;
     Ok(())
 }
