@@ -70,7 +70,7 @@ pub unsafe extern "system" fn DXGID3D10CreateDevice(
     p_adapter: *mut std::ffi::c_void,
     flags: winapi::shared::minwindef::UINT,
     riid: winapi::shared::guiddef::REFIID,
-    pp_device: *mut std::ffi::c_void,
+    pp_device: *mut *mut std::ffi::c_void,
 ) -> winapi::um::winnt::HRESULT {
     type Func = unsafe extern "system" fn(
         handle: winapi::shared::ntdef::HANDLE,
@@ -78,7 +78,7 @@ pub unsafe extern "system" fn DXGID3D10CreateDevice(
         p_adapter: *mut std::ffi::c_void,
         flags: winapi::shared::minwindef::UINT,
         riid: winapi::shared::guiddef::REFIID,
-        pp_device: *mut std::ffi::c_void,
+        pp_device: *mut *mut std::ffi::c_void,
     ) -> winapi::um::winnt::HRESULT;
     static ORIG: std::sync::LazyLock<Func> = std::sync::LazyLock::new(|| unsafe {
         std::mem::transmute(DXGI.get_symbol_address("DXGID3D10CreateDevice").unwrap())
