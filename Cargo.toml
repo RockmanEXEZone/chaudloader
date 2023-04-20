@@ -1,5 +1,5 @@
 [package]
-name = "bnlc-mod-loader-hook"
+name = "bnlc-mod-loader-dxgi"
 version = "0.1.0"
 edition = "2021"
 
