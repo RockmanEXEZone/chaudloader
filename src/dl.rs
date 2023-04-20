@@ -2,6 +2,21 @@
 
 use std::os::windows::ffi::OsStrExt;
 
+pub fn get_system_directory() -> std::path::PathBuf {
+    unsafe {
+        let n = winapi::um::sysinfoapi::GetSystemDirectoryW(std::ptr::null_mut(), 0) as usize;
+        let mut buf = vec![0u16; n];
+        // https://learn.microsoft.com/en-us/windows/win32/api/sysinfoapi/nf-sysinfoapi-getsystemdirectoryw: If the function succeeds, the return value is the length, in TCHARs, of the string copied to the buffer, not including the terminating null character. If the length is greater than the size of the buffer, the return value is the size of the buffer required to hold the path, including the terminating null character.
+        //
+        // wtf but okay.
+        assert_eq!(
+            winapi::um::sysinfoapi::GetSystemDirectoryW(buf.as_mut_ptr(), n as u32) as usize,
+            n - 1
+        );
+        std::path::Path::new(&std::ffi::OsString::from_wide(&buf[..n - 1])).to_owned()
+    }
+}
+
 /// A module handle is a handle to a DLL.
 pub struct ModuleHandle(winapi::shared::minwindef::HMODULE);
 
