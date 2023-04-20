@@ -1,5 +1,4 @@
 #![feature(lazy_cell)]
-#![feature(naked_functions)]
 
 mod dl;
 mod dxgi_shim;
