@@ -23,6 +23,8 @@ pub unsafe extern "system" fn DllMain(
             // > - Call LoadLibrary or LoadLibraryEx (either directly or indirectly). This can cause a deadlock or a crash.
             //
             // Unfortunately, we don't have a better choice, so we hope Microsoft doesn't break this later.
+            //
+            // But also whatever, everyone else is doing this: https://github.com/elishacloud/dxwrapper/blob/8ae3f626ea8fea500028c9e66abe79e8990ed478/Dllmain/Dllmain.cpp#L401
             windows_libloader::ModuleHandle::load(
                 &std::env::current_exe()
                     .unwrap()
