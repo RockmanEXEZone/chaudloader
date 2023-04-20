@@ -25,46 +25,28 @@ unsafe fn init() -> Result<(), anyhow::Error> {
         .init();
     log::info!("hello!");
 
-    let datfiles = std::fs::read_dir("data")?
-        .map(|entry| {
+    {
+        let mut asset_replacer = super::stage1::ASSET_REPLACER.lock().unwrap();
+
+        for entry in std::fs::read_dir("data")? {
             let entry = entry?;
             if entry.path().extension() != Some(&std::ffi::OsStr::new("dat")) {
-                return Ok(None);
+                continue;
             }
 
             let file_name = entry.file_name().to_string_lossy().to_string();
             if !file_name.starts_with("exe") && file_name != "reader.dat" && file_name != "rkb.dat"
             {
-                return Ok(None);
+                continue;
             }
 
-            let f = std::fs::File::open(entry.path())?;
-
-            Ok::<_, anyhow::Error>(Some((
-                std::path::Path::new("data").join(file_name),
-                datfile::Repacker::new(f)?,
-            )))
-        })
-        .flat_map(|v| match v {
-            Ok(None) => None,
-            Ok(Some(v)) => Some(Ok(v)),
-            Err(e) => Some(Err(e)),
-        })
-        .collect::<Result<std::collections::HashMap<_, _>, _>>()?;
-
-    let mut datfile_names = datfiles.keys().collect::<Vec<_>>();
-    datfile_names.sort_unstable();
-    log::info!("loaded datfiles: {:?}", datfile_names);
-
-    super::stage1::set_file_replacements(
-        datfiles
-            .into_iter()
-            .map(|(path, repacker)| {
-                let repacked_path = datfile::repack_and_keep(repacker)?;
-                Ok::<_, anyhow::Error>((path, repacked_path))
-            })
-            .collect::<Result<std::collections::HashMap<_, _>, _>>()?,
-    );
+            asset_replacer.add(&entry.path(), |r, w| {
+                let repacker = datfile::Repacker::new(r)?;
+                repacker.finish(w)?;
+                Ok(())
+            });
+        }
+    }
 
     super::stage1::install()?;
     Ok(())

@@ -55,16 +55,3 @@ where
         Ok(())
     }
 }
-
-static TEMPDIR: std::sync::LazyLock<tempfile::TempDir> =
-    std::sync::LazyLock::new(|| tempfile::TempDir::new().unwrap());
-
-pub fn repack_and_keep<R>(repacker: Repacker<R>) -> Result<std::path::PathBuf, Error>
-where
-    R: std::io::Read + std::io::Seek,
-{
-    let mut dest_f = tempfile::NamedTempFile::new_in(TEMPDIR.path())?;
-    repacker.finish(&mut dest_f)?;
-    let (_, path) = dest_f.keep()?;
-    Ok(path)
-}
