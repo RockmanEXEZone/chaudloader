@@ -1,4 +1,4 @@
-use crate::datfile;
+use crate::assets;
 use retour::static_detour;
 
 static_detour! {
@@ -26,7 +26,7 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     log::info!("hello!");
 
     {
-        let mut asset_replacer = super::stage1::ASSET_REPLACER.lock().unwrap();
+        let mut asset_replacer = assets::REPLACER.lock().unwrap();
 
         for entry in std::fs::read_dir("data")? {
             let entry = entry?;
@@ -41,7 +41,7 @@ unsafe fn init() -> Result<(), anyhow::Error> {
             }
 
             asset_replacer.add(&entry.path(), |r, w| {
-                let repacker = datfile::Repacker::new(r)?;
+                let repacker = assets::dat::Repacker::new(r)?;
                 repacker.finish(w)?;
                 Ok(())
             });

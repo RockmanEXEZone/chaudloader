@@ -1,3 +1,4 @@
+use crate::assets;
 use normpath::PathExt;
 use retour::static_detour;
 
@@ -5,7 +6,7 @@ use std::os::windows::ffi::OsStrExt;
 use std::os::windows::ffi::OsStringExt;
 
 static_detour! {
-    static CreateFileWHook: unsafe extern "system" fn(
+    pub static CreateFileWHook: unsafe extern "system" fn(
         /* lp_file_name: */ winapi::shared::ntdef::LPCWSTR,
         /* dw_desired_access: */ winapi::shared::minwindef::DWORD,
         /* dw_share_mode: */ winapi::shared::minwindef::DWORD,
@@ -15,7 +16,7 @@ static_detour! {
         /* handle: */ winapi::shared::ntdef::HANDLE
     ) -> winapi::shared::ntdef::HANDLE;
 
-    static CreateFileAHook: unsafe extern "system" fn(
+    pub static CreateFileAHook: unsafe extern "system" fn(
         /* lp_file_name: */ winapi::shared::ntdef::LPCSTR,
         /* dw_desired_access: */ winapi::shared::minwindef::DWORD,
         /* dw_share_mode: */ winapi::shared::minwindef::DWORD,
@@ -25,69 +26,6 @@ static_detour! {
         /* handle: */ winapi::shared::ntdef::HANDLE
     ) -> winapi::shared::ntdef::HANDLE;
 }
-
-pub trait ReadSeek: std::io::Read + std::io::Seek {}
-impl<T: std::io::Read + std::io::Seek> ReadSeek for T {}
-
-pub trait WriteSeek: std::io::Write + std::io::Seek {}
-impl<T: std::io::Write + std::io::Seek> WriteSeek for T {}
-
-pub struct AssetReplacer {
-    replacers: std::collections::HashMap<
-        std::path::PathBuf,
-        Box<dyn Fn(&mut dyn ReadSeek, &mut dyn WriteSeek) -> Result<(), anyhow::Error> + Send>,
-    >,
-}
-
-impl AssetReplacer {
-    fn new() -> Result<Self, std::io::Error> {
-        Ok(Self {
-            replacers: std::collections::HashMap::new(),
-        })
-    }
-
-    pub fn add(
-        &mut self,
-        name: &std::path::Path,
-        replacer: impl Fn(&mut dyn ReadSeek, &mut dyn WriteSeek) -> Result<(), anyhow::Error>
-            + Send
-            + 'static,
-    ) {
-        self.replacers
-            .insert(name.to_path_buf(), Box::new(replacer));
-    }
-
-    fn get_replaced_path(
-        &self,
-        path: &std::path::Path,
-    ) -> Result<Option<std::path::PathBuf>, anyhow::Error> {
-        let replacer = if let Some(replacer) = self.replacers.get(path) {
-            replacer
-        } else {
-            return Ok(None);
-        };
-
-        unsafe {
-            CreateFileAHook.disable()?;
-            CreateFileWHook.disable()?;
-        }
-
-        let mut src_f = std::fs::File::open(path)?;
-        let mut dest_f = tempfile::NamedTempFile::new()?;
-        replacer(&mut src_f, &mut dest_f)?;
-
-        unsafe {
-            CreateFileAHook.enable()?;
-            CreateFileWHook.enable()?;
-        }
-
-        let (_, path) = dest_f.keep()?;
-        Ok(Some(path))
-    }
-}
-
-pub static ASSET_REPLACER: std::sync::LazyLock<std::sync::Mutex<AssetReplacer>> =
-    std::sync::LazyLock::new(|| std::sync::Mutex::new(AssetReplacer::new().unwrap()));
 
 unsafe fn on_create_file(
     path: &std::path::Path,
@@ -105,9 +43,9 @@ unsafe fn on_create_file(
         .unwrap_or(&path)
         .to_path_buf();
 
-    let asset_replacer = ASSET_REPLACER.lock().unwrap();
+    let assets_replacer = assets::REPLACER.lock().unwrap();
     let mut file_was_replaced = false;
-    if let Some(replaced_path) = asset_replacer.get_replaced_path(&path).unwrap() {
+    if let Some(replaced_path) = assets_replacer.get_replaced_path(&path).unwrap() {
         log::info!("read to {} was redirected", path.display());
         path = replaced_path;
 

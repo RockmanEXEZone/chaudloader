@@ -1,6 +1,6 @@
 #![feature(lazy_cell)]
 
-mod datfile;
+mod assets;
 mod hooks;
 
 #[no_mangle]
