@@ -80,7 +80,6 @@ dependencies = [
  "tempfile",
  "thiserror",
  "winapi",
- "windows-libloader",
  "zip",
 ]
 
@@ -187,14 +186,6 @@ dependencies = [
  "block-buffer",
  "crypto-common",
  "subtle",
-]
-
-[[package]]
-name = "dxgi-shim"
-version = "0.1.0"
-dependencies = [
- "winapi",
- "windows-libloader",
 ]
 
 [[package]]
@@ -327,9 +318,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.142"
+version = "0.2.141"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a987beff54b60ffa6d51982e1aa1146bc42f19bd26be28b0586f252fccf5317"
+checksum = "3304a64d199bb964be99741b7a14d26972741915b3649639149b2479bb46f4b5"
 
 [[package]]
 name = "libudis86-sys"
@@ -683,13 +674,6 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-
-[[package]]
-name = "windows-libloader"
-version = "0.1.0"
-dependencies = [
- "winapi",
-]
 
 [[package]]
 name = "windows-sys"

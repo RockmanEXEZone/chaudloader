@@ -1,9 +1,36 @@
 //! Contains shim functions that just forward dxgi.dll calls to the system dxgi.dll.
-use crate::dl;
 
-static DXGI: std::sync::LazyLock<dl::ModuleHandle> = std::sync::LazyLock::new(|| unsafe {
-    dl::ModuleHandle::load(&dl::get_system_directory().join("dxgi.dll")).unwrap()
-});
+#![feature(lazy_cell)]
+
+static DXGI: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+    std::sync::LazyLock::new(|| unsafe {
+        windows_libloader::ModuleHandle::load(
+            &windows_libloader::get_system_directory().join("dxgi.dll"),
+        )
+        .unwrap()
+    });
+
+#[no_mangle]
+pub unsafe extern "system" fn DllMain(
+    _module: winapi::shared::minwindef::HINSTANCE,
+    call_reason: winapi::shared::minwindef::DWORD,
+    _reserved: winapi::shared::minwindef::LPVOID,
+) -> winapi::shared::minwindef::BOOL {
+    match call_reason {
+        winapi::um::winnt::DLL_PROCESS_ATTACH => {
+            windows_libloader::ModuleHandle::load(
+                &std::env::current_exe()
+                    .unwrap()
+                    .parent()
+                    .unwrap()
+                    .join("bnlc_mod_loader.dll"),
+            )
+            .unwrap();
+        }
+        _ => {}
+    }
+    winapi::shared::minwindef::TRUE
+}
 
 #[no_mangle]
 pub unsafe extern "system" fn DXGIDumpJournal(

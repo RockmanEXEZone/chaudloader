@@ -1,8 +1,6 @@
 #![feature(lazy_cell)]
 
 mod datfile;
-mod dl;
-mod dxgi_shim;
 mod hooks;
 
 #[no_mangle]

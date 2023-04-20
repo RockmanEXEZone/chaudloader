@@ -1,4 +1,3 @@
-use crate::dl;
 use normpath::PathExt;
 use retour::static_detour;
 
@@ -96,7 +95,7 @@ unsafe fn on_create_file(
     mut dw_share_mode: winapi::shared::minwindef::DWORD,
     lp_security_attributes: winapi::um::minwinbase::LPSECURITY_ATTRIBUTES,
     dw_creation_disposition: winapi::shared::minwindef::DWORD,
-    mut dw_flags_and_attributes: winapi::shared::minwindef::DWORD,
+    dw_flags_and_attributes: winapi::shared::minwindef::DWORD,
     handle: winapi::shared::ntdef::HANDLE,
 ) -> winapi::shared::ntdef::HANDLE {
     let path = path.normalize_virtually().unwrap().into_path_buf();
@@ -140,8 +139,10 @@ unsafe fn on_create_file(
 
 /// Install hooks into the process.
 pub unsafe fn install() -> Result<(), anyhow::Error> {
-    static KERNEL32: std::sync::LazyLock<dl::ModuleHandle> =
-        std::sync::LazyLock::new(|| unsafe { dl::ModuleHandle::get("kernel32.dll").unwrap() });
+    static KERNEL32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+        std::sync::LazyLock::new(|| unsafe {
+            windows_libloader::ModuleHandle::get("kernel32.dll").unwrap()
+        });
 
     // BNLC actually uses both CreateFileA and CreateFileW... It seems like the third-party code uses CreateFileW but the BNLC code itself uses CreateFileA...
     //

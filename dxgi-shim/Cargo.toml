@@ -1,0 +1,12 @@
+[package]
+name = "dxgi-shim"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "dxgi"
+crate-type = ["cdylib"]
+
+[dependencies]
+winapi = "0.3"
+windows-libloader = { path = "../windows-libloader" }

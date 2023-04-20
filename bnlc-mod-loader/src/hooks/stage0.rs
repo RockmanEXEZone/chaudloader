@@ -1,4 +1,4 @@
-use crate::{datfile, dl};
+use crate::datfile;
 use retour::static_detour;
 
 static_detour! {
@@ -53,8 +53,10 @@ unsafe fn init() -> Result<(), anyhow::Error> {
 }
 
 pub unsafe fn install() -> Result<(), anyhow::Error> {
-    static USER32: std::sync::LazyLock<dl::ModuleHandle> =
-        std::sync::LazyLock::new(|| unsafe { dl::ModuleHandle::get("user32.dll").unwrap() });
+    static USER32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+        std::sync::LazyLock::new(|| unsafe {
+            windows_libloader::ModuleHandle::get("user32.dll").unwrap()
+        });
 
     unsafe {
         CreateWindowExA
