@@ -7,10 +7,7 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
-/// Repacks a .dat (zip) archive.
-///
-/// Files may be replaced via the replacements map, which contains a single-use reader to read from for each entry to replace the asset's contents with.
-pub fn repack(
+fn repack_into(
     reader: impl std::io::Read + std::io::Seek,
     mut replacements: std::collections::HashMap<String, Box<dyn std::io::Read>>,
     writer: impl std::io::Write + std::io::Seek,
@@ -31,4 +28,26 @@ pub fn repack(
         }
     }
     Ok(())
+}
+
+// Remember all of our repacked files so we can run destructors on exit.
+//
+// TODO: Run destructors on exit.
+static REPACKED_FILES: std::sync::LazyLock<std::sync::Mutex<Vec<tempfile::NamedTempFile>>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(vec![]));
+
+/// Repacks a .dat (zip) archive.
+///
+/// Files may be replaced via the replacements map, which contains a single-use reader to read from for each entry to replace the asset's contents with.
+pub fn repack(
+    path: &std::path::Path,
+    replacements: std::collections::HashMap<String, Box<dyn std::io::Read>>,
+) -> Result<std::path::PathBuf, Error> {
+    let mut src_f = std::fs::File::open(path)?;
+    let mut dest_f = tempfile::NamedTempFile::new()?;
+    repack_into(&mut src_f, replacements, &mut dest_f)?;
+    let path = dest_f.path().to_owned();
+    let mut repacked_files = REPACKED_FILES.lock().unwrap();
+    repacked_files.push(dest_f);
+    Ok(path)
 }
