@@ -21,3 +21,5 @@ const_format = "0.2"
 mlua = { version = "0.8", features = ["lua54", "vendored"] }
 serde = { version = "1", features = ["derive"] }
 toml = "0.4"
+byteorder = "1"
+indexmap = "1"

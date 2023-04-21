@@ -1,3 +1,4 @@
+pub mod mpak;
 pub mod zipdat;
 
 pub trait ReadSeek: std::io::Read + std::io::Seek {}
