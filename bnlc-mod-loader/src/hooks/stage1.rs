@@ -43,16 +43,20 @@ unsafe fn on_create_file(
         .unwrap_or(&path)
         .to_path_buf();
 
-    let assets_replacer = assets::REPLACER.lock().unwrap();
-    let mut file_was_replaced = false;
-    if let Some(replaced_path) = assets_replacer.get_replaced_path(&path).unwrap() {
-        log::info!("read to {} was redirected", path.display());
-        path = replaced_path;
+    let _replaced_path: Box<dyn std::any::Any> = {
+        let assets_replacer = assets::REPLACER.lock().unwrap();
+        if let Some(replaced_path) = assets_replacer.get_replaced_path(&path).unwrap() {
+            log::info!("read to {} was redirected", path.display());
+            path = replaced_path.to_path_buf();
 
-        // We set FILE_SHARE_DELETE here and delete the file immediately after CreateFileW to avoid temporary files hanging out.
-        dw_share_mode |= winapi::um::winnt::FILE_SHARE_DELETE;
-        file_was_replaced = true;
-    }
+            // We set FILE_SHARE_DELETE here and delete the file immediately after CreateFileW to avoid temporary files hanging out.
+            dw_share_mode |= winapi::um::winnt::FILE_SHARE_DELETE;
+
+            Box::new(replaced_path)
+        } else {
+            Box::new(())
+        }
+    };
 
     let path_wstr = path
         .as_os_str()
@@ -60,7 +64,7 @@ unsafe fn on_create_file(
         .chain(std::iter::once(0))
         .collect::<Vec<_>>();
 
-    let h = CreateFileWHook.call(
+    CreateFileWHook.call(
         path_wstr[..].as_ptr(),
         dw_desired_access,
         dw_share_mode,
@@ -68,13 +72,7 @@ unsafe fn on_create_file(
         dw_creation_disposition,
         dw_flags_and_attributes,
         handle,
-    );
-
-    if file_was_replaced {
-        std::fs::remove_file(path).unwrap();
-    }
-
-    h
+    )
 }
 
 /// Install hooks into the process.

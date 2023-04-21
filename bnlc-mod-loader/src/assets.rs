@@ -36,7 +36,7 @@ impl Replacer {
     pub fn get_replaced_path(
         &self,
         path: &std::path::Path,
-    ) -> Result<Option<std::path::PathBuf>, anyhow::Error> {
+    ) -> Result<Option<ReplacedPath>, anyhow::Error> {
         let replacer = if let Some(replacer) = self.replacers.get(path) {
             replacer
         } else {
@@ -52,7 +52,23 @@ impl Replacer {
         let mut dest_f = tempfile::NamedTempFile::new()?;
         replacer(&mut src_f, &mut dest_f)?;
         let (_, path) = dest_f.keep()?;
-        Ok(Some(path))
+        Ok(Some(ReplacedPath(path)))
+    }
+}
+
+pub struct ReplacedPath(std::path::PathBuf);
+
+impl std::ops::Deref for ReplacedPath {
+    type Target = std::path::Path;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Drop for ReplacedPath {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
     }
 }
 
