@@ -1,4 +1,3 @@
-use crate::assets;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 
 pub struct Mpak {
@@ -54,7 +53,7 @@ impl MapEntry {
 impl Mpak {
     pub fn read_from(
         mut map_reader: impl std::io::Read,
-        mut mpak_reader: impl assets::ReadSeek,
+        mut mpak_reader: impl std::io::Read + std::io::Seek,
     ) -> Result<Self, std::io::Error> {
         // Read the entire mpak into memory: who cares, it's not very expensive.
         let header = MapHeader::read_from(&mut map_reader)?;

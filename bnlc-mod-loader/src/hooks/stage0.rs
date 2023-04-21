@@ -211,19 +211,17 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
         let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
 
         let mut overlays = overlays.lock().unwrap();
-        for (dat_filename, overlay) in overlays.drain() {
+        for (dat_filename, mut overlay) in overlays.drain() {
             // TODO: This path is a little wobbly, since it relies on BNLC specifying this weird relative path.
             // We should canonicalize this path instead.
             let dat_path = std::path::Path::new("..\\exe\\data").join(&dat_filename);
 
-            let repacker = if let Some(repacker) = overlay.into_repacker()? {
-                repacker
-            } else {
+            if !overlay.has_overlaid_files() {
                 continue;
-            };
+            }
 
             let mut writer = assets_replacer.add(&dat_path)?;
-            repacker.pack_into(&mut writer)?;
+            overlay.pack_into(&mut writer)?;
         }
     }
     super::stage1::install()?;
