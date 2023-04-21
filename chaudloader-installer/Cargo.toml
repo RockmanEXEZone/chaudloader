@@ -1,5 +1,5 @@
 [package]
-name = "bnlc-mod-loader-installer"
+name = "chaudloader-installer"
 version = "0.1.0"
 edition = "2021"
 

@@ -14,7 +14,7 @@ pub struct Replacer {
 
 impl Replacer {
     pub fn new(game_name: &str) -> Result<Self, std::io::Error> {
-        let temp_dir = std::env::temp_dir().join("bnlc_mod_loader").join(game_name);
+        let temp_dir = std::env::temp_dir().join("chaudloader").join(game_name);
 
         // Wipe existing temp directory, if possible.
         match std::fs::remove_dir_all(&temp_dir) {

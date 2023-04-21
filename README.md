@@ -1,6 +1,6 @@
-# bnlc-mod-loader
+# chaudloader
 
-bnlc-mod-loader is a mod loader for Mega Man Battle Network Legacy Collection.
+chaudloader is a mod loader for Mega Man Battle Network Legacy Collection.
 
 ## For users
 

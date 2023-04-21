@@ -65,7 +65,7 @@ fn real_main() -> Result<(), anyhow::Error> {
         .ok_or_else(|| anyhow::anyhow!("could not get parent directory"))?;
 
     let dxgi_dll = std::fs::read(src_path.join("dxgi.dll"))?;
-    let bnlc_mod_loader_dll = std::fs::read(src_path.join("bnlc_mod_loader.dll"))?;
+    let chaudloader_dll = std::fs::read(src_path.join("chaudloader.dll"))?;
 
     for path in paths {
         let exe_path = path.join("exe");
@@ -75,10 +75,10 @@ fn real_main() -> Result<(), anyhow::Error> {
         dxgi_dll_f.write_all(&dxgi_dll)?;
         println!("OK: {}", dxgi_dll_path.display());
 
-        let bnlc_mod_loader_dll_path = exe_path.join("bnlc_mod_loader.dll");
-        let mut bnlc_mod_loader_dll_f = std::fs::File::create(&bnlc_mod_loader_dll_path)?;
-        bnlc_mod_loader_dll_f.write_all(&bnlc_mod_loader_dll)?;
-        println!("OK: {}", bnlc_mod_loader_dll_path.display());
+        let chaudloader_dll_path = exe_path.join("chaudloader.dll");
+        let mut chaudloader_dll_f = std::fs::File::create(&chaudloader_dll_path)?;
+        chaudloader_dll_f.write_all(&chaudloader_dll)?;
+        println!("OK: {}", chaudloader_dll_path.display());
 
         let mods_path = exe_path.join("mods");
         match std::fs::create_dir(&mods_path) {

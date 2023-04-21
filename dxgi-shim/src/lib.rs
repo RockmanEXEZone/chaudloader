@@ -34,7 +34,7 @@ pub unsafe extern "system" fn DllMain(
                             .unwrap()
                             .parent()
                             .unwrap()
-                            .join("bnlc_mod_loader.dll"),
+                            .join("chaudloader.dll"),
                     )
                     .unwrap(),
                 )

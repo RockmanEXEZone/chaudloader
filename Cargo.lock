@@ -74,36 +74,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bnlc-mod-loader"
-version = "0.3.0"
-dependencies = [
- "anyhow",
- "byteorder",
- "clean-path",
- "const_format",
- "env_logger",
- "indexmap",
- "log",
- "mlua",
- "retour",
- "serde",
- "tempfile",
- "thiserror",
- "toml",
- "winapi",
- "windows-libloader",
- "zip",
-]
-
-[[package]]
-name = "bnlc-mod-loader-installer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "steamlocate",
-]
-
-[[package]]
 name = "bstr"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -153,6 +123,36 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "chaudloader"
+version = "0.3.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "clean-path",
+ "const_format",
+ "env_logger",
+ "indexmap",
+ "log",
+ "mlua",
+ "retour",
+ "serde",
+ "tempfile",
+ "thiserror",
+ "toml",
+ "winapi",
+ "windows-libloader",
+ "zip",
+]
+
+[[package]]
+name = "chaudloader-installer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "steamlocate",
+]
 
 [[package]]
 name = "cipher"

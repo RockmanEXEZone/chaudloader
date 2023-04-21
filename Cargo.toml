@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
-    "bnlc-mod-loader",
-    "bnlc-mod-loader-installer",
+    "chaudloader",
+    "chaudloader-installer",
     "windows-libloader",
     "dxgi-shim"
 ]
