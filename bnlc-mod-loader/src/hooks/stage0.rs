@@ -40,6 +40,29 @@ const BANNER: &str = const_format::formatcp!(
     env!("CARGO_PKG_VERSION")
 );
 
+fn scan_dats_as_overlays(
+) -> Result<std::collections::HashMap<String, assets::dat::Overlay>, anyhow::Error> {
+    let mut overlays = std::collections::HashMap::new();
+    for entry in std::fs::read_dir("data")? {
+        let entry = entry?;
+        if entry.path().extension() != Some(&std::ffi::OsStr::new("dat")) {
+            continue;
+        }
+
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        if !file_name.starts_with("exe") && file_name != "reader.dat" && file_name != "rkb.dat" {
+            continue;
+        }
+
+        let mut src_f = std::fs::File::open(&entry.path())?;
+        let reader = assets::dat::Reader::new(src_f)?;
+
+        let overlay = assets::dat::Overlay::new(reader);
+        overlays.insert(file_name, overlay);
+    }
+    Ok(overlays)
+}
+
 fn scan_mods() -> Result<std::collections::HashMap<std::ffi::OsString, mods::Info>, anyhow::Error> {
     match std::fs::read_dir("mods") {
         Ok(read_dir) => {
@@ -100,9 +123,14 @@ unsafe fn init() -> Result<(), anyhow::Error> {
         .init();
     log::info!("{}", BANNER);
 
+    // Load all archives as overlays.
+    let overlays = scan_dats_as_overlays()?;
+    let mut dat_names = overlays.keys().collect::<Vec<_>>();
+    dat_names.sort_unstable();
+    log::info!("found dat archives: {:?}", dat_names);
+
     // Scan for mods.
     let mods = scan_mods()?;
-
     let mut mod_names = mods.keys().collect::<Vec<_>>();
     mod_names.sort_unstable();
     log::info!("found mods: {:?}", mod_names);

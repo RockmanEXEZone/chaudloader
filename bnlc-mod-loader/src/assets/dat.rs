@@ -1,3 +1,5 @@
+use std::io::Read;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("zip: {0}")]
@@ -16,17 +18,14 @@ pub enum Error {
     Other(#[from] anyhow::Error),
 }
 
-pub struct Reader<R> {
-    zr: zip::ZipArchive<R>,
+pub struct Reader {
+    zr: zip::ZipArchive<Box<dyn super::ReadSeek>>,
 }
 
-impl<R> Reader<R>
-where
-    R: std::io::Read + std::io::Seek,
-{
-    pub fn new(reader: R) -> Result<Self, zip::result::ZipError> {
+impl Reader {
+    pub fn new(reader: impl super::ReadSeek + 'static) -> Result<Self, zip::result::ZipError> {
         Ok(Self {
-            zr: zip::ZipArchive::new(reader)?,
+            zr: zip::ZipArchive::new(Box::new(reader) as Box<dyn super::ReadSeek>)?,
         })
     }
 
@@ -44,6 +43,38 @@ pub struct Repacker<R> {
         String,
         Box<dyn Fn(&mut dyn std::io::Write) -> Result<(), anyhow::Error>>,
     >,
+}
+
+pub struct Overlay {
+    base: Reader,
+    overlaid_files: std::collections::HashMap<String, Vec<u8>>,
+}
+
+impl Overlay {
+    pub fn new(base: Reader) -> Self {
+        Self {
+            base,
+            overlaid_files: std::collections::HashMap::new(),
+        }
+    }
+
+    pub fn read<'a>(&'a mut self, path: &str) -> Result<std::borrow::Cow<'a, [u8]>, Error> {
+        if let Some(contents) = self.overlaid_files.get(path) {
+            return Ok(std::borrow::Cow::Borrowed(&contents));
+        }
+        let mut zf = self.base.get(path)?;
+        let mut buf = vec![];
+        zf.read_to_end(&mut buf)?;
+        Ok(std::borrow::Cow::Owned(buf))
+    }
+
+    pub fn write<'a>(&'a mut self, path: &str, contents: Vec<u8>) {
+        self.overlaid_files.insert(path.to_string(), contents);
+    }
+
+    pub fn into_overlaid_files(self) -> std::collections::HashMap<String, Vec<u8>> {
+        self.overlaid_files
+    }
 }
 
 impl<R> Repacker<R>

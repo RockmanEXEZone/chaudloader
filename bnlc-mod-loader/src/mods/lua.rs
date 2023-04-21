@@ -45,12 +45,14 @@ fn make_bnlc_mod_loader_table<'a>(
     lua: &'a mlua::Lua,
     mod_name: &'a std::ffi::OsStr,
 ) -> Result<mlua::Table<'a>, mlua::Error> {
+    let table = lua.create_table()?;
+
     let mod_path = std::path::Path::new("mods").join(mod_name);
 
     table.set(
         "write_dat_contents",
         lua.create_function(
-            |_, (dat_filename, asset_filename, contents): (String, String, String)| {
+            |_, (dat_filename, asset_filename, contents): (String, String, Vec<u8>)| {
                 todo!();
                 Ok(())
             },
