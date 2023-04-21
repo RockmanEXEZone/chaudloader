@@ -18,3 +18,6 @@ tempfile = "3"
 normpath = "1"
 windows-libloader = { path = "../windows-libloader" }
 const_format = "0.2"
+mlua = { version = "0.8", features = ["lua54", "vendored"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.4"

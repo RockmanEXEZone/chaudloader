@@ -1,4 +1,6 @@
-use crate::assets;
+use std::io::Read;
+
+use crate::{assets, mods};
 use retour::static_detour;
 
 static_detour! {
@@ -38,6 +40,64 @@ const BANNER: &str = const_format::formatcp!(
     env!("CARGO_PKG_VERSION")
 );
 
+fn scan_mods() -> Result<std::collections::HashMap<String, mods::Info>, anyhow::Error> {
+    match std::fs::read_dir("mods") {
+        Ok(read_dir) => {
+            let mut mods = std::collections::HashMap::new();
+            for entry in read_dir {
+                let entry = entry?;
+
+                if !entry.file_type()?.is_dir() {
+                    continue;
+                }
+
+                let mod_name = entry
+                    .path()
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .to_string();
+
+                if let Err(e) = (|| -> Result<(), anyhow::Error> {
+                    // Verify init.lua exists.
+                    if !std::fs::try_exists(entry.path().join("init.lua"))? {
+                        return Err(anyhow::anyhow!("missing init.lua"));
+                    }
+
+                    // Check for info.toml.
+                    let mut info_f = match std::fs::File::open(entry.path().join("info.toml")) {
+                        Ok(f) => f,
+                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                            return Ok(());
+                        }
+                        Err(e) => {
+                            return Err(e.into());
+                        }
+                    };
+
+                    let mut buf = vec![];
+                    info_f.read_to_end(&mut buf)?;
+                    let info = toml::from_slice::<mods::Info>(&buf)?;
+
+                    mods.insert(mod_name.clone(), info);
+
+                    Ok(())
+                })() {
+                    log::warn!("mod {} failed to load: {}", mod_name, e);
+                }
+            }
+            Ok(mods)
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            log::warn!("no mods directory found");
+            Ok(std::collections::HashMap::new())
+        }
+        Err(e) => {
+            return Err(e.into());
+        }
+    }
+}
+
 unsafe fn init() -> Result<(), anyhow::Error> {
     winapi::um::consoleapi::AllocConsole();
     env_logger::Builder::from_default_env()
@@ -45,27 +105,12 @@ unsafe fn init() -> Result<(), anyhow::Error> {
         .init();
     log::info!("{}", BANNER);
 
-    {
-        let mut asset_replacer = assets::REPLACER.lock().unwrap();
+    // Scan for mods.
+    let mods = scan_mods()?;
 
-        for entry in std::fs::read_dir("data")? {
-            let entry = entry?;
-            if entry.path().extension() != Some(&std::ffi::OsStr::new("dat")) {
-                continue;
-            }
-
-            let file_name = entry.file_name().to_string_lossy().to_string();
-            if !file_name.starts_with("exe") && file_name != "reader.dat" && file_name != "rkb.dat"
-            {
-                continue;
-            }
-
-            let mut src_f = std::fs::File::open(&entry.path())?;
-            let repacker = assets::dat::Repacker::new(&mut src_f)?;
-            let mut dest_f = asset_replacer.add(&entry.path())?;
-            repacker.finish(&mut dest_f)?;
-        }
-    }
+    let mut mod_names = mods.keys().collect::<Vec<_>>();
+    mod_names.sort_unstable();
+    log::info!("found mods: {:?}", mod_names);
 
     super::stage1::install()?;
     Ok(())

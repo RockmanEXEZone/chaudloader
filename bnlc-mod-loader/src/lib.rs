@@ -1,7 +1,9 @@
 #![feature(lazy_cell)]
+#![feature(fs_try_exists)]
 
 mod assets;
 mod hooks;
+mod mods;
 
 #[no_mangle]
 pub unsafe extern "system" fn DllMain(
