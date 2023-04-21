@@ -18,7 +18,7 @@ jobs:
             - uses: ilammy/msvc-dev-cmd@v1
             - uses: dtolnay/rust-toolchain@nightly
             - run: cargo build --release
-            - run: 7z a -tzip dist.zip ./target/release/bnlc_mod_loader.dll ./target/release/dxgi.dll
+            - run: 7z a -tzip dist.zip ./target/release/bnlc_mod_loader.dll ./target/release/dxgi.dll ./README.md
               shell: bash
             - uses: actions/upload-release-asset@v1
               env:

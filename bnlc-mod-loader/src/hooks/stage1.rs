@@ -35,6 +35,7 @@ unsafe fn on_create_file(
     dw_flags_and_attributes: winapi::shared::minwindef::DWORD,
     handle: winapi::shared::ntdef::HANDLE,
 ) -> winapi::shared::ntdef::HANDLE {
+    // FIXME: This path is relative to the exe folder, but is sometimes something like ..\exe\data\exe1.dat. We should canonicalize it in all cases to intercept all reads.
     let path = clean_path::clean(path);
 
     let new_path = {

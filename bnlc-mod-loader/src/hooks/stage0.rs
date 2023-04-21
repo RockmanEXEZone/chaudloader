@@ -215,6 +215,8 @@ unsafe fn init() -> Result<(), anyhow::Error> {
         let mut assets_replacer = assets::REPLACER.lock().unwrap();
         let mut overlays = overlays.lock().unwrap();
         for (dat_filename, overlay) in overlays.drain() {
+            // TODO: This path is a little wobbly, since it relies on BNLC specifying this weird relative path.
+            // We should canonicalize this path instead.
             let dat_path = std::path::Path::new("..\\exe\\data").join(&dat_filename);
 
             let repacker = if let Some(repacker) = overlay.into_repacker()? {
