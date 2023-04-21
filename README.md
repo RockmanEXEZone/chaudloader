@@ -36,28 +36,28 @@ function print(...)
 
 -- Reads the contents of a file out of a .dat file (e.g. `exe6.dat`).
 --
--- Previous calls to write_zipdat_contents are visible to subsequent calls to read_zipdat_contents.
-function bnlc_mod_loader.read_zipdat_contents(zipdat_filename: string, path: string): string
+-- Previous calls to write_exe_zipdat_contents are visible to subsequent calls to read_exe_zipdat_contents.
+function bnlc_mod_loader.read_exe_zipdat_contents(zipdat_filename: string, path: string): string
 
 -- Writes the given data into a .dat file.
 --
 -- Note that this does not mutate the original .dat file on disk, but for all intents and purposes to both the game and the mod loader it does.
-function bnlc_mod_loader.write_zipdat_contents(zipdat_filename: string, path: string, contents: string)
+function bnlc_mod_loader.write_exe_zipdat_contents(zipdat_filename: string, path: string, contents: string)
 
 -- Reads the contents of a file from the mod folder.
 function bnlc_mod_loader.read_mod_contents(path: string): string
 
 -- Deprecated aliases.
-bnlc_mod_loader.read_dat_contents = bnlc_mod_loader.read_zipdat_contents
-bnlc_mod_loader.write_dat_contents = bnlc_mod_loader.write_zipdat_contents
+bnlc_mod_loader.read_dat_contents = bnlc_mod_loader.read_exe_zipdat_contents
+bnlc_mod_loader.write_dat_contents = bnlc_mod_loader.write_exe_zipdat_contents
 ```
 
 For instance, for a simple font mod, you can write the following script:
 
 ```lua
 local font = bnlc_mod_loader.read_mod_contents("eng_mojiFont.fnt")
-bnlc_mod_loader.write_zipdat_contents("exe6.dat", "exe6/data/font/eng_mojiFont.fnt", font)
-bnlc_mod_loader.write_zipdat_contents("exe6f.dat", "exe6f/data/font/eng_mojiFont.fnt", font)
+bnlc_mod_loader.write_exe_zipdat_contents("exe6.dat", "exe6/data/font/eng_mojiFont.fnt", font)
+bnlc_mod_loader.write_exe_zipdat_contents("exe6f.dat", "exe6f/data/font/eng_mojiFont.fnt", font)
 ```
 
 Mods are order dependent: the DAT contents written by a previous mod will be visible to a subsequent mod.

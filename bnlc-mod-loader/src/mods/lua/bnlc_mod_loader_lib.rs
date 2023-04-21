@@ -29,7 +29,7 @@ pub fn new<'a>(
     let mod_path = std::path::Path::new("mods").join(mod_name);
 
     table.set(
-        "write_zipdat_contents",
+        "write_exe_zipdat_contents",
         lua.create_function({
             let overlays = std::sync::Arc::clone(&overlays);
             move |_, (dat_filename, path, contents): (String, String, mlua::String)| {
@@ -47,7 +47,7 @@ pub fn new<'a>(
     )?;
 
     table.set(
-        "read_zipdat_contents",
+        "read_exe_zipdat_contents",
         lua.create_function({
             let overlays = std::sync::Arc::clone(&overlays);
             move |lua, (dat_filename, path): (String, String)| {
@@ -82,11 +82,11 @@ pub fn new<'a>(
     // Aliases.
     table.set(
         "write_dat_contents",
-        table.get::<_, mlua::Value>(lua.create_string("write_zipdat_contents")?)?,
+        table.get::<_, mlua::Value>(lua.create_string("write_exe_zipdat_contents")?)?,
     )?;
     table.set(
         "read_dat_contents",
-        table.get::<_, mlua::Value>(lua.create_string("read_zipdat_contents")?)?,
+        table.get::<_, mlua::Value>(lua.create_string("read_exe_zipdat_contents")?)?,
     )?;
 
     Ok(table)
