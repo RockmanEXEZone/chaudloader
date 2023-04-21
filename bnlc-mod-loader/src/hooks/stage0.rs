@@ -108,7 +108,7 @@ fn scan_mods() -> Result<std::collections::HashMap<String, mods::Info>, anyhow::
     Ok(mods)
 }
 
-unsafe fn init() -> Result<(), anyhow::Error> {
+unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
     winapi::um::consoleapi::AllocConsole();
     env_logger::Builder::from_default_env()
         .filter(Some("bnlc_mod_loader"), log::LevelFilter::Info)
@@ -193,11 +193,15 @@ unsafe fn init() -> Result<(), anyhow::Error> {
 
     static LOADED_MODS: std::sync::OnceLock<std::collections::HashMap<String, mods::State>> =
         std::sync::OnceLock::new();
-    LOADED_MODS.get_or_init(move || loaded_mods);
+    assert!(LOADED_MODS.set(loaded_mods).is_ok());
 
     // We are done with mod initialization! We can now go repack everything from our overlays.
     {
-        let mut assets_replacer = assets::REPLACER.lock().unwrap();
+        assert!(assets::REPLACER
+            .set(std::sync::Mutex::new(assets::Replacer::new(game_name)?))
+            .is_ok());
+        let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
+
         let mut overlays = overlays.lock().unwrap();
         for (dat_filename, overlay) in overlays.drain() {
             // TODO: This path is a little wobbly, since it relies on BNLC specifying this weird relative path.
@@ -242,15 +246,15 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                           h_menu,
                           h_instance,
                           lp_param| {
-                        if std::ffi::CStr::from_ptr(lp_window_name)
-                            .to_string_lossy()
-                            .starts_with("MegaMan_BattleNetwork_LegacyCollection_")
-                        {
+                        let window_name =
+                            std::ffi::CStr::from_ptr(lp_window_name).to_string_lossy();
+
+                        if window_name.starts_with("MegaMan_BattleNetwork_LegacyCollection_") {
                             // Only initialize this once. It should be initialized on the main window being created.
                             static INITIALIZED: std::sync::atomic::AtomicBool =
                                 std::sync::atomic::AtomicBool::new(false);
                             if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
-                                init().unwrap();
+                                init(&window_name).unwrap();
                             } else {
                                 log::warn!("initialization was attempted more than once?");
                             }

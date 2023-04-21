@@ -12,8 +12,8 @@ pub struct Replacer {
 }
 
 impl Replacer {
-    fn new() -> Result<Self, std::io::Error> {
-        let temp_dir = std::env::temp_dir().join("bnlc_mod_loader");
+    pub fn new(game_name: &str) -> Result<Self, std::io::Error> {
+        let temp_dir = std::env::temp_dir().join("bnlc_mod_loader").join(game_name);
 
         // Wipe existing temp directory, if possible.
         match std::fs::remove_dir_all(&temp_dir) {
@@ -24,7 +24,7 @@ impl Replacer {
             }
         }
 
-        match std::fs::create_dir(&temp_dir) {
+        match std::fs::create_dir_all(&temp_dir) {
             Ok(_) => {}
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
             Err(e) => {
@@ -58,5 +58,4 @@ impl Replacer {
     }
 }
 
-pub static REPLACER: std::sync::LazyLock<std::sync::Mutex<Replacer>> =
-    std::sync::LazyLock::new(|| std::sync::Mutex::new(Replacer::new().unwrap()));
+pub static REPLACER: std::sync::OnceLock<std::sync::Mutex<Replacer>> = std::sync::OnceLock::new();

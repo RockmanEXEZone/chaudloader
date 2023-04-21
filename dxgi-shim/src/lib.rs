@@ -27,16 +27,18 @@ pub unsafe extern "system" fn DllMain(
             // But also whatever, everyone else is doing this: https://github.com/elishacloud/dxwrapper/blob/8ae3f626ea8fea500028c9e66abe79e8990ed478/Dllmain/Dllmain.cpp#L401
             static MOD_LOADER: std::sync::OnceLock<windows_libloader::ModuleHandle> =
                 std::sync::OnceLock::new();
-            MOD_LOADER.get_or_init(|| {
-                windows_libloader::ModuleHandle::load(
-                    &std::env::current_exe()
-                        .unwrap()
-                        .parent()
-                        .unwrap()
-                        .join("bnlc_mod_loader.dll"),
+            assert!(MOD_LOADER
+                .set(
+                    windows_libloader::ModuleHandle::load(
+                        &std::env::current_exe()
+                            .unwrap()
+                            .parent()
+                            .unwrap()
+                            .join("bnlc_mod_loader.dll"),
+                    )
+                    .unwrap(),
                 )
-                .unwrap()
-            });
+                .is_ok());
         }
         _ => {}
     }
