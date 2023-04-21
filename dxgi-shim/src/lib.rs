@@ -1,5 +1,5 @@
 //! Contains shim functions that just forward dxgi.dll calls to the system dxgi.dll.
-
+#![cfg(windows)]
 #![feature(lazy_cell)]
 
 static DXGI: std::sync::LazyLock<windows_libloader::ModuleHandle> =

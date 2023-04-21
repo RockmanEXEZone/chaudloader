@@ -1,4 +1,5 @@
 //! Dynamic linker functions.
+#![cfg(windows)]
 
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::ffi::OsStringExt;
