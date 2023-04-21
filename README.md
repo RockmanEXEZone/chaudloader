@@ -12,8 +12,11 @@ bnlc-mod-loader is a mod loader for Mega Man Battle Network Legacy Collection.
 
     ```toml
     [[mods]]
-    name = "name-of-your-mod"  # this should be the name of the mod directory
+    name = "first_mod"  # this should be the name of the mod directory
     trusted = true  # set this if the mod uses a DLL and you really trust the author
+
+    [[mods]]
+    name = "second_mod"
     ```
 
 ## For mod developers
