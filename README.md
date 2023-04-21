@@ -8,17 +8,17 @@ bnlc-mod-loader is a mod loader for Mega Man Battle Network Legacy Collection.
 
 2. Start the game. This will generate a config file named `bnlc_mod_loader.toml` and a mods directory named `mods`.
 
-3. Put your mods in the `mods` file. To activate them, edit `bnlc_mod_loader.toml` like so:
+3. Put your mods in the `mods` folder. To activate them, edit `bnlc_mod_loader.toml` like so:
 
     ```toml
     [[mods]]
-    name = "name-of-your-mod"
+    name = "name-of-your-mod"  # this should be the name of the mod directory
     trusted = true  # set this if the mod uses a DLL and you really trust the author
     ```
 
 ## For mod developers
 
-Mods consists of two required files:
+Mods consists of two required files in a directory inside the `mods` folder:
 
 -   `info.toml`: Metadata about your mod. It should look something like this:
 
