@@ -1,5 +1,7 @@
 # chaudloader
 
+![](loadchaud.png)
+
 chaudloader is a mod loader for Mega Man Battle Network Legacy Collection.
 
 ## For users
