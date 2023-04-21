@@ -1,0 +1,30 @@
+name: release
+
+permissions:
+    contents: write
+
+on:
+    release:
+        types:
+            - created
+
+jobs:
+    release:
+        runs-on: windows-latest
+        steps:
+            - uses: actions/checkout@v2
+              with:
+                  submodules: recursive
+            - uses: ilammy/msvc-dev-cmd@v1
+            - uses: dtolnay/rust-toolchain@nightly
+            - run: cargo build --release
+            - run: 7z a -tzip dist.zip ./target/release/bnlc_mod_loader.dll ./target/release/dxgi.dll
+              shell: bash
+            - uses: actions/upload-release-asset@v1
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+              with:
+                  upload_url: ${{ github.event.release.upload_url }}
+                  asset_path: dist.zip
+                  asset_name: bnlc-mod-loader-${{ github.ref_name }}.zip
+                  asset_content_type: application/octet-stream
