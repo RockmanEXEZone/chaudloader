@@ -64,59 +64,48 @@ fn scan_dats_as_overlays(
 }
 
 fn scan_mods() -> Result<std::collections::HashMap<String, mods::Info>, anyhow::Error> {
-    match std::fs::read_dir("mods") {
-        Ok(read_dir) => {
-            let mut mods = std::collections::HashMap::new();
-            for entry in read_dir {
-                let entry = entry?;
+    let mut mods = std::collections::HashMap::new();
+    for entry in std::fs::read_dir("mods")? {
+        let entry = entry?;
 
-                if !entry.file_type()?.is_dir() {
-                    continue;
-                }
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
 
-                let path = entry.path();
-                let mod_name = path.file_name().unwrap().to_str().ok_or_else(|| {
-                    anyhow::anyhow!("could not decipher mod name: {}", entry.path().display())
-                })?;
+        let path = entry.path();
+        let mod_name = path.file_name().unwrap().to_str().ok_or_else(|| {
+            anyhow::anyhow!("could not decipher mod name: {}", entry.path().display())
+        })?;
 
-                if let Err(e) = (|| -> Result<(), anyhow::Error> {
-                    // Verify init.lua exists.
-                    if !std::fs::try_exists(entry.path().join("init.lua"))? {
-                        return Err(anyhow::anyhow!("missing init.lua"));
-                    }
-
-                    // Check for info.toml.
-                    let mut info_f = match std::fs::File::open(entry.path().join("info.toml")) {
-                        Ok(f) => f,
-                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                            return Ok(());
-                        }
-                        Err(e) => {
-                            return Err(e.into());
-                        }
-                    };
-
-                    let mut buf = vec![];
-                    info_f.read_to_end(&mut buf)?;
-                    let info = toml::from_slice::<mods::Info>(&buf)?;
-
-                    mods.insert(mod_name.to_string(), info);
-
-                    Ok(())
-                })() {
-                    log::warn!("[mod: {}] failed to load: {}", mod_name, e);
-                }
+        if let Err(e) = (|| -> Result<(), anyhow::Error> {
+            // Verify init.lua exists.
+            if !std::fs::try_exists(entry.path().join("init.lua"))? {
+                return Err(anyhow::anyhow!("missing init.lua"));
             }
-            Ok(mods)
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            log::warn!("no mods directory found");
-            Ok(std::collections::HashMap::new())
-        }
-        Err(e) => {
-            return Err(e.into());
+
+            // Check for info.toml.
+            let mut info_f = match std::fs::File::open(entry.path().join("info.toml")) {
+                Ok(f) => f,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    return Ok(());
+                }
+                Err(e) => {
+                    return Err(e.into());
+                }
+            };
+
+            let mut buf = vec![];
+            info_f.read_to_end(&mut buf)?;
+            let info = toml::from_slice::<mods::Info>(&buf)?;
+
+            mods.insert(mod_name.to_string(), info);
+
+            Ok(())
+        })() {
+            log::warn!("[mod: {}] failed to load: {}", mod_name, e);
         }
     }
+    Ok(mods)
 }
 
 unsafe fn init() -> Result<(), anyhow::Error> {
@@ -163,25 +152,52 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     mod_names.sort_unstable();
     log::info!("found mods: {:?}", mod_names);
 
-    for mod_name in config.mods.iter() {
-        if !mods.contains_key(mod_name) {
-            log::warn!("mod {} was asked to load but it doesn't exist", mod_name);
+    for mod_config in config.mods.iter() {
+        if !mods.contains_key(&mod_config.name) {
+            log::warn!(
+                "mod {} was asked to load but it doesn't exist",
+                mod_config.name
+            );
         }
 
-        if let Err(e) = (|| -> Result<(), anyhow::Error> {
-            let lua = mods::lua::new(mod_name, std::sync::Arc::clone(&overlays))?;
+        let mod_path = std::path::Path::new("mods").join(&mod_config.name);
 
-            let mut init_f =
-                std::fs::File::open(std::path::Path::new("mods").join(mod_name).join("init.lua"))?;
+        let init_dll_path = {
+            let path = mod_path.join("init.dll");
+            if std::fs::try_exists(&path)? {
+                if !mod_config.trusted {
+                    log::warn!("[mod: {}] refusing to load because it was not marked as trusted but has a DLL entrypoint! if you want to load this mod, please add `trusted = true` to bnlc_mod_loader.toml for this mod!", mod_config.name);
+                    continue;
+                }
+                Some(path)
+            } else {
+                None
+            }
+        };
+
+        if let Err(e) = (|| -> Result<(), anyhow::Error> {
+            // Load Lua.
+            let lua = mods::lua::new(&mod_config.name, std::sync::Arc::clone(&overlays))?;
+            let mut init_f = std::fs::File::open(mod_path.join("init.lua"))?;
             let mut code = String::new();
             init_f.read_to_string(&mut code)?;
             lua.load(&code).exec()?;
 
+            // Load DLL, if it exists.
+            if let Some(init_dll_path) = init_dll_path {
+                windows_libloader::ModuleHandle::load(&init_dll_path)
+                    .ok_or_else(|| anyhow::anyhow!("DLL was requested to load but did not load"))?;
+                log::info!(
+                    "[mod: {}] DLL loaded. make sure you trust the authors of this mod!",
+                    mod_config.name
+                );
+            }
+
             Ok(())
         })() {
-            log::warn!("[mod: {}] failed to init: {}", mod_name, e);
+            log::warn!("[mod: {}] failed to init: {}", mod_config.name, e);
         } else {
-            log::info!("[mod: {}] initialized", mod_name);
+            log::info!("[mod: {}] initialized", mod_config.name);
         }
     }
 
