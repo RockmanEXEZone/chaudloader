@@ -139,6 +139,15 @@ unsafe fn init() -> Result<(), anyhow::Error> {
         }
     };
 
+    // Make a mods directory if it doesn't exist.
+    match std::fs::create_dir("mods") {
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(e) => {
+            return Err(e.into());
+        }
+    };
+
     // Load all archives as overlays.
     let overlays = scan_dats_as_overlays()?;
     let mut dat_names = overlays.keys().collect::<Vec<_>>();

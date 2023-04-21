@@ -2,7 +2,7 @@
 
 bnlc-mod-loader is a mod loader for Mega Man Battle Network Legacy Collection.
 
-## Instructions
+## Build Instructions
 
 1. Build the binary with `cargo build --release`. You will need nightly Rust.
 
