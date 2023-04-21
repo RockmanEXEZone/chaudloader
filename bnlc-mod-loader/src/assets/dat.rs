@@ -68,12 +68,29 @@ impl Overlay {
         Ok(std::borrow::Cow::Owned(buf))
     }
 
-    pub fn write<'a>(&'a mut self, path: &str, contents: Vec<u8>) {
+    pub fn write<'a>(&'a mut self, path: &str, contents: Vec<u8>) -> Result<(), Error> {
+        // Verify the path exists first.
+        let _ = self.base.get(path)?;
         self.overlaid_files.insert(path.to_string(), contents);
+        Ok(())
     }
 
-    pub fn into_overlaid_files(self) -> std::collections::HashMap<String, Vec<u8>> {
-        self.overlaid_files
+    pub fn into_repacker(
+        self,
+    ) -> Result<Option<Repacker<Box<dyn super::ReadSeek>>>, anyhow::Error> {
+        if self.overlaid_files.is_empty() {
+            return Ok(None);
+        }
+
+        let mut repacker = Repacker::new_from_zip_archive(self.base.zr);
+        for (dat_filename, contents) in self.overlaid_files {
+            repacker.replace(&dat_filename, move |w| {
+                w.write_all(&contents)?;
+                Ok(())
+            })?;
+        }
+
+        Ok(Some(repacker))
     }
 }
 
@@ -81,11 +98,15 @@ impl<R> Repacker<R>
 where
     R: std::io::Read + std::io::Seek,
 {
-    pub fn new(reader: R) -> Result<Self, Error> {
-        Ok(Self {
-            zr: zip::ZipArchive::new(reader)?,
+    // pub fn new(reader: R) -> Result<Self, Error> {
+    //     Ok(Self::new_from_zip_archive(zip::ZipArchive::new(reader)?))
+    // }
+
+    pub fn new_from_zip_archive(zr: zip::ZipArchive<R>) -> Self {
+        Self {
+            zr,
             replacements: std::collections::HashMap::new(),
-        })
+        }
     }
 
     pub fn replace(

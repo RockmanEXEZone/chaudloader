@@ -54,7 +54,7 @@ fn scan_dats_as_overlays(
             continue;
         }
 
-        let mut src_f = std::fs::File::open(&entry.path())?;
+        let src_f = std::fs::File::open(&entry.path())?;
         let reader = assets::dat::Reader::new(src_f)?;
 
         let overlay = assets::dat::Overlay::new(reader);
@@ -101,7 +101,11 @@ fn scan_mods() -> Result<std::collections::HashMap<std::ffi::OsString, mods::Inf
 
                     Ok(())
                 })() {
-                    log::warn!("[mod {}] failed to load: {}", mod_name.to_string_lossy(), e);
+                    log::warn!(
+                        "[mod: {}] failed to load: {}",
+                        mod_name.to_string_lossy(),
+                        e
+                    );
                 }
             }
             Ok(mods)
@@ -128,6 +132,7 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     let mut dat_names = overlays.keys().collect::<Vec<_>>();
     dat_names.sort_unstable();
     log::info!("found dat archives: {:?}", dat_names);
+    let overlays = std::sync::Arc::new(std::sync::Mutex::new(overlays));
 
     // Scan for mods.
     let mods = scan_mods()?;
@@ -135,25 +140,45 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     mod_names.sort_unstable();
     log::info!("found mods: {:?}", mod_names);
 
-    for (mod_name, info) in mods.iter() {
+    for (mod_name, _info) in mods.iter() {
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
-            let mod_ctx = mods::lua::Context::new(mod_name.clone())?;
+            let lua = mods::lua::new(mod_name.clone(), std::sync::Arc::clone(&overlays))?;
 
-            // Run any Lua code, if required.
             let mut init_f =
                 std::fs::File::open(std::path::Path::new("mods").join(mod_name).join("init.lua"))?;
             let mut code = String::new();
             init_f.read_to_string(&mut code)?;
-            mod_ctx.run(&code)?;
+            lua.load(&code).exec()?;
 
             Ok(())
         })() {
-            log::warn!("[mod {}] failed to init: {}", mod_name.to_string_lossy(), e);
+            log::warn!(
+                "[mod: {}] failed to init: {}",
+                mod_name.to_string_lossy(),
+                e
+            );
         } else {
-            log::info!("[mod {}] initialized", mod_name.to_string_lossy());
+            log::info!("[mod: {}] initialized", mod_name.to_string_lossy());
         }
     }
 
+    // We are done with mod initialization! We can now go repack everything from our overlays.
+    {
+        let mut assets_replacer = assets::REPLACER.lock().unwrap();
+        let mut overlays = overlays.lock().unwrap();
+        for (dat_filename, overlay) in overlays.drain() {
+            let dat_path = std::path::Path::new("data").join(&dat_filename);
+
+            let repacker = if let Some(repacker) = overlay.into_repacker()? {
+                repacker
+            } else {
+                continue;
+            };
+
+            let mut writer = assets_replacer.add(&dat_path)?;
+            repacker.pack_into(&mut writer)?;
+        }
+    }
     super::stage1::install()?;
     Ok(())
 }

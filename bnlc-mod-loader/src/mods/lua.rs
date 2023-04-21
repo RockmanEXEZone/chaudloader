@@ -2,12 +2,15 @@ use std::{io::Read, str::FromStr};
 
 use mlua::ExternalError;
 
-pub struct Context {
-    mod_name: std::ffi::OsString,
-    lua: mlua::Lua,
-}
+use crate::assets;
 
-fn set_globals(lua: &mlua::Lua, mod_name: &std::ffi::OsStr) -> Result<(), mlua::Error> {
+fn set_globals(
+    lua: &mlua::Lua,
+    mod_name: &std::ffi::OsStr,
+    overlays: std::sync::Arc<
+        std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
+    >,
+) -> Result<(), mlua::Error> {
     let globals = lua.globals();
 
     globals.set(
@@ -16,7 +19,7 @@ fn set_globals(lua: &mlua::Lua, mod_name: &std::ffi::OsStr) -> Result<(), mlua::
             let mod_name = mod_name.to_os_string();
             move |lua, args: mlua::Variadic<mlua::Value>| {
                 log::info!(
-                    "[mod {}] {}",
+                    "[mod: {}] {}",
                     mod_name.to_string_lossy(),
                     args.iter()
                         .map(|v| lua
@@ -35,7 +38,7 @@ fn set_globals(lua: &mlua::Lua, mod_name: &std::ffi::OsStr) -> Result<(), mlua::
 
     globals.set(
         "bnlc_mod_loader",
-        make_bnlc_mod_loader_table(&lua, mod_name)?,
+        make_bnlc_mod_loader_table(&lua, mod_name, overlays)?,
     )?;
 
     Ok(())
@@ -44,6 +47,9 @@ fn set_globals(lua: &mlua::Lua, mod_name: &std::ffi::OsStr) -> Result<(), mlua::
 fn make_bnlc_mod_loader_table<'a>(
     lua: &'a mlua::Lua,
     mod_name: &'a std::ffi::OsStr,
+    overlays: std::sync::Arc<
+        std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
+    >,
 ) -> Result<mlua::Table<'a>, mlua::Error> {
     let table = lua.create_table()?;
 
@@ -51,19 +57,46 @@ fn make_bnlc_mod_loader_table<'a>(
 
     table.set(
         "write_dat_contents",
-        lua.create_function(
-            |_, (dat_filename, asset_filename, contents): (String, String, Vec<u8>)| {
-                todo!();
+        lua.create_function({
+            let overlays = std::sync::Arc::clone(&overlays);
+            move |_, (dat_filename, asset_filename, contents): (String, String, mlua::String)| {
+                let mut overlays = overlays.lock().unwrap();
+                let overlay = if let Some(overlay) = overlays.get_mut(&dat_filename) {
+                    overlay
+                } else {
+                    return Err(
+                        anyhow::format_err!("no such dat file: {}", dat_filename).to_lua_err()
+                    );
+                };
+                overlay
+                    .write(&asset_filename, contents.as_bytes().to_vec())
+                    .map_err(|e| e.to_lua_err())?;
                 Ok(())
-            },
-        )?,
+            }
+        })?,
     )?;
 
     table.set(
         "read_dat_contents",
-        lua.create_function(|_, (dat_filename, asset_filename): (String, String)| {
-            todo!();
-            Ok(())
+        lua.create_function({
+            let overlays = std::sync::Arc::clone(&overlays);
+            move |lua, (dat_filename, asset_filename): (String, String)| {
+                let mut overlays = overlays.lock().unwrap();
+                let overlay = if let Some(overlay) = overlays.get_mut(&dat_filename) {
+                    overlay
+                } else {
+                    return Ok(None);
+                };
+
+                Ok(Some(
+                    lua.create_string(
+                        &overlay
+                            .read(&asset_filename)
+                            .map_err(|e| e.to_lua_err())?
+                            .to_vec(),
+                    )?,
+                ))
+            }
         })?,
     )?;
 
@@ -99,15 +132,13 @@ fn make_bnlc_mod_loader_table<'a>(
     Ok(table)
 }
 
-impl Context {
-    pub fn new(mod_name: std::ffi::OsString) -> Result<Self, mlua::Error> {
-        let lua = mlua::Lua::new();
-        set_globals(&lua, &mod_name)?;
-        Ok(Self { mod_name, lua })
-    }
-
-    pub fn run(&self, code: &str) -> Result<(), mlua::Error> {
-        self.lua.load(code).eval()?;
-        Ok(())
-    }
+pub fn new(
+    mod_name: std::ffi::OsString,
+    overlays: std::sync::Arc<
+        std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
+    >,
+) -> Result<mlua::Lua, mlua::Error> {
+    let lua = mlua::Lua::new();
+    set_globals(&lua, &mod_name, overlays)?;
+    Ok(lua)
 }
