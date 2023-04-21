@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "bnlc-mod-loader",
+    "bnlc-mod-loader-installer",
     "windows-libloader",
     "dxgi-shim"
 ]

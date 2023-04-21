@@ -1,0 +1,12 @@
+[package]
+name = "bnlc-mod-loader-installer"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "install"
+path = "src/main.rs"
+
+[dependencies]
+steamlocate = "1.2"
+anyhow = "1"
