@@ -29,7 +29,7 @@ Mods consists of two required files:
 
 -   `init.lua`: The entry point of your mod.
 
-You may additionally include an `init.dll` to be loaded when the mod loads. It should implement a suitable `DllMain` attach hook to detour the applicable functions in the executable.
+You may additionally include an `init.dll` to be loaded when the mod loads. It should implement a suitable `DllMain` attach hook to detour the applicable functions in the executable. `init.dll` will automatically be loaded when the mod is loaded, but it **must be marked trusted** in order to load.
 
 ### Asset modding
 
@@ -58,6 +58,8 @@ local font = bnlc_mod_loader.read_mod_contents("eng_mojiFont.fnt")
 bnlc_mod_loader.write_dat_contents("exe6.dat", "exe6/data/font/eng_mojiFont.fnt", font)
 bnlc_mod_loader.write_dat_contents("exe6f.dat", "exe6f/data/font/eng_mojiFont.fnt", font)
 ```
+
+Mods are order dependent: the DAT contents written by a previous mod will be visible to a subsequent mod.
 
 ## For library developers
 
