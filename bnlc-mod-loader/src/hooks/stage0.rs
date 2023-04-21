@@ -1,6 +1,6 @@
-use std::io::{Read, Seek, Write};
+use std::io::Read;
 
-use crate::{assets, config, mods};
+use crate::{assets, mods};
 use retour::static_detour;
 
 static_detour! {
@@ -115,30 +115,6 @@ unsafe fn init() -> Result<(), anyhow::Error> {
         .init();
     log::info!("{}", BANNER);
 
-    // Load config file, or create one if it doesn't exist.
-    let config = {
-        let mut config_f = std::fs::File::options()
-            .create(true)
-            .write(true)
-            .read(true)
-            .open("bnlc_mod_loader.toml")?;
-
-        let mut buf = vec![];
-        config_f.read_to_end(&mut buf)?;
-
-        match toml::from_slice(&buf) {
-            Ok(config) => config,
-            Err(e) => {
-                log::warn!("failed to open bnlc_mod_loader.toml, will remake: {}", e);
-                config_f.set_len(0)?;
-                config_f.seek(std::io::SeekFrom::Start(0))?;
-                let config = config::Config::default();
-                config_f.write_all(toml::to_string(&config)?.as_bytes())?;
-                config
-            }
-        }
-    };
-
     // Make a mods directory if it doesn't exist.
     match std::fs::create_dir("mods") {
         Ok(_) => {}
@@ -163,60 +139,54 @@ unsafe fn init() -> Result<(), anyhow::Error> {
 
     let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
 
-    for mod_config in config.mods.iter() {
-        let mod_info = if let Some(info) = mods.get(&mod_config.name) {
+    for mod_name in mod_names {
+        let mod_info = if let Some(info) = mods.get(mod_name) {
             info
         } else {
-            log::warn!(
-                "mod {} was asked to load but it doesn't exist",
-                mod_config.name
-            );
+            log::warn!("mod {} was asked to load but it doesn't exist", mod_name);
             continue;
         };
 
-        let mod_path = std::path::Path::new("mods").join(&mod_config.name);
-
-        let init_dll_path = {
-            let path = mod_path.join("init.dll");
-            if std::fs::try_exists(&path)? {
-                if !mod_config.trusted {
-                    log::warn!("[mod: {}] refusing to load because it was not marked as trusted but has a DLL entrypoint! if you want to load this mod, please add `trusted = true` to bnlc_mod_loader.toml for this mod!", mod_config.name);
-                    continue;
-                }
-                Some(path)
-            } else {
-                None
-            }
-        };
+        let mod_path = std::path::Path::new("mods").join(&mod_name);
 
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
             let mut mod_state = mods::State::new();
 
             // Load Lua.
-            let lua = mods::lua::new(&mod_config.name, mod_info, std::sync::Arc::clone(&overlays))?;
+            let lua = mods::lua::new(&mod_name, mod_info, std::sync::Arc::clone(&overlays))?;
             let mut init_f = std::fs::File::open(mod_path.join("init.lua"))?;
             let mut code = String::new();
             init_f.read_to_string(&mut code)?;
             lua.load(&code).exec()?;
 
             // Load DLL, if it exists.
-            if let Some(init_dll_path) = init_dll_path {
+            let init_dll_path = mod_path.join("init.dll");
+            if std::fs::try_exists(&init_dll_path)? {
                 let dll = windows_libloader::ModuleHandle::load(&init_dll_path)
                     .ok_or_else(|| anyhow::anyhow!("DLL was requested to load but did not load"))?;
                 log::info!(
                     "[mod: {}] DLL loaded. make sure you trust the authors of this mod!",
-                    mod_config.name
+                    mod_name
                 );
                 mod_state.set_init_dll(dll);
             }
 
-            loaded_mods.insert(mod_config.name.to_string(), mod_state);
+            loaded_mods.insert(mod_name.to_string(), mod_state);
+            log::info!(
+                "[mod: {}] loaded: {} v{} by {}",
+                mod_name,
+                mod_info.title,
+                mod_info.version,
+                if !mod_info.authors.is_empty() {
+                    mod_info.authors.join(", ")
+                } else {
+                    "(no authors listed)".to_string()
+                }
+            );
 
             Ok(())
         })() {
-            log::warn!("[mod: {}] failed to init: {}", mod_config.name, e);
-        } else {
-            log::info!("[mod: {}] initialized", mod_config.name);
+            log::warn!("[mod: {}] failed to init: {}", mod_name, e);
         }
     }
 

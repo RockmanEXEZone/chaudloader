@@ -6,18 +6,9 @@ bnlc-mod-loader is a mod loader for Mega Man Battle Network Legacy Collection.
 
 1. Copy the `bnlc_mod_loader.dll` and `dxgi.dll` files into the same folder as `MMBN_LC1.exe` and `MMBN_LC2.exe`.
 
-2. Start the game. This will generate a config file named `bnlc_mod_loader.toml` and a mods directory named `mods`.
+2. Make a folder called `mods` and put your mods in the folder.
 
-3. Put your mods in the `mods` folder. To activate them, edit `bnlc_mod_loader.toml` like so:
-
-    ```toml
-    [[mods]]
-    name = "first_mod"  # this should be the name of the mod directory
-    trusted = true  # set this if the mod uses a DLL and you really trust the author
-
-    [[mods]]
-    name = "second_mod"
-    ```
+3. Start the game. Mods in the `mods` folder will be activated in alphabetical order.
 
 ## For mod developers
 
@@ -33,7 +24,7 @@ Mods consists of two required files in a directory inside the `mods` folder:
 
 -   `init.lua`: The entry point of your mod.
 
-You may additionally include an `init.dll` to be loaded when the mod loads. It should implement a suitable `DllMain` attach hook to detour the applicable functions in the executable. `init.dll` will automatically be loaded when the mod is loaded, but it **must be marked trusted** in order to load.
+You may additionally include an `init.dll` to be loaded when the mod loads. It should implement a suitable `DllMain` attach hook to detour the applicable functions in the executable. `init.dll` will automatically be loaded when the mod is loaded.
 
 ### Asset modding
 
