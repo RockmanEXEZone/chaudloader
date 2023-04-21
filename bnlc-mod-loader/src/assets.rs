@@ -8,7 +8,7 @@ impl<T: std::io::Write + std::io::Seek> WriteSeek for T {}
 
 pub struct Replacer {
     temp_dir: std::path::PathBuf,
-    replacements: std::collections::HashMap<std::path::PathBuf, tempfile::NamedTempFile>,
+    replacements: std::collections::HashMap<std::path::PathBuf, std::path::PathBuf>,
 }
 
 impl Replacer {
@@ -45,20 +45,16 @@ impl Replacer {
             path.display(),
             dest_f.path().display()
         );
-        let dest_path = dest_f.path().to_path_buf();
-        self.replacements.insert(path.to_path_buf(), dest_f);
-        Ok(std::fs::File::create(dest_path)?)
+        let (dest_f, dest_path) = dest_f.keep()?;
+        self.replacements.insert(path.to_path_buf(), dest_path);
+        Ok(dest_f)
     }
 
     pub fn get<'a>(&'a self, path: &'a std::path::Path) -> (&'a std::path::Path, bool) {
         self.replacements
             .get(path)
-            .map(|p| (p.path(), true))
+            .map(|p| (p.as_path(), true))
             .unwrap_or((path, false))
-    }
-
-    pub fn clear(&mut self) {
-        self.replacements.clear();
     }
 }
 
