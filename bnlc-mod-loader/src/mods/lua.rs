@@ -100,14 +100,9 @@ fn make_bnlc_mod_loader_table<'a>(
         lua.create_function({
             let mod_path = mod_path.clone();
             move |lua, (path,): (String,)| {
-                let path = std::path::PathBuf::from_str(&path).unwrap();
+                let path = clean_path::clean(std::path::PathBuf::from_str(&path).unwrap());
 
-                // TODO: Do this in a less janky way.
-                if path
-                    .components()
-                    .into_iter()
-                    .any(|x| x == std::path::Component::ParentDir)
-                {
+                if path.components().next() == Some(std::path::Component::ParentDir) {
                     return Err(
                         anyhow::anyhow!("cannot read files outside of mod directory").to_lua_err(),
                     );

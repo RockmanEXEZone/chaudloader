@@ -15,7 +15,7 @@ env_logger = "0.9.0"
 thiserror = "1"
 zip = "0.6"
 tempfile = "3"
-normpath = "1"
+clean-path = "0.2"
 windows-libloader = { path = "../windows-libloader" }
 const_format = "0.2"
 mlua = { version = "0.8", features = ["lua54", "vendored"] }

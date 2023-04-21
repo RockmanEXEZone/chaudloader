@@ -215,7 +215,7 @@ unsafe fn init() -> Result<(), anyhow::Error> {
         let mut assets_replacer = assets::REPLACER.lock().unwrap();
         let mut overlays = overlays.lock().unwrap();
         for (dat_filename, overlay) in overlays.drain() {
-            let dat_path = std::path::Path::new("data").join(&dat_filename);
+            let dat_path = std::path::Path::new("..\\exe\\data").join(&dat_filename);
 
             let repacker = if let Some(repacker) = overlay.into_repacker()? {
                 repacker

@@ -1,5 +1,4 @@
 use crate::assets;
-use normpath::PathExt;
 use retour::static_detour;
 
 use std::os::windows::ffi::OsStrExt;
@@ -36,12 +35,7 @@ unsafe fn on_create_file(
     dw_flags_and_attributes: winapi::shared::minwindef::DWORD,
     handle: winapi::shared::ntdef::HANDLE,
 ) -> winapi::shared::ntdef::HANDLE {
-    let path = path.normalize_virtually().unwrap().into_path_buf();
-
-    let path = path
-        .strip_prefix(std::env::current_dir().unwrap())
-        .unwrap_or(&path)
-        .to_path_buf();
+    let path = clean_path::clean(path);
 
     let new_path = {
         let assets_replacer = assets::REPLACER.lock().unwrap();

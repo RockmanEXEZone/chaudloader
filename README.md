@@ -23,8 +23,7 @@ Mods consists of two required files:
 -   `info.toml`: Metadata about your mod. It should look something like this:
 
     ```toml
-    [mod]
-    name = "my cool mod"
+    title = "my cool mod"
     authors = ["my cool name"]
     ```
 
