@@ -59,7 +59,7 @@ fn make_bnlc_mod_loader_table<'a>(
         "write_dat_contents",
         lua.create_function({
             let overlays = std::sync::Arc::clone(&overlays);
-            move |_, (dat_filename, asset_filename, contents): (String, String, mlua::String)| {
+            move |_, (dat_filename, path, contents): (String, String, mlua::String)| {
                 let mut overlays = overlays.lock().unwrap();
                 let overlay = if let Some(overlay) = overlays.get_mut(&dat_filename) {
                     overlay
@@ -69,7 +69,7 @@ fn make_bnlc_mod_loader_table<'a>(
                     );
                 };
                 overlay
-                    .write(&asset_filename, contents.as_bytes().to_vec())
+                    .write(&path, contents.as_bytes().to_vec())
                     .map_err(|e| e.to_lua_err())?;
                 Ok(())
             }
@@ -80,7 +80,7 @@ fn make_bnlc_mod_loader_table<'a>(
         "read_dat_contents",
         lua.create_function({
             let overlays = std::sync::Arc::clone(&overlays);
-            move |lua, (dat_filename, asset_filename): (String, String)| {
+            move |lua, (dat_filename, path): (String, String)| {
                 let mut overlays = overlays.lock().unwrap();
                 let overlay = if let Some(overlay) = overlays.get_mut(&dat_filename) {
                     overlay
@@ -88,20 +88,15 @@ fn make_bnlc_mod_loader_table<'a>(
                     return Ok(None);
                 };
 
-                Ok(Some(
-                    lua.create_string(
-                        &overlay
-                            .read(&asset_filename)
-                            .map_err(|e| e.to_lua_err())?
-                            .to_vec(),
-                    )?,
-                ))
+                Ok(Some(lua.create_string(
+                    &overlay.read(&path).map_err(|e| e.to_lua_err())?.to_vec(),
+                )?))
             }
         })?,
     )?;
 
     table.set(
-        "read_mod_file",
+        "read_mod_contents",
         lua.create_function({
             let mod_path = mod_path.clone();
             move |lua, (path,): (String,)| {
