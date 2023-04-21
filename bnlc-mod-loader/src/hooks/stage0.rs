@@ -220,6 +220,10 @@ unsafe fn init() -> Result<(), anyhow::Error> {
         }
     }
 
+    static LOADED_MODS: std::sync::OnceLock<std::collections::HashMap<String, mods::State>> =
+        std::sync::OnceLock::new();
+    LOADED_MODS.get_or_init(move || loaded_mods);
+
     // We are done with mod initialization! We can now go repack everything from our overlays.
     {
         let mut assets_replacer = assets::REPLACER.lock().unwrap();
