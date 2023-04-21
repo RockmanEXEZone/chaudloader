@@ -11,23 +11,15 @@ pub struct Info {
 }
 
 pub struct State {
-    trusted: bool,
-    dlls: std::collections::HashMap<std::path::PathBuf, windows_libloader::ModuleHandle>,
+    init_dll: Option<windows_libloader::ModuleHandle>,
 }
 
 impl State {
-    pub fn new(trusted: bool) -> Self {
-        Self {
-            trusted,
-            dlls: std::collections::HashMap::new(),
-        }
+    pub fn new() -> Self {
+        Self { init_dll: None }
     }
 
-    pub fn is_trusted(&self) -> bool {
-        self.trusted
-    }
-
-    pub fn add_dll(&mut self, name: std::path::PathBuf, dll: windows_libloader::ModuleHandle) {
-        self.dlls.insert(name, dll);
+    pub fn set_init_dll(&mut self, init_dll: windows_libloader::ModuleHandle) {
+        self.init_dll = Some(init_dll);
     }
 }

@@ -33,6 +33,8 @@ Mods consists of two required files in a directory inside the `mods` folder:
 
 -   `init.lua`: The entry point of your mod.
 
+You may additionally include an `init.dll` to be loaded when the mod loads. It should implement a suitable `DllMain` attach hook to detour the applicable functions in the executable. `init.dll` will automatically be loaded when the mod is loaded, but it **must be marked trusted** in order to load.
+
 ### Asset modding
 
 In `init.lua`, you may use the following functions:
@@ -53,11 +55,6 @@ function bnlc_mod_loader.write_dat_contents(dat_filename: string, path: string, 
 
 -- Reads the contents of a file from the mod folder.
 function bnlc_mod_loader.read_mod_contents(path: string): string
-
--- Loads a DLL.
---
--- Note that the mod must be trusted in order to be able to call this function. If untrusted, this will throw an error.
-function bnlc_mod_loader.load_mod_dll(path: string)
 ```
 
 For instance, for a simple font mod, you can write the following script:
