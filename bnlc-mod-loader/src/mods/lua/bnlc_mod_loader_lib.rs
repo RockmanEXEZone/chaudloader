@@ -1,10 +1,11 @@
-use crate::assets;
+use crate::{assets, mods};
 use mlua::ExternalError;
 use std::{io::Read, str::FromStr};
 
 pub fn new<'a>(
     lua: &'a mlua::Lua,
     mod_name: &'a str,
+    state: std::sync::Arc<std::sync::Mutex<mods::State>>,
     overlays: std::sync::Arc<
         std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
     >,
@@ -12,6 +13,43 @@ pub fn new<'a>(
     let table = lua.create_table()?;
 
     let mod_path = std::path::Path::new("mods").join(mod_name);
+
+    table.set(
+        "load_mod_dll",
+        lua.create_function({
+            let mod_path = mod_path.clone();
+            let state = std::sync::Arc::clone(&state);
+            move |_, (path,): (String,)| {
+                let mut state = state.lock().unwrap();
+                if !state.is_trusted() {
+                    return Err(
+                        anyhow::anyhow!("cannot call load_mod_dll if mod is not trusted! if you want to trust this mod, add `trusted = true` to the mod's configuration section").to_lua_err(),
+                    );
+                }
+
+                let path = clean_path::clean(std::path::PathBuf::from_str(&path).unwrap());
+
+                if path.components().next() == Some(std::path::Component::ParentDir) {
+                    return Err(
+                        anyhow::anyhow!("cannot read files outside of mod directory").to_lua_err(),
+                    );
+                }
+
+                let real_path = mod_path.join(path.clone());
+                let dll = if let Some(dll) = unsafe { windows_libloader::ModuleHandle::load(&real_path) } {
+                    dll
+                } else {
+                    return Err(
+                        anyhow::anyhow!("could not load library").to_lua_err(),
+                    );
+                };
+
+                state.add_dll(path, dll);
+
+                Ok(())
+            }
+        })?,
+    )?;
 
     table.set(
         "write_dat_contents",

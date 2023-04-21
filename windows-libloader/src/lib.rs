@@ -20,7 +20,10 @@ pub fn get_system_directory() -> std::path::PathBuf {
 }
 
 /// A module handle is a handle to a DLL.
-pub struct ModuleHandle(winapi::shared::minwindef::HMODULE);
+pub struct ModuleHandle {
+    hmodule: winapi::shared::minwindef::HMODULE,
+    needs_free: bool,
+}
 
 impl ModuleHandle {
     /// Gets an already loaded module by its name.
@@ -33,7 +36,10 @@ impl ModuleHandle {
         if hmodule.is_null() {
             None
         } else {
-            Some(ModuleHandle(hmodule))
+            Some(ModuleHandle {
+                hmodule,
+                needs_free: false,
+            })
         }
     }
 
@@ -48,7 +54,10 @@ impl ModuleHandle {
         if hmodule.is_null() {
             None
         } else {
-            Some(ModuleHandle(hmodule))
+            Some(ModuleHandle {
+                hmodule,
+                needs_free: true,
+            })
         }
     }
 
@@ -58,11 +67,21 @@ impl ModuleHandle {
         symbol: &str,
     ) -> Option<winapi::shared::minwindef::FARPROC> {
         let symbol_cstr = std::ffi::CString::new(symbol).unwrap();
-        let farproc = winapi::um::libloaderapi::GetProcAddress(self.0, symbol_cstr.as_ptr());
+        let farproc = winapi::um::libloaderapi::GetProcAddress(self.hmodule, symbol_cstr.as_ptr());
         if farproc.is_null() {
             None
         } else {
             Some(farproc)
+        }
+    }
+}
+
+impl Drop for ModuleHandle {
+    fn drop(&mut self) {
+        if self.needs_free {
+            unsafe {
+                winapi::um::libloaderapi::FreeLibrary(self.hmodule);
+            }
         }
     }
 }

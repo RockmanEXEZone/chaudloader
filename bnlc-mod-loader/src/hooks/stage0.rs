@@ -161,47 +161,38 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     mod_names.sort_unstable();
     log::info!("found mods: {:?}", mod_names);
 
+    let mut loaded_mods =
+        std::collections::HashMap::<String, std::sync::Arc<std::sync::Mutex<mods::State>>>::new();
+
     for mod_config in config.mods.iter() {
-        if !mods.contains_key(&mod_config.name) {
+        let mod_info = if let Some(info) = mods.get(&mod_config.name) {
+            info
+        } else {
             log::warn!(
                 "mod {} was asked to load but it doesn't exist",
                 mod_config.name
             );
-        }
+            continue;
+        };
 
         let mod_path = std::path::Path::new("mods").join(&mod_config.name);
 
-        let init_dll_path = {
-            let path = mod_path.join("init.dll");
-            if std::fs::try_exists(&path)? {
-                if !mod_config.trusted {
-                    log::warn!("[mod: {}] refusing to load because it was not marked as trusted but has a DLL entrypoint! if you want to load this mod, please add `trusted = true` to bnlc_mod_loader.toml for this mod!", mod_config.name);
-                    continue;
-                }
-                Some(path)
-            } else {
-                None
-            }
-        };
-
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
-            // Load Lua.
-            let lua = mods::lua::new(&mod_config.name, std::sync::Arc::clone(&overlays))?;
+            let mod_state =
+                std::sync::Arc::new(std::sync::Mutex::new(mods::State::new(mod_config.trusted)));
+
+            let lua = mods::lua::new(
+                &mod_config.name,
+                mod_info,
+                std::sync::Arc::clone(&mod_state),
+                std::sync::Arc::clone(&overlays),
+            )?;
             let mut init_f = std::fs::File::open(mod_path.join("init.lua"))?;
             let mut code = String::new();
             init_f.read_to_string(&mut code)?;
             lua.load(&code).exec()?;
 
-            // Load DLL, if it exists.
-            if let Some(init_dll_path) = init_dll_path {
-                windows_libloader::ModuleHandle::load(&init_dll_path)
-                    .ok_or_else(|| anyhow::anyhow!("DLL was requested to load but did not load"))?;
-                log::info!(
-                    "[mod: {}] DLL loaded. make sure you trust the authors of this mod!",
-                    mod_config.name
-                );
-            }
-
+            loaded_mods.insert(mod_config.name.to_string(), mod_state);
             Ok(())
         })() {
             log::warn!("[mod: {}] failed to init: {}", mod_config.name, e);
@@ -209,6 +200,11 @@ unsafe fn init() -> Result<(), anyhow::Error> {
             log::info!("[mod: {}] initialized", mod_config.name);
         }
     }
+
+    static LOADED_MODS: std::sync::OnceLock<
+        std::collections::HashMap<String, std::sync::Arc<std::sync::Mutex<mods::State>>>,
+    > = std::sync::OnceLock::new();
+    LOADED_MODS.get_or_init(move || loaded_mods);
 
     // We are done with mod initialization! We can now go repack everything from our overlays.
     {

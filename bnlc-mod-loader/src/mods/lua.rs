@@ -1,10 +1,11 @@
-use crate::assets;
+use crate::{assets, mods};
 
 mod bnlc_mod_loader_lib;
 
 fn set_globals(
     lua: &mlua::Lua,
     mod_name: &str,
+    state: std::sync::Arc<std::sync::Mutex<mods::State>>,
     overlays: std::sync::Arc<
         std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
     >,
@@ -36,7 +37,7 @@ fn set_globals(
 
     globals.set(
         "bnlc_mod_loader",
-        bnlc_mod_loader_lib::new(&lua, mod_name, overlays)?,
+        bnlc_mod_loader_lib::new(&lua, mod_name, state, overlays)?,
     )?;
 
     Ok(())
@@ -44,11 +45,13 @@ fn set_globals(
 
 pub fn new(
     mod_name: &str,
+    _mod_info: &mods::Info,
+    state: std::sync::Arc<std::sync::Mutex<mods::State>>,
     overlays: std::sync::Arc<
         std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
     >,
 ) -> Result<mlua::Lua, mlua::Error> {
     let lua = mlua::Lua::new();
-    set_globals(&lua, &mod_name, overlays)?;
+    set_globals(&lua, &mod_name, state, overlays)?;
     Ok(lua)
 }
