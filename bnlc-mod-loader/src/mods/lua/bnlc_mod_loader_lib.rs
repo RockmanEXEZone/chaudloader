@@ -1,6 +1,6 @@
 use crate::assets;
 use mlua::ExternalError;
-use std::{io::Read, str::FromStr};
+use std::str::FromStr;
 
 fn ensure_path_is_safe(path: &std::path::Path) -> Option<std::path::PathBuf> {
     let path = clean_path::clean(path);
@@ -71,10 +71,7 @@ pub fn new<'a>(
                 let path = ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.to_lua_err())?;
-                let mut f = std::fs::File::open(mod_path.join(path))?;
-                let mut buf = vec![];
-                f.read_to_end(&mut buf)?;
-                Ok(lua.create_string(&buf)?)
+                Ok(lua.create_string(&std::fs::read(mod_path.join(path))?)?)
             }
         })?,
     )?;

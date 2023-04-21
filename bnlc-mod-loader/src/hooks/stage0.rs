@@ -67,7 +67,6 @@ fn scan_mods() -> Result<std::collections::HashMap<String, mods::Info>, anyhow::
     let mut mods = std::collections::HashMap::new();
     for entry in std::fs::read_dir("mods")? {
         let entry = entry?;
-
         if !entry.file_type()?.is_dir() {
             continue;
         }
@@ -78,28 +77,9 @@ fn scan_mods() -> Result<std::collections::HashMap<String, mods::Info>, anyhow::
         })?;
 
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
-            // Verify init.lua exists.
-            if !std::fs::try_exists(entry.path().join("init.lua"))? {
-                return Err(anyhow::anyhow!("missing init.lua"));
-            }
-
-            // Check for info.toml.
-            let mut info_f = match std::fs::File::open(entry.path().join("info.toml")) {
-                Ok(f) => f,
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                    return Ok(());
-                }
-                Err(e) => {
-                    return Err(e.into());
-                }
-            };
-
-            let mut buf = vec![];
-            info_f.read_to_end(&mut buf)?;
-            let info = toml::from_slice::<mods::Info>(&buf)?;
-
+            let info =
+                toml::from_slice::<mods::Info>(&std::fs::read(entry.path().join("info.toml"))?)?;
             mods.insert(mod_name.to_string(), info);
-
             Ok(())
         })() {
             log::warn!("[mod: {}] failed to load: {}", mod_name, e);
@@ -141,12 +121,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
     let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
 
     for mod_name in mod_names {
-        let mod_info = if let Some(info) = mods.get(mod_name) {
-            info
-        } else {
-            log::warn!("mod {} was asked to load but it doesn't exist", mod_name);
-            continue;
-        };
+        let mod_info = mods.get(mod_name).unwrap(); // Can't fail, the mods are just sorted.
 
         let mod_path = std::path::Path::new("mods").join(&mod_name);
 
