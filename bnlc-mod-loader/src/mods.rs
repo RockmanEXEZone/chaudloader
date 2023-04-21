@@ -1,4 +1,4 @@
-mod lua;
+pub mod lua;
 
 #[derive(serde::Deserialize)]
 pub struct Info {

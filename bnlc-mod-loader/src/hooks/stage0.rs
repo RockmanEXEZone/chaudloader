@@ -40,7 +40,7 @@ const BANNER: &str = const_format::formatcp!(
     env!("CARGO_PKG_VERSION")
 );
 
-fn scan_mods() -> Result<std::collections::HashMap<String, mods::Info>, anyhow::Error> {
+fn scan_mods() -> Result<std::collections::HashMap<std::ffi::OsString, mods::Info>, anyhow::Error> {
     match std::fs::read_dir("mods") {
         Ok(read_dir) => {
             let mut mods = std::collections::HashMap::new();
@@ -51,12 +51,7 @@ fn scan_mods() -> Result<std::collections::HashMap<String, mods::Info>, anyhow::
                     continue;
                 }
 
-                let mod_name = entry
-                    .path()
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .to_string();
+                let mod_name = entry.path().file_name().unwrap().to_os_string();
 
                 if let Err(e) = (|| -> Result<(), anyhow::Error> {
                     // Verify init.lua exists.
@@ -83,7 +78,7 @@ fn scan_mods() -> Result<std::collections::HashMap<String, mods::Info>, anyhow::
 
                     Ok(())
                 })() {
-                    log::warn!("mod {} failed to load: {}", mod_name, e);
+                    log::warn!("[mod {}] failed to load: {}", mod_name.to_string_lossy(), e);
                 }
             }
             Ok(mods)
@@ -111,6 +106,25 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     let mut mod_names = mods.keys().collect::<Vec<_>>();
     mod_names.sort_unstable();
     log::info!("found mods: {:?}", mod_names);
+
+    for (mod_name, info) in mods.iter() {
+        if let Err(e) = (|| -> Result<(), anyhow::Error> {
+            let mod_ctx = mods::lua::Context::new(mod_name.clone())?;
+
+            // Run any Lua code, if required.
+            let mut init_f =
+                std::fs::File::open(std::path::Path::new("mods").join(mod_name).join("init.lua"))?;
+            let mut code = String::new();
+            init_f.read_to_string(&mut code)?;
+            mod_ctx.run(&code)?;
+
+            Ok(())
+        })() {
+            log::warn!("[mod {}] failed to init: {}", mod_name.to_string_lossy(), e);
+        } else {
+            log::info!("[mod {}] initialized", mod_name.to_string_lossy());
+        }
+    }
 
     super::stage1::install()?;
     Ok(())
