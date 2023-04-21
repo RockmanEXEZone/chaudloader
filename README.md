@@ -4,11 +4,9 @@ bnlc-mod-loader is a mod loader for Mega Man Battle Network Legacy Collection.
 
 ## For users
 
-1. Copy the `bnlc_mod_loader.dll` and `dxgi.dll` files into the same folder as `MMBN_LC1.exe` and `MMBN_LC2.exe`.
+1. Run `install.exe`.
 
-2. Make a folder called `mods` and put your mods in the folder.
-
-3. Start the game. Mods in the `mods` folder will be activated in alphabetical order.
+2. Start the game. Mods in the `mods` folder will be activated in alphabetical order.
 
 ## For mod developers
 

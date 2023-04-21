@@ -69,18 +69,27 @@ fn real_main() -> Result<(), anyhow::Error> {
     let bnlc_mod_loader_dll = std::fs::read(src_path.join("bnlc_mod_loader.dll"))?;
 
     for path in paths {
-        let dxgi_dll_path = path.join("exe").join("dxgi.dll");
+        let exe_path = path.join("exe");
+
+        let dxgi_dll_path = exe_path.join("dxgi.dll");
         let mut dxgi_dll_f = std::fs::File::create(&dxgi_dll_path)?;
         dxgi_dll_f.write_all(&dxgi_dll)?;
-        println!("OK: dxgi.dll -> {}", dxgi_dll_path.display());
+        println!("OK: {}", dxgi_dll_path.display());
 
-        let bnlc_mod_loader_dll_path = path.join("exe").join("bnlc_mod_loader.dll");
+        let bnlc_mod_loader_dll_path = exe_path.join("bnlc_mod_loader.dll");
         let mut bnlc_mod_loader_dll_f = std::fs::File::create(&bnlc_mod_loader_dll_path)?;
         bnlc_mod_loader_dll_f.write_all(&bnlc_mod_loader_dll)?;
-        println!(
-            "OK: bnlc_mod_loader.dll -> {}",
-            bnlc_mod_loader_dll_path.display()
-        );
+        println!("OK: {}", bnlc_mod_loader_dll_path.display());
+
+        let mods_path = exe_path.join("mods");
+        match std::fs::create_dir(&mods_path) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
+            Err(e) => {
+                return Err(e.into());
+            }
+        }
+        println!("OK: {}", mods_path.display());
     }
     println!();
 
