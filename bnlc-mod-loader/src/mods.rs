@@ -4,6 +4,8 @@ pub mod lua;
 pub struct Info {
     pub title: String,
 
+    pub version: String,
+
     #[serde(default)]
     pub authors: Vec<String>,
 }

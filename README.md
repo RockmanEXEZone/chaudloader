@@ -27,6 +27,7 @@ Mods consists of two required files in a directory inside the `mods` folder:
 
     ```toml
     title = "my cool mod"
+    version = "0.0.1"
     authors = ["my cool name"]
     ```
 
