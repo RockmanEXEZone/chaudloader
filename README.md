@@ -41,7 +41,7 @@ function print(...)
 
 -- Reads the contents of a file out of a .dat file (e.g. `exe6.dat`).
 --
--- Previous calls to write_dat_contents are visible to read_dat_contents.
+-- Previous calls to write_dat_contents are visible to subsequent calls to read_dat_contents.
 function bnlc_mod_loader.read_dat_contents(dat_filename: string, path: string): string
 
 -- Writes the given data into a .dat file.
