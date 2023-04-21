@@ -2,6 +2,7 @@
 #![feature(fs_try_exists)]
 
 mod assets;
+mod config;
 mod hooks;
 mod mods;
 

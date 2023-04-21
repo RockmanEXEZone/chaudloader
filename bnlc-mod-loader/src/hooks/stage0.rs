@@ -1,6 +1,6 @@
-use std::io::Read;
+use std::io::{Read, Seek, Write};
 
-use crate::{assets, mods};
+use crate::{assets, config, mods};
 use retour::static_detour;
 
 static_detour! {
@@ -63,7 +63,7 @@ fn scan_dats_as_overlays(
     Ok(overlays)
 }
 
-fn scan_mods() -> Result<std::collections::HashMap<std::ffi::OsString, mods::Info>, anyhow::Error> {
+fn scan_mods() -> Result<std::collections::HashMap<String, mods::Info>, anyhow::Error> {
     match std::fs::read_dir("mods") {
         Ok(read_dir) => {
             let mut mods = std::collections::HashMap::new();
@@ -74,7 +74,10 @@ fn scan_mods() -> Result<std::collections::HashMap<std::ffi::OsString, mods::Inf
                     continue;
                 }
 
-                let mod_name = entry.path().file_name().unwrap().to_os_string();
+                let path = entry.path();
+                let mod_name = path.file_name().unwrap().to_str().ok_or_else(|| {
+                    anyhow::anyhow!("could not decipher mod name: {}", entry.path().display())
+                })?;
 
                 if let Err(e) = (|| -> Result<(), anyhow::Error> {
                     // Verify init.lua exists.
@@ -97,15 +100,11 @@ fn scan_mods() -> Result<std::collections::HashMap<std::ffi::OsString, mods::Inf
                     info_f.read_to_end(&mut buf)?;
                     let info = toml::from_slice::<mods::Info>(&buf)?;
 
-                    mods.insert(mod_name.clone(), info);
+                    mods.insert(mod_name.to_string(), info);
 
                     Ok(())
                 })() {
-                    log::warn!(
-                        "[mod: {}] failed to load: {}",
-                        mod_name.to_string_lossy(),
-                        e
-                    );
+                    log::warn!("[mod: {}] failed to load: {}", mod_name, e);
                 }
             }
             Ok(mods)
@@ -127,6 +126,30 @@ unsafe fn init() -> Result<(), anyhow::Error> {
         .init();
     log::info!("{}", BANNER);
 
+    // Load config file, or create one if it doesn't exist.
+    let config = {
+        let mut config_f = std::fs::File::options()
+            .create(true)
+            .write(true)
+            .read(true)
+            .open("bnlc_mod_loader.toml")?;
+
+        let mut buf = vec![];
+        config_f.read_to_end(&mut buf)?;
+
+        match toml::from_slice(&buf) {
+            Ok(config) => config,
+            Err(e) => {
+                log::warn!("failed to open bnlc_mod_loader.toml, will remake: {}", e);
+                config_f.set_len(0)?;
+                config_f.seek(std::io::SeekFrom::Start(0))?;
+                let config = config::Config::default();
+                config_f.write_all(toml::to_string(&config)?.as_bytes())?;
+                config
+            }
+        }
+    };
+
     // Load all archives as overlays.
     let overlays = scan_dats_as_overlays()?;
     let mut dat_names = overlays.keys().collect::<Vec<_>>();
@@ -140,9 +163,13 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     mod_names.sort_unstable();
     log::info!("found mods: {:?}", mod_names);
 
-    for (mod_name, _info) in mods.iter() {
+    for mod_name in config.mods.iter() {
+        if !mods.contains_key(mod_name) {
+            log::warn!("mod {} was asked to load but it doesn't exist", mod_name);
+        }
+
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
-            let lua = mods::lua::new(mod_name.clone(), std::sync::Arc::clone(&overlays))?;
+            let lua = mods::lua::new(mod_name, std::sync::Arc::clone(&overlays))?;
 
             let mut init_f =
                 std::fs::File::open(std::path::Path::new("mods").join(mod_name).join("init.lua"))?;
@@ -152,13 +179,9 @@ unsafe fn init() -> Result<(), anyhow::Error> {
 
             Ok(())
         })() {
-            log::warn!(
-                "[mod: {}] failed to init: {}",
-                mod_name.to_string_lossy(),
-                e
-            );
+            log::warn!("[mod: {}] failed to init: {}", mod_name, e);
         } else {
-            log::info!("[mod: {}] initialized", mod_name.to_string_lossy());
+            log::info!("[mod: {}] initialized", mod_name);
         }
     }
 

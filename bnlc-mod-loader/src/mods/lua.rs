@@ -6,7 +6,7 @@ use crate::assets;
 
 fn set_globals(
     lua: &mlua::Lua,
-    mod_name: &std::ffi::OsStr,
+    mod_name: &str,
     overlays: std::sync::Arc<
         std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
     >,
@@ -16,11 +16,11 @@ fn set_globals(
     globals.set(
         "print",
         lua.create_function({
-            let mod_name = mod_name.to_os_string();
+            let mod_name = mod_name.to_string();
             move |lua, args: mlua::Variadic<mlua::Value>| {
                 log::info!(
                     "[mod: {}] {}",
-                    mod_name.to_string_lossy(),
+                    mod_name,
                     args.iter()
                         .map(|v| lua
                             .coerce_string(v.clone())
@@ -46,7 +46,7 @@ fn set_globals(
 
 fn make_bnlc_mod_loader_table<'a>(
     lua: &'a mlua::Lua,
-    mod_name: &'a std::ffi::OsStr,
+    mod_name: &'a str,
     overlays: std::sync::Arc<
         std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
     >,
@@ -133,7 +133,7 @@ fn make_bnlc_mod_loader_table<'a>(
 }
 
 pub fn new(
-    mod_name: std::ffi::OsString,
+    mod_name: &str,
     overlays: std::sync::Arc<
         std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
     >,
