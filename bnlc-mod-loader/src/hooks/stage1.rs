@@ -43,22 +43,22 @@ unsafe fn on_create_file(
         .unwrap_or(&path)
         .to_path_buf();
 
-    let _replaced_path: Box<dyn std::any::Any> = {
+    let new_path = {
         let assets_replacer = assets::REPLACER.lock().unwrap();
-        if let Some(replaced_path) = assets_replacer.get_replaced_path(&path).unwrap() {
-            log::info!("read to {} was redirected", path.display());
-            path = replaced_path.to_path_buf();
-
-            // We set FILE_SHARE_DELETE here and delete the file immediately after CreateFileW to avoid temporary files hanging out.
-            dw_share_mode |= winapi::um::winnt::FILE_SHARE_DELETE;
-
-            Box::new(replaced_path)
-        } else {
-            Box::new(())
-        }
+        assets_replacer.get_replaced_path(&path).unwrap()
     };
 
-    let path_wstr = path
+    if new_path.is_replaced() {
+        log::info!(
+            "read to {} was redirected -> {}",
+            path.display(),
+            new_path.display()
+        );
+        // We set FILE_SHARE_DELETE here and delete the file immediately after CreateFileW to avoid temporary files hanging out.
+        dw_share_mode |= winapi::um::winnt::FILE_SHARE_DELETE;
+    }
+
+    let path_wstr = new_path
         .as_os_str()
         .encode_wide()
         .chain(std::iter::once(0))

@@ -33,14 +33,17 @@ impl Replacer {
             .insert(name.to_path_buf(), Box::new(replacer));
     }
 
-    pub fn get_replaced_path(
+    pub fn get_replaced_path<'a>(
         &self,
-        path: &std::path::Path,
-    ) -> Result<Option<ReplacedPath>, anyhow::Error> {
+        path: &'a std::path::Path,
+    ) -> Result<ReplacedPath<'a>, anyhow::Error> {
         let replacer = if let Some(replacer) = self.replacers.get(path) {
             replacer
         } else {
-            return Ok(None);
+            return Ok(ReplacedPath {
+                replaced: false,
+                path: std::borrow::Cow::Borrowed(path),
+            });
         };
 
         let _create_file_a_hook_guard =
@@ -52,23 +55,37 @@ impl Replacer {
         let mut dest_f = tempfile::NamedTempFile::new()?;
         replacer(&mut src_f, &mut dest_f)?;
         let (_, path) = dest_f.keep()?;
-        Ok(Some(ReplacedPath(path)))
+        Ok(ReplacedPath {
+            replaced: true,
+            path: std::borrow::Cow::Owned(path),
+        })
     }
 }
 
-pub struct ReplacedPath(std::path::PathBuf);
+pub struct ReplacedPath<'a> {
+    replaced: bool,
+    path: std::borrow::Cow<'a, std::path::Path>,
+}
 
-impl std::ops::Deref for ReplacedPath {
+impl<'a> ReplacedPath<'a> {
+    pub fn is_replaced(&self) -> bool {
+        self.replaced
+    }
+}
+
+impl<'a> std::ops::Deref for ReplacedPath<'a> {
     type Target = std::path::Path;
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        &self.path
     }
 }
 
-impl Drop for ReplacedPath {
+impl<'a> Drop for ReplacedPath<'a> {
     fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
+        if self.replaced {
+            let _ = std::fs::remove_file(&self.path);
+        }
     }
 }
 
