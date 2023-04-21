@@ -45,6 +45,8 @@ function print(...)
 function bnlc_mod_loader.read_dat_contents(dat_filename: string, path: string): string
 
 -- Writes the given data into a .dat file.
+--
+-- Note that this does not mutate the original .dat file on disk, but for all intents and purposes to both the game and the mod loader it does.
 function bnlc_mod_loader.write_dat_contents(dat_filename: string, path: string, contents: string)
 
 -- Reads the contents of a file from the mod folder.
