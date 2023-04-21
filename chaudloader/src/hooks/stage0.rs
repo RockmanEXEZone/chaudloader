@@ -63,8 +63,8 @@ fn scan_dats_as_overlays(
     Ok(overlays)
 }
 
-fn scan_mods() -> Result<std::collections::HashMap<String, mods::Info>, anyhow::Error> {
-    let mut mods = std::collections::HashMap::new();
+fn scan_mods() -> Result<std::collections::BTreeMap<String, mods::Info>, anyhow::Error> {
+    let mut mods = std::collections::BTreeMap::new();
     for entry in std::fs::read_dir("mods")? {
         let entry = entry?;
         if !entry.file_type()?.is_dir() {
@@ -115,14 +115,11 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
     // Scan for mods.
     let mods = scan_mods()?;
     let mut mod_names = mods.keys().collect::<Vec<_>>();
-    mod_names.sort_unstable();
     log::info!("found mods: {:?}", mod_names);
 
     let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
 
-    for mod_name in mod_names {
-        let mod_info = mods.get(mod_name).unwrap(); // Can't fail, the mods are just sorted.
-
+    for (mod_name, mod_info) in mods {
         let mod_path = std::path::Path::new("mods").join(&mod_name);
 
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
@@ -144,7 +141,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
             match std::fs::File::open(mod_path.join("init.lua")) {
                 Ok(mut init_f) => {
                     let lua =
-                        mods::lua::new(&mod_name, mod_info, std::sync::Arc::clone(&overlays))?;
+                        mods::lua::new(&mod_name, &mod_info, std::sync::Arc::clone(&overlays))?;
                     let mut code = String::new();
                     init_f.read_to_string(&mut code)?;
                     lua.load(&code).exec()?;
