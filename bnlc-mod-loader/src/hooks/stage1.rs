@@ -38,7 +38,7 @@ unsafe fn on_create_file(
 ) -> winapi::shared::ntdef::HANDLE {
     let path = path.normalize_virtually().unwrap().into_path_buf();
 
-    let mut path = path
+    let path = path
         .strip_prefix(std::env::current_dir().unwrap())
         .unwrap_or(&path)
         .to_path_buf();
