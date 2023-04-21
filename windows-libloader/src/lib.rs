@@ -22,7 +22,7 @@ pub fn get_system_directory() -> std::path::PathBuf {
 /// A module handle is a handle to a DLL.
 pub struct ModuleHandle {
     hmodule: winapi::shared::minwindef::HMODULE,
-    needs_free: bool,
+    free_on_drop: bool,
 }
 
 impl ModuleHandle {
@@ -38,7 +38,7 @@ impl ModuleHandle {
         } else {
             Some(ModuleHandle {
                 hmodule,
-                needs_free: false,
+                free_on_drop: false,
             })
         }
     }
@@ -56,7 +56,7 @@ impl ModuleHandle {
         } else {
             Some(ModuleHandle {
                 hmodule,
-                needs_free: true,
+                free_on_drop: true,
             })
         }
     }
@@ -74,11 +74,15 @@ impl ModuleHandle {
             Some(farproc)
         }
     }
+
+    pub fn set_free_on_drop(&mut self, free_on_drop: bool) {
+        self.free_on_drop = free_on_drop;
+    }
 }
 
 impl Drop for ModuleHandle {
     fn drop(&mut self) {
-        if self.needs_free {
+        if self.free_on_drop {
             unsafe {
                 winapi::um::libloaderapi::FreeLibrary(self.hmodule);
             }
