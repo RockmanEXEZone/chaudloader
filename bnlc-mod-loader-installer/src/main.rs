@@ -98,13 +98,13 @@ fn real_main() -> Result<(), anyhow::Error> {
 
 fn main() {
     let r = real_main();
-    println!();
-    if let Err(err) = r {
-        print!("Installation failed with error: {}", err);
-    } else {
-        print!("Press enter or close this window to finish.");
+    if let Err(err) = &r {
+        println!("Installation failed with error: {}", err);
     }
+    println!();
+    print!("Press enter or close this window to finish.");
     std::io::stdout().flush().unwrap();
     std::io::stdin().read_line(&mut String::new()).unwrap();
+    r.unwrap();
     return;
 }
