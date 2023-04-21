@@ -21,7 +21,7 @@ pub fn new<'a>(
     lua: &'a mlua::Lua,
     mod_name: &'a str,
     overlays: std::sync::Arc<
-        std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
+        std::sync::Mutex<std::collections::HashMap<String, assets::zipdat::Overlay>>,
     >,
 ) -> Result<mlua::Table<'a>, mlua::Error> {
     let table = lua.create_table()?;

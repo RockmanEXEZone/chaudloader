@@ -41,7 +41,7 @@ const BANNER: &str = const_format::formatcp!(
 );
 
 fn scan_dats_as_overlays(
-) -> Result<std::collections::HashMap<String, assets::dat::Overlay>, anyhow::Error> {
+) -> Result<std::collections::HashMap<String, assets::zipdat::Overlay>, anyhow::Error> {
     let mut overlays = std::collections::HashMap::new();
     for entry in std::fs::read_dir("data")? {
         let entry = entry?;
@@ -55,9 +55,9 @@ fn scan_dats_as_overlays(
         }
 
         let src_f = std::fs::File::open(&entry.path())?;
-        let reader = assets::dat::Reader::new(src_f)?;
+        let reader = assets::zipdat::Reader::new(src_f)?;
 
-        let overlay = assets::dat::Overlay::new(reader);
+        let overlay = assets::zipdat::Overlay::new(reader);
         overlays.insert(file_name, overlay);
     }
     Ok(overlays)

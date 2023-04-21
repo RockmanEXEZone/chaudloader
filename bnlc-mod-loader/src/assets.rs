@@ -1,4 +1,4 @@
-pub mod dat;
+pub mod zipdat;
 
 use crate::hooks;
 

@@ -6,7 +6,7 @@ fn set_globals(
     lua: &mlua::Lua,
     mod_name: &str,
     overlays: std::sync::Arc<
-        std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
+        std::sync::Mutex<std::collections::HashMap<String, assets::zipdat::Overlay>>,
     >,
 ) -> Result<(), mlua::Error> {
     let globals = lua.globals();
@@ -46,7 +46,7 @@ pub fn new(
     mod_name: &str,
     _mod_info: &mods::Info,
     overlays: std::sync::Arc<
-        std::sync::Mutex<std::collections::HashMap<String, assets::dat::Overlay>>,
+        std::sync::Mutex<std::collections::HashMap<String, assets::zipdat::Overlay>>,
     >,
 ) -> Result<mlua::Lua, mlua::Error> {
     let lua = mlua::Lua::new();
