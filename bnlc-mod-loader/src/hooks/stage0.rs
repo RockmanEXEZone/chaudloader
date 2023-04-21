@@ -40,11 +40,10 @@ unsafe fn init() -> Result<(), anyhow::Error> {
                 continue;
             }
 
-            asset_replacer.add(&entry.path(), |r, w| {
-                let repacker = assets::dat::Repacker::new(r)?;
-                repacker.finish(w)?;
-                Ok(())
-            });
+            let mut src_f = std::fs::File::open(&entry.path())?;
+            let repacker = assets::dat::Repacker::new(&mut src_f)?;
+            let mut dest_f = asset_replacer.add(&entry.path())?;
+            repacker.finish(&mut dest_f)?;
         }
     }
 
@@ -59,6 +58,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
         });
 
     unsafe {
+        // We hook CreateWindowExA specifically because BNLC may re-execute itself if not running under Steam. We don't want to go to all the trouble of repacking .dat files if we're just going to get re-executed.
         CreateWindowExA
             .initialize(
                 std::mem::transmute(USER32.get_symbol_address("CreateWindowExA").unwrap()),

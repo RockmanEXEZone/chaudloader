@@ -13,6 +13,11 @@ pub unsafe extern "system" fn DllMain(
         winapi::um::winnt::DLL_PROCESS_ATTACH => {
             hooks::stage0::install().unwrap();
         }
+        winapi::um::winnt::DLL_PROCESS_DETACH => {
+            // Destructors aren't run on termination, so we have to drop this ourselves to avoid lingering temporary files.
+            let mut assets_replacer = assets::REPLACER.lock().unwrap();
+            assets_replacer.clear();
+        }
         _ => {}
     }
     winapi::shared::minwindef::TRUE

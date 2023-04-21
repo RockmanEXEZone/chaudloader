@@ -45,7 +45,7 @@ unsafe fn on_create_file(
 
     let new_path = {
         let assets_replacer = assets::REPLACER.lock().unwrap();
-        assets_replacer.get_replaced_path(&path).unwrap()
+        assets_replacer.get(&path).unwrap()
     };
 
     if new_path.is_replaced() {
