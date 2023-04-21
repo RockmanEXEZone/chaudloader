@@ -34,13 +34,10 @@ pub fn new<'a>(
             let overlays = std::sync::Arc::clone(&overlays);
             move |_, (dat_filename, path, contents): (String, String, mlua::String)| {
                 let mut overlays = overlays.lock().unwrap();
-                let overlay = if let Some(overlay) = overlays.get_mut(&dat_filename) {
-                    overlay
-                } else {
-                    return Err(
-                        anyhow::format_err!("no such dat file: {}", dat_filename).to_lua_err()
-                    );
-                };
+                let overlay = overlays
+                    .get_mut(&dat_filename)
+                    .ok_or_else(|| anyhow::format_err!("no such dat file: {}", dat_filename))
+                    .map_err(|e| e.to_lua_err())?;
                 overlay
                     .write(&path, contents.as_bytes().to_vec())
                     .map_err(|e| e.to_lua_err())?;
@@ -55,12 +52,10 @@ pub fn new<'a>(
             let overlays = std::sync::Arc::clone(&overlays);
             move |lua, (dat_filename, path): (String, String)| {
                 let mut overlays = overlays.lock().unwrap();
-                let overlay = if let Some(overlay) = overlays.get_mut(&dat_filename) {
-                    overlay
-                } else {
-                    return Ok(None);
-                };
-
+                let overlay = overlays
+                    .get_mut(&dat_filename)
+                    .ok_or_else(|| anyhow::format_err!("no such dat file: {}", dat_filename))
+                    .map_err(|e| e.to_lua_err())?;
                 Ok(Some(lua.create_string(
                     &overlay.read(&path).map_err(|e| e.to_lua_err())?.to_vec(),
                 )?))
@@ -73,22 +68,12 @@ pub fn new<'a>(
         lua.create_function({
             let mod_path = mod_path.clone();
             move |lua, (path,): (String,)| {
-                let path = if let Some(path) =
-                    ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
-                {
-                    path
-                } else {
-                    return Err(
-                        anyhow::anyhow!("cannot read files outside of mod directory").to_lua_err(),
-                    );
-                };
-
-                let real_path = mod_path.join(path);
-
-                let mut f = std::fs::File::open(real_path)?;
+                let path = ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
+                    .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
+                    .map_err(|e| e.to_lua_err())?;
+                let mut f = std::fs::File::open(mod_path.join(path))?;
                 let mut buf = vec![];
                 f.read_to_end(&mut buf)?;
-
                 Ok(lua.create_string(&buf)?)
             }
         })?,
