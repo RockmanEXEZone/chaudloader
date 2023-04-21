@@ -34,12 +34,12 @@ In `init.lua`, you may use the following functions:
 -- Print a log line.
 function print(...)
 
--- Reads the contents of a file out of a .dat file (e.g. `exe6.dat`).
+-- Reads the contents of a file out of a zip .dat file (e.g. `exe6.dat`).
 --
 -- Previous calls to write_exe_zipdat_contents are visible to subsequent calls to read_exe_zipdat_contents.
 function bnlc_mod_loader.read_exe_zipdat_contents(zipdat_filename: string, path: string): string
 
--- Writes the given data into a .dat file.
+-- Writes the given data into a zip .dat file.
 --
 -- Note that this does not mutate the original .dat file on disk, but for all intents and purposes to both the game and the mod loader it does.
 function bnlc_mod_loader.write_exe_zipdat_contents(zipdat_filename: string, path: string, contents: string)

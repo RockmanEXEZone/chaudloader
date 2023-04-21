@@ -112,6 +112,7 @@ unsafe fn init() -> Result<(), anyhow::Error> {
     winapi::um::consoleapi::AllocConsole();
     env_logger::Builder::from_default_env()
         .filter(Some("bnlc_mod_loader"), log::LevelFilter::Info)
+        .write_style(env_logger::WriteStyle::Never) // Under wine, this looks super broken, so let's just never write styles.
         .init();
     log::info!("{}", BANNER);
 

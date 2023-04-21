@@ -29,7 +29,7 @@ static_detour! {
 unsafe fn on_create_file(
     path: &std::path::Path,
     dw_desired_access: winapi::shared::minwindef::DWORD,
-    mut dw_share_mode: winapi::shared::minwindef::DWORD,
+    dw_share_mode: winapi::shared::minwindef::DWORD,
     lp_security_attributes: winapi::um::minwinbase::LPSECURITY_ATTRIBUTES,
     dw_creation_disposition: winapi::shared::minwindef::DWORD,
     dw_flags_and_attributes: winapi::shared::minwindef::DWORD,
@@ -38,19 +38,15 @@ unsafe fn on_create_file(
     // FIXME: This path is relative to the exe folder, but is sometimes something like ..\exe\data\exe1.dat. We should canonicalize it in all cases to intercept all reads.
     let path = clean_path::clean(path);
 
-    let new_path = {
-        let assets_replacer = assets::REPLACER.lock().unwrap();
-        assets_replacer.get(&path).unwrap()
-    };
+    let assets_replacer = assets::REPLACER.lock().unwrap();
+    let (new_path, is_replaced) = assets_replacer.get(&path);
 
-    if new_path.is_replaced() {
+    if is_replaced {
         log::info!(
             "read to {} was redirected -> {}",
             path.display(),
             new_path.display()
         );
-        // We set FILE_SHARE_DELETE here and delete the file immediately after CreateFileW to avoid temporary files hanging out.
-        dw_share_mode |= winapi::um::winnt::FILE_SHARE_DELETE;
     }
 
     let path_wstr = new_path
