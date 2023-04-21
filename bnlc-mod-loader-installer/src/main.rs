@@ -1,7 +1,6 @@
 use std::io::Write;
 
 const BANNER: &str = "
-
         %%%%%%%%%%%%%%%%%
      %%%%%  *********  %%%%%
    %%%% *************     %%%%
@@ -48,7 +47,7 @@ fn real_main() -> Result<(), anyhow::Error> {
         return Ok(());
     }
 
-    print!("Do wish to proceed? [Y/n] ");
+    print!("Do you wish to proceed? [Y/n] ");
     std::io::stdout().flush()?;
     let mut response = String::new();
     std::io::stdin().read_line(&mut response)?;
