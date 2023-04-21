@@ -17,6 +17,4 @@ zip = "0.6"
 tempfile = "3"
 normpath = "1"
 windows-libloader = { path = "../windows-libloader" }
-
-[build-dependencies]
-cc = "1.0"
+const_format = "0.2"

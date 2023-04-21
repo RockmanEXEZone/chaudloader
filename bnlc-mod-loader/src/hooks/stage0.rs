@@ -18,12 +18,32 @@ static_detour! {
     ) -> winapi::shared::windef::HWND;
 }
 
+const BANNER: &str = const_format::formatcp!(
+    "
+
+        %%%%%%%%%%%%%%%%%
+     %%%%%  *********  %%%%%
+   %%%% *************     %%%%
+  %%% ***************       %%%
+ %%% *************** ******* %%%
+ %%% ************ ********** %%%    {}
+ %%% ********** ************ %%%    v{}
+ %%% ******* *************** %%%
+  %%%       *************** %%%
+   %%%%     ************* %%%%
+     %%%%%  *********  %%%%%
+        %%%%%%%%%%%%%%%%%
+",
+    env!("CARGO_PKG_NAME"),
+    env!("CARGO_PKG_VERSION")
+);
+
 unsafe fn init() -> Result<(), anyhow::Error> {
     winapi::um::consoleapi::AllocConsole();
     env_logger::Builder::from_default_env()
         .filter(Some("bnlc_mod_loader"), log::LevelFilter::Info)
         .init();
-    log::info!("hello!");
+    log::info!("{}", BANNER);
 
     {
         let mut asset_replacer = assets::REPLACER.lock().unwrap();
