@@ -12,9 +12,9 @@ bnlc-mod-loader is a mod loader for Mega Man Battle Network Legacy Collection.
 
 ## For mod developers
 
-Mods consists of two required files in a directory inside the `mods` folder:
+Mods consists of the following files in a directory inside the `mods` folder:
 
--   `info.toml`: Metadata about your mod. It should look something like this:
+-   `info.toml`: **Required.** Metadata about your mod. It should look something like this:
 
     ```toml
     title = "my cool mod"
@@ -22,9 +22,9 @@ Mods consists of two required files in a directory inside the `mods` folder:
     authors = ["my cool name"]
     ```
 
--   `init.lua`: The entry point of your mod.
+-   `init.lua`: **Optional.** The Lua script to run on mod load.
 
-You may additionally include an `init.dll` to be loaded when the mod loads. It should implement a suitable `DllMain` attach hook to detour the applicable functions in the executable. `init.dll` will automatically be loaded when the mod is loaded.
+-   `init.dll`: **Optional.** The DLL to load on mod load. It should implement a suitable `DllMain` attach hook to detour the applicable functions in the executable.
 
 ### Asset modding
 

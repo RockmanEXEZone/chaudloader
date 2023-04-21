@@ -151,14 +151,33 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
         let mod_path = std::path::Path::new("mods").join(&mod_name);
 
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
+            log::info!(
+                "[mod: {}] {} v{} by {}",
+                mod_name,
+                mod_info.title,
+                mod_info.version,
+                if !mod_info.authors.is_empty() {
+                    mod_info.authors.join(", ")
+                } else {
+                    "(no authors listed)".to_string()
+                }
+            );
+
             let mut mod_state = mods::State::new();
 
-            // Load Lua.
-            let lua = mods::lua::new(&mod_name, mod_info, std::sync::Arc::clone(&overlays))?;
-            let mut init_f = std::fs::File::open(mod_path.join("init.lua"))?;
-            let mut code = String::new();
-            init_f.read_to_string(&mut code)?;
-            lua.load(&code).exec()?;
+            // Load Lua, if it exists.
+            match std::fs::File::open(mod_path.join("init.lua")) {
+                Ok(mut init_f) => {
+                    let lua =
+                        mods::lua::new(&mod_name, mod_info, std::sync::Arc::clone(&overlays))?;
+                    let mut code = String::new();
+                    init_f.read_to_string(&mut code)?;
+                    lua.load(&code).exec()?;
+                    log::info!("[mod: {}] Lua script complete", mod_name);
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(_) => {}
+            }
 
             // Load DLL, if it exists.
             let init_dll_path = mod_path.join("init.dll");
@@ -173,17 +192,6 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
             }
 
             loaded_mods.insert(mod_name.to_string(), mod_state);
-            log::info!(
-                "[mod: {}] loaded: {} v{} by {}",
-                mod_name,
-                mod_info.title,
-                mod_info.version,
-                if !mod_info.authors.is_empty() {
-                    mod_info.authors.join(", ")
-                } else {
-                    "(no authors listed)".to_string()
-                }
-            );
 
             Ok(())
         })() {
