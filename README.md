@@ -10,7 +10,7 @@ chaudloader is a mod loader for Mega Man Battle Network Legacy Collection.
 
 2. Start the game. Mods in the `mods` folder will be activated in alphabetical order.
 
-## For mod developers
+## For modders
 
 Mods consists of the following files in a directory inside the `mods` folder:
 
@@ -119,6 +119,6 @@ function bnlc_mod_loader.read_mod_contents(path: string): string
 
 </details>
 
-## For library developers
+## For developers
 
 Build the binary with `cargo build --release`. You will need nightly Rust.
