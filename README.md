@@ -43,7 +43,22 @@ function chaudloader.ExeDat:write_file(path: string, contents: string): string
 function chaudloader.read_mod_file(path: string): string
 ```
 
-Legacy bnlc_mod_loader API:
+For instance, for a simple font mod, you can write the following script:
+
+```lua
+local exe6_dat = chaudloader.ExeDat("exe6.dat")
+local exe6f_dat = chaudloader.ExeDat("exe6f.dat")
+
+local font = chaudloader.read_mod_file("eng_mojiFont.fnt")
+
+exe6_dat.write_file("exe6/data/font/eng_mojiFont.fnt", font)
+exe6f_dat.write_file("exe6f/data/font/eng_mojiFont.fnt", font)
+```
+
+Mods are order dependent: the DAT contents written by a previous mod will be visible to a subsequent mod.
+
+<details>
+<summary>Legacy bnlc_mod_loader API</summary>
 
 ```lua
 -- Reads the contents of a file out of a .dat file located in exe/data (e.g. `exe6.dat`).
@@ -60,19 +75,7 @@ function bnlc_mod_loader.write_exe_dat_contents(dat_filename: string, path: stri
 function bnlc_mod_loader.read_mod_contents(path: string): string
 ```
 
-For instance, for a simple font mod, you can write the following script:
-
-```lua
-local exe6_dat = chaudloader.ExeDat("exe6.dat")
-local exe6f_dat = chaudloader.ExeDat("exe6f.dat")
-
-local font = chaudloader.read_mod_file("eng_mojiFont.fnt")
-
-exe6_dat.write_file("exe6/data/font/eng_mojiFont.fnt", font)
-exe6f_dat.write_file("exe6f/data/font/eng_mojiFont.fnt", font)
-```
-
-Mods are order dependent: the DAT contents written by a previous mod will be visible to a subsequent mod.
+</details>
 
 ## For library developers
 
