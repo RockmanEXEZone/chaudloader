@@ -93,8 +93,8 @@ local exe6f_dat = chaudloader.ExeDat("exe6f.dat")
 
 local font = chaudloader.read_mod_file("eng_mojiFont.fnt")
 
-exe6_dat.write_file("exe6/data/font/eng_mojiFont.fnt", font)
-exe6f_dat.write_file("exe6f/data/font/eng_mojiFont.fnt", font)
+exe6_dat:write_file("exe6/data/font/eng_mojiFont.fnt", font)
+exe6f_dat:write_file("exe6f/data/font/eng_mojiFont.fnt", font)
 ```
 
 Mods are order dependent: the DAT contents written by a previous mod will be visible to a subsequent mod.
