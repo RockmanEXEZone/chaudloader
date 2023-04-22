@@ -55,14 +55,14 @@ pub fn new<'a>(
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.into_lua_err())?;
                 let mut state = state.borrow_mut();
-                type ChaudLoaderInitFn =
+                type ChaudloaderInitFn =
                     unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool;
                 let dll = unsafe {
                     let dll = windows_libloader::ModuleHandle::load(&mod_path.join(&path))
                         .ok_or_else(|| anyhow::anyhow!("DLL {} failed to load", path.display()))
                         .map_err(|e| e.into_lua_err())?;
-                    let init_fn = std::mem::transmute::<_, ChaudLoaderInitFn>(
-                        dll.get_symbol_address("ChaudLoaderInit")
+                    let init_fn = std::mem::transmute::<_, ChaudloaderInitFn>(
+                        dll.get_symbol_address("chaudloader_init")
                             .ok_or_else(|| {
                                 anyhow::anyhow!(
                                     "ChaudLoaderInit not found in DLL {}",
