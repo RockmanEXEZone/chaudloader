@@ -20,11 +20,13 @@ fn ensure_path_is_safe(path: &std::path::Path) -> Option<std::path::PathBuf> {
 pub fn new<'a>(
     lua: &'a mlua::Lua,
     mod_name: &'a str,
-    overlays: std::sync::Arc<
-        std::sync::Mutex<std::collections::HashMap<String, assets::zipdat::Overlay>>,
+    overlays: std::collections::HashMap<
+        String,
+        std::sync::Arc<std::sync::Mutex<assets::zipdat::Overlay>>,
     >,
 ) -> Result<mlua::Table<'a>, mlua::Error> {
     let table = lua.create_table()?;
+    let overlays = std::sync::Arc::new(overlays);
 
     let mod_path = std::path::Path::new("mods").join(mod_name);
 
@@ -33,11 +35,11 @@ pub fn new<'a>(
         lua.create_function({
             let overlays = std::sync::Arc::clone(&overlays);
             move |_, (dat_filename, path, contents): (String, String, mlua::String)| {
-                let mut overlays = overlays.lock().unwrap();
                 let overlay = overlays
-                    .get_mut(&dat_filename)
+                    .get(&dat_filename)
                     .ok_or_else(|| anyhow::format_err!("no such dat file: {}", dat_filename))
                     .map_err(|e| e.to_lua_err())?;
+                let mut overlay = overlay.lock().unwrap();
                 overlay
                     .write(&path, contents.as_bytes().to_vec())
                     .map_err(|e| e.to_lua_err())?;
@@ -50,12 +52,12 @@ pub fn new<'a>(
         "read_exe_dat_contents",
         lua.create_function({
             let overlays = std::sync::Arc::clone(&overlays);
-            move |lua, (dat_filename, path): (String, String)| {
-                let mut overlays = overlays.lock().unwrap();
+            move |lua: &mlua::Lua, (dat_filename, path): (String, String)| {
                 let overlay = overlays
-                    .get_mut(&dat_filename)
+                    .get(&dat_filename)
                     .ok_or_else(|| anyhow::format_err!("no such dat file: {}", dat_filename))
                     .map_err(|e| e.to_lua_err())?;
+                let mut overlay = overlay.lock().unwrap();
                 Ok(Some(lua.create_string(
                     &overlay.read(&path).map_err(|e| e.to_lua_err())?.to_vec(),
                 )?))

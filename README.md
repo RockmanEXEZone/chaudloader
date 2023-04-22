@@ -34,6 +34,18 @@ In `init.lua`, you may use the following functions:
 -- Print a log line.
 function print(...)
 
+-- Opens an exe .dat file.
+function chaudloader.ExeDat(dat_filename: string): ExeDat
+function chaudloader.ExeDat:read_file(path: string): string
+function chaudloader.ExeDat:write_file(path: string, contents: string): string
+
+-- Reads the contents of a file from the mod folder.
+function chaudloader.read_mod_file(path: string): string
+```
+
+Legacy bnlc_mod_loader API:
+
+```lua
 -- Reads the contents of a file out of a .dat file located in exe/data (e.g. `exe6.dat`).
 --
 -- Previous calls to write_exe_dat_contents are visible to subsequent calls to read_exe_dat_contents.

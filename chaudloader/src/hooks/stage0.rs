@@ -110,7 +110,11 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
     let mut dat_names = overlays.keys().collect::<Vec<_>>();
     dat_names.sort_unstable();
     log::info!("found dat archives: {:?}", dat_names);
-    let overlays = std::sync::Arc::new(std::sync::Mutex::new(overlays));
+
+    let overlays = overlays
+        .into_iter()
+        .map(|(k, v)| (k, std::sync::Arc::new(std::sync::Mutex::new(v))))
+        .collect::<std::collections::HashMap<_, _>>();
 
     // Scan for mods.
     let mods = scan_mods()?;
@@ -140,8 +144,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
             // Load Lua, if it exists.
             match std::fs::File::open(mod_path.join("init.lua")) {
                 Ok(mut init_f) => {
-                    let lua =
-                        mods::lua::new(&mod_name, &mod_info, std::sync::Arc::clone(&overlays))?;
+                    let lua = mods::lua::new(&mod_name, &mod_info, overlays.clone())?;
                     let mut code = String::new();
                     init_f.read_to_string(&mut code)?;
                     lua.load(&code).exec()?;
@@ -182,8 +185,10 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
             .is_ok());
         let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
 
-        let mut overlays = overlays.lock().unwrap();
-        for (dat_filename, mut overlay) in overlays.drain() {
+        let mut overlays = overlays;
+        for (dat_filename, overlay) in overlays.drain() {
+            let mut overlay = overlay.lock().unwrap();
+
             // TODO: This path is a little wobbly, since it relies on BNLC specifying this weird relative path.
             // We should canonicalize this path instead.
             let dat_path = std::path::Path::new("..\\exe\\data").join(&dat_filename);
