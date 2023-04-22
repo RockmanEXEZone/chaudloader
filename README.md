@@ -88,13 +88,6 @@ function chaudloader.read_mod_file(path: string): string
 -- Unsafe functions (mod must have unsafe = true)
 --
 
--- Loads a library from the mod folder and call its chaudloader_init function.
---
---     chaudloader_init: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
---
--- This is not recommended: instead, you should just require a Lua DLL.
-function chaudloader.unsafe.init_mod_dll(path: string, userdata: string)
-
 -- Writes directly into process memory.
 function chaudloader.unsafe.write_process_memory(addr: number, buf: string)
 
@@ -142,20 +135,33 @@ exe6f_dat:write_file("exe6f/data/font/eng_mojiFont.fnt", font)
 Mods are order dependent: the DAT contents written by a previous mod will be visible to a subsequent mod.
 
 <details>
-<summary>Legacy bnlc_mod_loader API</summary>
+<summary>Deprecated API</summary>
 
 ```lua
+-- Loads a library from the mod folder and call its chaudloader_init function.
+--
+--     chaudloader_init: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
+--
+-- Deprecated: See |require|.
+function chaudloader.unsafe.init_mod_dll(path: string, userdata: string)
+
 -- Reads the contents of a file out of a .dat file located in exe/data (e.g. `exe6.dat`).
 --
 -- Previous calls to write_exe_dat_contents are visible to subsequent calls to read_exe_dat_contents.
+--
+-- Deprecated: See |chaudloader.ExeDat:read_file|.
 function bnlc_mod_loader.read_exe_dat_contents(dat_filename: string, path: string): string
 
 -- Writes the given data into a zip .dat file located in exe/data.
 --
 -- Note that this does not mutate the original .dat file on disk, but for all intents and purposes to both the game and the mod loader it does.
+--
+-- Deprecated: See |chaudloader.ExeDat:write_file|.
 function bnlc_mod_loader.write_exe_dat_contents(dat_filename: string, path: string, contents: string)
 
 -- Reads the contents of a file from the mod folder.
+--
+-- Deprecated: See |chaudloader.read_mod_file|.
 function bnlc_mod_loader.read_mod_contents(path: string): string
 ```
 
