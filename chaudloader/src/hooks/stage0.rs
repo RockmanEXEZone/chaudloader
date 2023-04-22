@@ -140,13 +140,15 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
 
             let mod_state = std::rc::Rc::new(std::cell::RefCell::new(mods::State::new()));
 
-            let lua = mods::lua::new(
-                &mod_name,
-                &mod_info,
-                std::rc::Rc::clone(&mod_state),
-                overlays.clone(),
-            )?;
-            lua.load(&init_lua).set_name("init.lua").exec()?;
+            {
+                let lua = mods::lua::new(
+                    &mod_name,
+                    &mod_info,
+                    std::rc::Rc::clone(&mod_state),
+                    overlays.clone(),
+                )?;
+                lua.load(&init_lua).set_name("init.lua").exec()?;
+            }
             log::info!("[mod: {}] Lua script complete", mod_name);
 
             loaded_mods.insert(
