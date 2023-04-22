@@ -47,6 +47,22 @@ function chaudloader.ExeDat:read_file(path: string): string
 function chaudloader.ExeDat:write_file(path: string, contents: string): string
 
 --
+-- .map + .mpak file functions
+--
+
+-- Unmarshals an .map + .mpak file.
+function chaudloader.Mpak(map_contents: string, mpak_contents): Mpak
+
+-- Gets an entry at the given ROM address from the mpak.
+function chaudloader.Mpak:get(rom_addr: number): string
+
+-- Inserts an entry at the given ROM address into the mpak. Existing entries will be clobbered.
+function chaudloader.Mpak:insert(rom_addr: number, contents: string)
+
+-- Marshals an mpak back into .map + .mpak format.
+function chaudloader.Mpak:to_raw(): (string, string)
+
+--
 -- Mod file functions
 --
 

@@ -22,9 +22,9 @@ pub fn new<'a>(
     mod_name: &'a str,
     overlays: std::collections::HashMap<
         String,
-        std::sync::Arc<std::sync::Mutex<assets::zipdat::Overlay>>,
+        std::sync::Arc<std::sync::Mutex<assets::exedat::Overlay>>,
     >,
-) -> Result<mlua::Table<'a>, mlua::Error> {
+) -> Result<mlua::Value<'a>, mlua::Error> {
     let table = lua.create_table()?;
     let overlays = std::sync::Arc::new(overlays);
 
@@ -78,5 +78,5 @@ pub fn new<'a>(
         })?,
     )?;
 
-    Ok(table)
+    Ok(mlua::Value::Table(table))
 }

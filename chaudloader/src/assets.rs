@@ -1,5 +1,5 @@
+pub mod exedat;
 pub mod mpak;
-pub mod zipdat;
 
 pub trait ReadSeek: std::io::Read + std::io::Seek {}
 impl<T: std::io::Read + std::io::Seek> ReadSeek for T {}

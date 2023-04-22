@@ -1,3 +1,6 @@
+mod exedat;
+mod mpak;
+
 use crate::{assets, mods};
 use mlua::ExternalError;
 use std::str::FromStr;
@@ -17,39 +20,15 @@ fn ensure_path_is_safe(path: &std::path::Path) -> Option<std::path::PathBuf> {
     Some(path)
 }
 
-struct ExeDat(std::sync::Arc<std::sync::Mutex<assets::zipdat::Overlay>>);
-
-impl mlua::UserData for ExeDat {
-    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_method("read_file", |lua, this, (path,): (String,)| {
-            let mut overlay = this.0.lock().unwrap();
-            Ok(Some(lua.create_string(
-                &overlay.read(&path).map_err(|e| e.to_lua_err())?.to_vec(),
-            )?))
-        });
-
-        methods.add_method(
-            "write_file",
-            |lua, this, (path, contents): (String, mlua::String)| {
-                let mut overlay = this.0.lock().unwrap();
-                overlay
-                    .write(&path, contents.as_bytes().to_vec())
-                    .map_err(|e| e.to_lua_err())?;
-                Ok(())
-            },
-        );
-    }
-}
-
 pub fn new<'a>(
     lua: &'a mlua::Lua,
     name: &'a str,
     state: std::sync::Arc<std::sync::Mutex<mods::State>>,
     overlays: std::collections::HashMap<
         String,
-        std::sync::Arc<std::sync::Mutex<assets::zipdat::Overlay>>,
+        std::sync::Arc<std::sync::Mutex<assets::exedat::Overlay>>,
     >,
-) -> Result<mlua::Table<'a>, mlua::Error> {
+) -> Result<mlua::Value<'a>, mlua::Error> {
     let table = lua.create_table()?;
     let mod_path = std::path::Path::new("mods").join(name);
 
@@ -71,7 +50,7 @@ pub fn new<'a>(
         lua.create_function({
             let mod_path = mod_path.clone();
             let state = std::sync::Arc::clone(&state);
-            move |lua, (path, buf): (String, mlua::String)| {
+            move |_, (path, buf): (String, mlua::String)| {
                 let path = ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.to_lua_err())?;
@@ -108,19 +87,8 @@ pub fn new<'a>(
         })?,
     )?;
 
-    table.set(
-        "ExeDat",
-        lua.create_function({
-            move |lua, (name,): (String,)| {
-                let overlay = if let Some(overlay) = overlays.get(&name) {
-                    std::sync::Arc::clone(&overlay)
-                } else {
-                    return Err(anyhow::format_err!("no such dat file: {}", name).to_lua_err());
-                };
-                Ok(ExeDat(overlay))
-            }
-        })?,
-    )?;
+    table.set("ExeDat", exedat::new(lua, overlays)?)?;
+    table.set("Mpak", mpak::new(lua)?)?;
 
-    Ok(table)
+    Ok(mlua::Value::Table(table))
 }

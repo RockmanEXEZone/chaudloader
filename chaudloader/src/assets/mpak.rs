@@ -68,8 +68,8 @@ impl Mpak {
         Ok(Self { entries })
     }
 
-    pub fn insert(&mut self, rom_addr: u32, value: Vec<u8>) -> Option<Vec<u8>> {
-        self.entries.insert(rom_addr, value)
+    pub fn insert(&mut self, rom_addr: u32, contents: Vec<u8>) -> Option<Vec<u8>> {
+        self.entries.insert(rom_addr, contents)
     }
 
     pub fn get<'a>(&'a self, rom_addr: u32) -> Option<&'a [u8]> {
