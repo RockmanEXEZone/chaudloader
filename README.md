@@ -56,7 +56,7 @@ function chaudloader.read_mod_file(path: string): string
 -- Load a library from the mod folder and call its ChaudLoaderInit function.
 --
 -- ChaudLoaderInit: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
-function chaudloader.init_mod_library(path: string, userdata: string)
+function chaudloader.init_mod_dll(path: string, userdata: string)
 
 --
 -- Utility functions

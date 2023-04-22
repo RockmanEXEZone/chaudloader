@@ -67,7 +67,7 @@ pub fn new<'a>(
     )?;
 
     table.set(
-        "init_mod_library",
+        "init_mod_dll",
         lua.create_function({
             let mod_path = mod_path.clone();
             let state = std::sync::Arc::clone(&state);
