@@ -121,7 +121,8 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
     let mut mod_names = mods.keys().collect::<Vec<_>>();
     log::info!("found mods: {:?}", mod_names);
 
-    let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
+    let mut loaded_mods =
+        std::collections::HashMap::<String, std::sync::Arc<std::sync::Mutex<mods::State>>>::new();
 
     for (mod_name, mod_info) in mods {
         let mod_path = std::path::Path::new("mods").join(&mod_name);
@@ -139,12 +140,17 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
                 }
             );
 
-            let mut mod_state = mods::State::new();
+            let mod_state = std::sync::Arc::new(std::sync::Mutex::new(mods::State::new()));
 
             // Load Lua, if it exists.
             match std::fs::File::open(mod_path.join("init.lua")) {
                 Ok(mut init_f) => {
-                    let lua = mods::lua::new(&mod_name, &mod_info, overlays.clone())?;
+                    let lua = mods::lua::new(
+                        &mod_name,
+                        &mod_info,
+                        std::sync::Arc::clone(&mod_state),
+                        overlays.clone(),
+                    )?;
                     let mut code = String::new();
                     init_f.read_to_string(&mut code)?;
                     lua.load(&code).exec()?;
@@ -152,18 +158,6 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
                 Err(_) => {}
-            }
-
-            // Load DLL, if it exists.
-            let init_dll_path = mod_path.join("init.dll");
-            if std::fs::try_exists(&init_dll_path)? {
-                let dll = windows_libloader::ModuleHandle::load(&init_dll_path)
-                    .ok_or_else(|| anyhow::anyhow!("DLL was requested to load but did not load"))?;
-                log::info!(
-                    "[mod: {}] DLL loaded. make sure you trust the authors of this mod!",
-                    mod_name
-                );
-                mod_state.set_init_dll(dll);
             }
 
             loaded_mods.insert(mod_name.to_string(), mod_state);
@@ -174,8 +168,9 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
         }
     }
 
-    static LOADED_MODS: std::sync::OnceLock<std::collections::HashMap<String, mods::State>> =
-        std::sync::OnceLock::new();
+    static LOADED_MODS: std::sync::OnceLock<
+        std::collections::HashMap<String, std::sync::Arc<std::sync::Mutex<mods::State>>>,
+    > = std::sync::OnceLock::new();
     assert!(LOADED_MODS.set(loaded_mods).is_ok());
 
     // We are done with mod initialization! We can now go repack everything from our overlays.

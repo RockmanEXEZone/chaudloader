@@ -5,7 +5,8 @@ mod chaudloader_lib;
 
 fn set_globals(
     lua: &mlua::Lua,
-    mod_name: &str,
+    name: &str,
+    state: std::sync::Arc<std::sync::Mutex<mods::State>>,
     overlays: std::collections::HashMap<
         String,
         std::sync::Arc<std::sync::Mutex<assets::zipdat::Overlay>>,
@@ -16,11 +17,11 @@ fn set_globals(
     globals.set(
         "print",
         lua.create_function({
-            let mod_name = mod_name.to_string();
+            let name = name.to_string();
             move |lua, args: mlua::Variadic<mlua::Value>| {
                 log::info!(
                     "[mod: {}] {}",
-                    mod_name,
+                    name,
                     args.iter()
                         .map(|v| lua
                             .coerce_string(v.clone())
@@ -38,26 +39,27 @@ fn set_globals(
 
     globals.set(
         "bnlc_mod_loader",
-        bnlc_mod_loader_lib::new(&lua, mod_name, overlays.clone())?,
+        bnlc_mod_loader_lib::new(&lua, name, overlays.clone())?,
     )?;
 
     globals.set(
         "chaudloader",
-        chaudloader_lib::new(&lua, mod_name, overlays)?,
+        chaudloader_lib::new(&lua, name, state, overlays)?,
     )?;
 
     Ok(())
 }
 
 pub fn new(
-    mod_name: &str,
-    _mod_info: &mods::Info,
+    name: &str,
+    _info: &mods::Info,
+    state: std::sync::Arc<std::sync::Mutex<mods::State>>,
     overlays: std::collections::HashMap<
         String,
         std::sync::Arc<std::sync::Mutex<assets::zipdat::Overlay>>,
     >,
 ) -> Result<mlua::Lua, mlua::Error> {
     let lua = mlua::Lua::new();
-    set_globals(&lua, &mod_name, overlays)?;
+    set_globals(&lua, &name, state, overlays)?;
     Ok(lua)
 }

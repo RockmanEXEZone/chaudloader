@@ -22,9 +22,7 @@ Mods consists of the following files in a directory inside the `mods` folder:
     authors = ["my cool name"]
     ```
 
--   `init.lua`: **Optional.** The Lua script to run on mod load.
-
--   `init.dll`: **Optional.** The DLL to load on mod load. It should implement a suitable `DllMain` attach hook to detour the applicable functions in the executable.
+-   `init.lua`: The Lua script to run on mod load.
 
 ### Asset modding
 
@@ -54,6 +52,11 @@ function chaudloader.ExeDat:write_file(path: string, contents: string): string
 
 -- Reads the contents of a file from the mod folder.
 function chaudloader.read_mod_file(path: string): string
+
+-- Load a library from the mod folder and call its ChaudLoaderInit function.
+--
+-- ChaudLoaderInit: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
+function chaudloader.init_mod_library(path: string, userdata: string)
 
 --
 -- Utility functions
