@@ -4,7 +4,9 @@ pub mod lua;
 pub struct Info {
     pub title: String,
 
-    pub version: String,
+    pub version: semver::Version,
+
+    pub requires_loader_version: semver::VersionReq,
 
     #[serde(default)]
     pub authors: Vec<String>,

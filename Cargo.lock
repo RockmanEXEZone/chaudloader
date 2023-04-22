@@ -138,6 +138,7 @@ dependencies = [
  "log",
  "mlua",
  "retour",
+ "semver",
  "serde",
  "tempfile",
  "thiserror",
@@ -773,6 +774,15 @@ dependencies = [
  "libc",
  "linux-raw-sys",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "semver"
+version = "1.0.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bebd363326d05ec3e2f532ab7660680f3b02130d780c299bca73469d521bc0ed"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

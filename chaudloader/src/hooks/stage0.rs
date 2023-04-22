@@ -126,6 +126,14 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
 
     for (mod_name, (mod_info, init_lua)) in mods {
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
+            if !mod_info.requires_loader_version.matches(&crate::VERSION) {
+                return Err(anyhow::format_err!(
+                    "version {} does not match requirement {}",
+                    *crate::VERSION,
+                    mod_info.requires_loader_version
+                ));
+            }
+
             log::info!(
                 "[mod: {}] {} v{} by {}",
                 mod_name,
