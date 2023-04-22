@@ -107,7 +107,15 @@ function chaudloader.unsafe.read_process_memory(addr: number, n: number): string
 
 -- Requires a module from the mods directory.
 --
--- If unsafe = true, require may load DLLs of the form <name>.dll from the mods directory.
+-- If unsafe = true, require may load Lua DLLs of the form <name>.dll from the mods directory.
+--
+--
+-- If the name contains dots (`.`), they will be translated to slashes for paths (`/`). If the name is for a Lua DLL, they will be replaced with underscores (`_`) in the loader function. For example, for a library named `foo.bar`:
+--
+--  - Path: foo/bar.lua (or foo/bar.dll)
+--  - DLL entry point: luaopen_foo_bar
+--
+-- For more information on writing Lua libraries, see https://www.lua.org/pil/26.2.html.
 function require(name: string): any
 
 -- Prints a log line.

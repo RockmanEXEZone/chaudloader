@@ -50,7 +50,7 @@ pub fn set_globals(
             let mod_path = mod_path.clone();
             let r#unsafe = info.r#unsafe;
             move |lua, name: String| {
-                let path = path::ensure_safe(std::path::Path::new(&name))
+                let path = path::ensure_safe(std::path::Path::new(&name.replace(".", "/")))
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.into_lua_err())?;
 
@@ -92,18 +92,6 @@ pub fn set_globals(
                         .call::<_, mlua::Value>(())?
                 } else if r#unsafe {
                     // Try load unsafe.
-                    let lib_name = path
-                        .file_name()
-                        .ok_or_else(|| {
-                            anyhow::anyhow!("cannot deciper library name: {}", path.display())
-                                .into_lua_err()
-                        })?
-                        .to_str()
-                        .ok_or_else(|| {
-                            anyhow::anyhow!("cannot deciper path: {}", path.display())
-                                .into_lua_err()
-                        })?;
-
                     let mut state = state.borrow_mut();
                     let mut path = path.clone();
                     path.as_mut_os_string().push(".dll");
@@ -114,7 +102,7 @@ pub fn set_globals(
                                 "cannot find '{}' (also tried DLL)",
                                 name
                             )))?;
-                        let symbol_name = format!("luaopen_{}", lib_name);
+                        let symbol_name = format!("luaopen_{}", name.replace(".", "_"));
                         let luaopen = std::mem::transmute::<_, mlua::lua_CFunction>(
                             mh.get_symbol_address(&symbol_name).ok_or(
                                 mlua::Error::RuntimeError(format!(
