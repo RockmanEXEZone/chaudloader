@@ -51,7 +51,7 @@ function chaudloader.ExeDat:write_file(path: string, contents: string): string
 --
 
 -- Unmarshals an .map + .mpak file.
-function chaudloader.Mpak(map_contents: string, mpak_contents): Mpak
+function chaudloader.Mpak(map_contents: string, mpak_contents: string): Mpak
 
 -- Inserts an entry at the given ROM address into the mpak. Existing entries will be clobbered. If contents is nil, the entry will be deleted.
 function chaudloader.Mpak:__newindex(rom_addr: number, contents: string)
