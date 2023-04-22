@@ -6,7 +6,7 @@ pub mod chaudloader;
 pub fn set_globals(
     lua: &mlua::Lua,
     name: &str,
-    state: std::sync::Arc<std::sync::Mutex<mods::State>>,
+    state: std::rc::Rc<std::cell::RefCell<mods::State>>,
     overlays: std::collections::HashMap<
         String,
         std::rc::Rc<std::cell::RefCell<assets::exedat::Overlay>>,

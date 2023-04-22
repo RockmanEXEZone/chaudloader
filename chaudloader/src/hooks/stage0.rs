@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use crate::{assets, mods};
 use retour::static_detour;
 
@@ -121,7 +123,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
     log::info!("found mods: {:?}", mod_names);
 
     let mut loaded_mods =
-        std::collections::HashMap::<String, std::sync::Arc<std::sync::Mutex<mods::State>>>::new();
+        std::collections::HashMap::<String, std::rc::Rc<std::cell::RefCell<mods::State>>>::new();
 
     for (mod_name, (mod_info, init_lua)) in mods {
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
@@ -137,12 +139,12 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
                 }
             );
 
-            let mod_state = std::sync::Arc::new(std::sync::Mutex::new(mods::State::new()));
+            let mod_state = std::rc::Rc::new(std::cell::RefCell::new(mods::State::new()));
 
             let lua = mods::lua::new(
                 &mod_name,
                 &mod_info,
-                std::sync::Arc::clone(&mod_state),
+                std::rc::Rc::clone(&mod_state),
                 overlays.clone(),
             )?;
             lua.load(&init_lua).set_name("init.lua")?.exec()?;
@@ -156,10 +158,15 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
         }
     }
 
-    static LOADED_MODS: std::sync::OnceLock<
-        std::collections::HashMap<String, std::sync::Arc<std::sync::Mutex<mods::State>>>,
-    > = std::sync::OnceLock::new();
-    assert!(LOADED_MODS.set(loaded_mods).is_ok());
+    // We just need somewhere to keep LOADED_MODS so the DLLs don't get cleaned up, so we'll just put them here.
+    std::thread_local! {
+        static LOADED_MODS: std::cell::RefCell<
+            Option<
+                std::collections::HashMap<String, std::rc::Rc<std::cell::RefCell<mods::State>>>,
+            >,
+        > = RefCell::new(None);
+    }
+    LOADED_MODS.set(Some(loaded_mods));
 
     // We are done with mod initialization! We can now go repack everything from our overlays.
     {

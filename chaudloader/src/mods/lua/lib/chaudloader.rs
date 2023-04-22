@@ -23,7 +23,7 @@ fn ensure_path_is_safe(path: &std::path::Path) -> Option<std::path::PathBuf> {
 pub fn new<'a>(
     lua: &'a mlua::Lua,
     name: &'a str,
-    state: std::sync::Arc<std::sync::Mutex<mods::State>>,
+    state: std::rc::Rc<std::cell::RefCell<mods::State>>,
     overlays: std::collections::HashMap<
         String,
         std::rc::Rc<std::cell::RefCell<assets::exedat::Overlay>>,
@@ -49,12 +49,12 @@ pub fn new<'a>(
         "init_mod_dll",
         lua.create_function({
             let mod_path = mod_path.clone();
-            let state = std::sync::Arc::clone(&state);
+            let state = std::rc::Rc::clone(&state);
             move |_, (path, buf): (String, mlua::String)| {
                 let path = ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.to_lua_err())?;
-                let mut state = state.lock().unwrap();
+                let mut state = state.borrow_mut();
                 type ChaudLoaderInitFn =
                     unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool;
                 let dll = unsafe {

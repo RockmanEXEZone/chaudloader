@@ -1,5 +1,6 @@
 #![feature(lazy_cell)]
 #![feature(fs_try_exists)]
+#![feature(local_key_cell_methods)]
 
 mod assets;
 mod hooks;

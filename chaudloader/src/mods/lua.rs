@@ -5,7 +5,7 @@ use crate::{assets, mods};
 pub fn new(
     name: &str,
     _info: &mods::Info,
-    state: std::sync::Arc<std::sync::Mutex<mods::State>>,
+    state: std::rc::Rc<std::cell::RefCell<mods::State>>,
     overlays: std::collections::HashMap<
         String,
         std::rc::Rc<std::cell::RefCell<assets::exedat::Overlay>>,
