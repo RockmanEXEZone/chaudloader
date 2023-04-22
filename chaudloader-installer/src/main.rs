@@ -6,7 +6,7 @@ const BANNER: &str = "
    %%%% *************     %%%%
   %%% ***************       %%%
  %%% *************** ******* %%%
- %%% ************ ********** %%%    bnlc-mod-loader
+ %%% ************ ********** %%%    chaudloader
  %%% ********** ************ %%%    Installer
  %%% ******* *************** %%%
   %%%       *************** %%%
@@ -18,7 +18,7 @@ const BANNER: &str = "
 fn real_main() -> Result<(), anyhow::Error> {
     println!("{}", BANNER);
 
-    println!("Welcome to the bnlc-mod-loader installer.");
+    println!("Welcome to the chaudloader installer.");
     println!();
 
     let mut steamdir = steamlocate::SteamDir::locate()
