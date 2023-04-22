@@ -177,7 +177,7 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
 
             Ok(())
         })() {
-            log::warn!("[mod: {}] failed to init: {}", mod_name, e);
+            log::error!("[mod: {}] failed to init: {}", mod_name, e);
         }
     }
 
