@@ -9,6 +9,12 @@ mod mods;
 pub static VERSION: std::sync::LazyLock<semver::Version> =
     std::sync::LazyLock::new(|| semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap());
 
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum GameVolume {
+    Vol1,
+    Vol2,
+}
+
 #[no_mangle]
 pub unsafe extern "system" fn DllMain(
     _module: winapi::shared::minwindef::HINSTANCE,

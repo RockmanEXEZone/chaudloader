@@ -1,6 +1,6 @@
 [package]
 name = "chaudloader"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 
 [lib]
@@ -24,3 +24,4 @@ toml = "0.4"
 byteorder = "1"
 indexmap = "1"
 semver = { version = "1", features = ["serde"] }
+serde_plain = "1"

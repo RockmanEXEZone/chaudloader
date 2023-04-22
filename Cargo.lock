@@ -127,7 +127,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chaudloader"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -140,6 +140,7 @@ dependencies = [
  "retour",
  "semver",
  "serde",
+ "serde_plain",
  "tempfile",
  "thiserror",
  "toml",
@@ -803,6 +804,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_plain"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6018081315db179d0ce57b1fe4b62a12a0028c9cf9bbef868c9cf477b3c34ae"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

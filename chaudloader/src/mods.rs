@@ -7,6 +7,7 @@ pub struct Info {
     pub version: semver::Version,
 
     pub requires_loader_version: semver::VersionReq,
+    pub requires_game_volume: crate::GameVolume,
 
     #[serde(default)]
     pub authors: Vec<String>,
