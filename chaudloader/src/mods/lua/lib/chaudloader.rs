@@ -1,5 +1,6 @@
 mod exedat;
 mod mpak;
+mod r#unsafe;
 
 use crate::{assets, mods};
 use mlua::ExternalError;
@@ -89,6 +90,7 @@ pub fn new<'a>(
 
     table.set("ExeDat", exedat::new(lua, overlays)?)?;
     table.set("Mpak", mpak::new(lua)?)?;
+    table.set("unsafe", r#unsafe::new(lua)?)?;
 
     Ok(mlua::Value::Table(table))
 }
