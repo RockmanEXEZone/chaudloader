@@ -80,8 +80,14 @@ impl Mpak {
         self.entries.get(&rom_addr).map(|v| &v[..])
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&u32, &Vec<u8>)> {
-        self.entries.iter()
+    pub fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    pub fn get_index<'a>(&'a self, index: usize) -> Option<(u32, &'a [u8])> {
+        self.entries
+            .get_index(index)
+            .map(|(k, v)| (*k, v.as_slice()))
     }
 
     pub fn write_into(

@@ -27,6 +27,14 @@ impl mlua::UserData for Mpak {
             Ok(Some(lua.create_string(entry)?))
         });
 
+        // methods.add_meta_method(mlua::MetaMethod::Pairs, |lua, this, (rom_addr,): (u32,)| {
+        //     let stateless_iter = lua.create_function(|_, (this, i): (Mpak, usize)| {
+        //         let this = this.0.borrow();
+        //         Ok(())
+        //     })?;
+        //     Ok((stateless_iter, Mpak(std::rc::Rc::clone(&this.0)), 0))
+        // });
+
         methods.add_method("to_raw", |lua, this, (): ()| {
             let this = this.0.borrow();
             let mut map_contents = vec![];
