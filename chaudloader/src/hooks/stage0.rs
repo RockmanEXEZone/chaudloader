@@ -1,5 +1,3 @@
-use std::io::Read;
-
 use crate::{assets, mods};
 use retour::static_detour;
 
@@ -63,7 +61,7 @@ fn scan_dats_as_overlays(
     Ok(overlays)
 }
 
-fn scan_mods() -> Result<std::collections::BTreeMap<String, mods::Info>, anyhow::Error> {
+fn scan_mods() -> Result<std::collections::BTreeMap<String, (mods::Info, String)>, anyhow::Error> {
     let mut mods = std::collections::BTreeMap::new();
     for entry in std::fs::read_dir("mods")? {
         let entry = entry?;
@@ -79,7 +77,8 @@ fn scan_mods() -> Result<std::collections::BTreeMap<String, mods::Info>, anyhow:
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
             let info =
                 toml::from_slice::<mods::Info>(&std::fs::read(entry.path().join("info.toml"))?)?;
-            mods.insert(mod_name.to_string(), info);
+            let init_lua = std::fs::read_to_string(entry.path().join("init.lua"))?;
+            mods.insert(mod_name.to_string(), (info, init_lua));
             Ok(())
         })() {
             log::warn!("[mod: {}] failed to load: {}", mod_name, e);
@@ -124,9 +123,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
     let mut loaded_mods =
         std::collections::HashMap::<String, std::sync::Arc<std::sync::Mutex<mods::State>>>::new();
 
-    for (mod_name, mod_info) in mods {
-        let mod_path = std::path::Path::new("mods").join(&mod_name);
-
+    for (mod_name, (mod_info, init_lua)) in mods {
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
             log::info!(
                 "[mod: {}] {} v{} by {}",
@@ -142,23 +139,14 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
 
             let mod_state = std::sync::Arc::new(std::sync::Mutex::new(mods::State::new()));
 
-            // Load Lua, if it exists.
-            match std::fs::File::open(mod_path.join("init.lua")) {
-                Ok(mut init_f) => {
-                    let lua = mods::lua::new(
-                        &mod_name,
-                        &mod_info,
-                        std::sync::Arc::clone(&mod_state),
-                        overlays.clone(),
-                    )?;
-                    let mut code = String::new();
-                    init_f.read_to_string(&mut code)?;
-                    lua.load(&code).exec()?;
-                    log::info!("[mod: {}] Lua script complete", mod_name);
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(_) => {}
-            }
+            let lua = mods::lua::new(
+                &mod_name,
+                &mod_info,
+                std::sync::Arc::clone(&mod_state),
+                overlays.clone(),
+            )?;
+            lua.load(&init_lua).exec()?;
+            log::info!("[mod: {}] Lua script complete", mod_name);
 
             loaded_mods.insert(mod_name.to_string(), mod_state);
 
