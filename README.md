@@ -115,7 +115,12 @@ function chaudloader.unsafe.read_process_memory(addr: number, n: number): string
 --  - Path: foo/bar.lua (or foo/bar.dll)
 --  - DLL entry point: luaopen_foo_bar
 --
--- For more information on writing Lua libraries, see https://www.lua.org/pil/26.2.html.
+-- For more information on writing Lua libraries, see https://www.lua.org/pil/26.2.html. If you don't particularly feel like using any Lua features, you may define your luaopen function like so:
+--
+--    int luaopen_mylibrary(void* unused) {
+--        // Do all your logic here.
+--        return 0;
+--    }
 function require(name: string): any
 
 -- Prints a log line.
