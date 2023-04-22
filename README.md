@@ -66,13 +66,13 @@ function chaudloader.ExeDat:write_file(path: string, contents: string): string
 function chaudloader.Mpak(map_contents: string, mpak_contents: string): Mpak
 
 -- Inserts an entry at the given ROM address into the mpak. Existing entries will be clobbered. If contents is nil, the entry will be deleted.
-function chaudloader.Mpak:__newindex(rom_addr: number, contents: string)
+chaudloader.Mpak[rom_addr: number] = string
 
 -- Reads an entry at the given ROM address.
-function chaudloader.Mpak:__index(rom_addr: number): number
+chaudloader.Mpak[rom_addr: number]: string
 
 -- Iterates through all entries of an mpak.
-function chaudloader.Mpak:__pairs(rom_addr: number): function(): (number, string)
+pairs(chaudloader.Mpak): (number, string)
 
 -- Marshals an mpak back into .map + .mpak format.
 function chaudloader.Mpak:to_raw(): (string, string)
