@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use sha2::Digest;
 
 use crate::{assets, mods};
 use retour::static_detour;
@@ -106,6 +106,18 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
         }
     };
 
+    let exe_path = std::env::current_exe()?;
+    let mut hasher = sha2::Sha256::new();
+    {
+        let mut exe_f = std::fs::File::open(&exe_path)?;
+        std::io::copy(&mut exe_f, &mut hasher)?;
+    }
+
+    let mod_env = mods::Env {
+        game_volume,
+        exe_sha256: hasher.finalize().to_vec(),
+    };
+
     // Load all archives as overlays.
     let overlays = scan_dats_as_overlays()?;
     let mut dat_names = overlays.keys().collect::<Vec<_>>();
@@ -134,14 +146,6 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
                 ));
             }
 
-            if mod_info.requires_game_volume != game_volume {
-                return Err(anyhow::format_err!(
-                    "game volume {} does not match requirement {}",
-                    serde_plain::to_string(&game_volume).unwrap(),
-                    serde_plain::to_string(&mod_info.requires_game_volume).unwrap(),
-                ));
-            }
-
             log::info!(
                 "[mod: {}] {} v{} by {}",
                 mod_name,
@@ -159,6 +163,7 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
             {
                 let lua = mods::lua::new(
                     &mod_name,
+                    &mod_env,
                     &mod_info,
                     std::rc::Rc::clone(&mod_state),
                     overlays.clone(),
@@ -187,7 +192,7 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
             Option<
                 std::collections::HashMap<String, mods::State>,
             >,
-        > = RefCell::new(None);
+        > = std::cell::RefCell::new(None);
     }
     LOADED_MODS.set(Some(loaded_mods));
 

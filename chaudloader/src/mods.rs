@@ -6,11 +6,19 @@ pub struct Info {
 
     pub version: semver::Version,
 
+    #[serde(default)]
     pub requires_loader_version: semver::VersionReq,
-    pub requires_game_volume: crate::GameVolume,
+
+    #[serde(default)]
+    pub r#unsafe: bool,
 
     #[serde(default)]
     pub authors: Vec<String>,
+}
+
+pub struct Env {
+    pub game_volume: crate::GameVolume,
+    pub exe_sha256: Vec<u8>,
 }
 
 pub struct State {

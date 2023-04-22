@@ -5,7 +5,9 @@ pub mod chaudloader;
 
 pub fn set_globals(
     lua: &mlua::Lua,
+    env: &mods::Env,
     name: &str,
+    info: &mods::Info,
     state: std::rc::Rc<std::cell::RefCell<mods::State>>,
     overlays: std::collections::HashMap<
         String,
@@ -44,7 +46,7 @@ pub fn set_globals(
 
     globals.set(
         "chaudloader",
-        chaudloader::new(&lua, name, state, overlays)?,
+        chaudloader::new(&lua, env, name, info, state, overlays)?,
     )?;
 
     Ok(())

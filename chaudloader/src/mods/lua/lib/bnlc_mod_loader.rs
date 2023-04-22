@@ -1,21 +1,6 @@
-use crate::assets;
+use crate::{assets, path};
 use mlua::ExternalError;
 use std::str::FromStr;
-
-fn ensure_path_is_safe(path: &std::path::Path) -> Option<std::path::PathBuf> {
-    let path = clean_path::clean(path);
-
-    match path.components().next() {
-        Some(std::path::Component::ParentDir)
-        | Some(std::path::Component::RootDir)
-        | Some(std::path::Component::Prefix(..)) => {
-            return None;
-        }
-        _ => {}
-    }
-
-    Some(path)
-}
 
 pub fn new<'a>(
     lua: &'a mlua::Lua,
@@ -70,7 +55,7 @@ pub fn new<'a>(
         lua.create_function({
             let mod_path = mod_path.clone();
             move |lua, (path,): (String,)| {
-                let path = ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
+                let path = path::ensure_safe(&std::path::PathBuf::from_str(&path).unwrap())
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.into_lua_err())?;
                 Ok(lua.create_string(&std::fs::read(mod_path.join(path))?)?)

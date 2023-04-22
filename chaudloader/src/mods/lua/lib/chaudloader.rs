@@ -2,28 +2,25 @@ mod exedat;
 mod mpak;
 mod r#unsafe;
 
-use crate::{assets, mods};
+use crate::{assets, mods, path};
 use mlua::ExternalError;
 use std::str::FromStr;
 
-fn ensure_path_is_safe(path: &std::path::Path) -> Option<std::path::PathBuf> {
-    let path = clean_path::clean(path);
-
-    match path.components().next() {
-        Some(std::path::Component::ParentDir)
-        | Some(std::path::Component::RootDir)
-        | Some(std::path::Component::Prefix(..)) => {
-            return None;
-        }
-        _ => {}
-    }
-
-    Some(path)
+fn new_env<'a>(lua: &'a mlua::Lua, env: &'a mods::Env) -> Result<mlua::Value<'a>, mlua::Error> {
+    let table = lua.create_table()?;
+    table.set(
+        "game_volume",
+        serde_plain::to_string(&env.game_volume).unwrap(),
+    )?;
+    table.set("exe_sha256", hex::encode(&env.exe_sha256))?;
+    Ok(mlua::Value::Table(table))
 }
 
 pub fn new<'a>(
     lua: &'a mlua::Lua,
+    env: &mods::Env,
     name: &'a str,
+    info: &mods::Info,
     state: std::rc::Rc<std::cell::RefCell<mods::State>>,
     overlays: std::collections::HashMap<
         String,
@@ -38,7 +35,7 @@ pub fn new<'a>(
         lua.create_function({
             let mod_path = mod_path.clone();
             move |lua, (path,): (String,)| {
-                let path = ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
+                let path = path::ensure_safe(&std::path::PathBuf::from_str(&path).unwrap())
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.into_lua_err())?;
                 Ok(lua.create_string(&std::fs::read(mod_path.join(path))?)?)
@@ -46,51 +43,17 @@ pub fn new<'a>(
         })?,
     )?;
 
-    table.set(
-        "init_mod_dll",
-        lua.create_function({
-            let mod_path = mod_path.clone();
-            let state = std::rc::Rc::clone(&state);
-            move |_, (path, buf): (String, mlua::String)| {
-                let path = ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
-                    .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                    .map_err(|e| e.into_lua_err())?;
-                let mut state = state.borrow_mut();
-                type ChaudloaderInitFn =
-                    unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool;
-                let dll = unsafe {
-                    let dll = windows_libloader::ModuleHandle::load(&mod_path.join(&path))
-                        .ok_or_else(|| anyhow::anyhow!("DLL {} failed to load", path.display()))
-                        .map_err(|e| e.into_lua_err())?;
-                    let init_fn = std::mem::transmute::<_, ChaudloaderInitFn>(
-                        dll.get_symbol_address("chaudloader_init")
-                            .ok_or_else(|| {
-                                anyhow::anyhow!(
-                                    "ChaudLoaderInit not found in DLL {}",
-                                    path.display()
-                                )
-                            })
-                            .map_err(|e| e.into_lua_err())?,
-                    );
-                    let buf = buf.as_bytes();
-                    if !init_fn(buf.as_ptr(), buf.len()) {
-                        return Err(anyhow::anyhow!(
-                            "ChaudLoaderInit for DLL {} returned false",
-                            path.display()
-                        )
-                        .into_lua_err());
-                    }
-                    dll
-                };
-                state.add_dll(path, dll);
-                Ok(())
-            }
-        })?,
-    )?;
+    table.set("ENV", new_env(lua, env)?)?;
 
     table.set("ExeDat", exedat::new(lua, overlays)?)?;
     table.set("Mpak", mpak::new(lua)?)?;
-    table.set("unsafe", r#unsafe::new(lua)?)?;
+
+    if info.r#unsafe {
+        table.set(
+            "unsafe",
+            r#unsafe::new(lua, &mod_path, std::rc::Rc::clone(&state))?,
+        )?;
+    }
 
     Ok(mlua::Value::Table(table))
 }

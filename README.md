@@ -14,12 +14,14 @@ chaudloader is a mod loader for Mega Man Battle Network Legacy Collection.
 
 Mods consists of the following files in a directory inside the `mods` folder:
 
--   `info.toml`: **Required.** Metadata about your mod. It should look something like this:
+-   `info.toml`: Metadata about your mod. It should look something like this:
 
     ```toml
     title = "my cool mod"
     version = "0.0.1"
     authors = ["my cool name"]
+    unsafe = false  # set to true if you want to use scary unsafe functions
+    requires_loader_version = "*"  # or any semver requirement string
     ```
 
 -   `init.lua`: The Lua script to run on mod load.
@@ -29,6 +31,16 @@ Mods consists of the following files in a directory inside the `mods` folder:
 In `init.lua`, you may use the following functions:
 
 ```lua
+--
+-- Execution environment
+--
+
+-- Game volume ("Vol1" or "Vol2").
+chaudloader.ENV.game_volume: string
+
+-- SHA256 of the EXE.
+chaudloader.ENV.exe_sha256: string
+
 --
 -- exe/data .dat file functions
 --
@@ -72,10 +84,20 @@ function chaudloader.Mpak:to_raw(): (string, string)
 -- Reads the contents of a file from the mod folder.
 function chaudloader.read_mod_file(path: string): string
 
+--
+-- Unsafe functions (mod must have unsafe = true)
+--
+
 -- Loads a library from the mod folder and call its chaudloader_init function.
 --
 --     chaudloader_init: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
-function chaudloader.init_mod_dll(path: string, userdata: string)
+function chaudloader.unsafe.init_mod_dll(path: string, userdata: string)
+
+-- Writes directly into process memory.
+function chaudloader.unsafe.write_process_memory(addr: number, buf: string)
+
+-- Reads directly from process memory.
+function chaudloader.unsafe.read_process_memory(addr: number, n: number): string
 
 --
 -- Utility functions
