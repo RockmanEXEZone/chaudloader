@@ -147,7 +147,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
                 std::rc::Rc::clone(&mod_state),
                 overlays.clone(),
             )?;
-            lua.load(&init_lua).set_name("init.lua")?.exec()?;
+            lua.load(&init_lua).set_name("init.lua").exec()?;
             log::info!("[mod: {}] Lua script complete", mod_name);
 
             loaded_mods.insert(mod_name.to_string(), mod_state);

@@ -80,10 +80,6 @@ impl Mpak {
         self.entries.get(&rom_addr).map(|v| &v[..])
     }
 
-    pub fn len(&self) -> usize {
-        self.entries.len()
-    }
-
     pub fn get_index<'a>(&'a self, index: usize) -> Option<(u32, &'a [u8])> {
         self.entries
             .get_index(index)

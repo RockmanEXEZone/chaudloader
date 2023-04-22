@@ -59,6 +59,9 @@ function chaudloader.Mpak:__newindex(rom_addr: number, contents: string)
 -- Reads an entry at the given ROM address.
 function chaudloader.Mpak:__index(rom_addr: number): number
 
+-- Iterates through all entires of an mpak.
+function chaudloader.Mpak:__pairs(rom_addr: number): function(): (number, string)
+
 -- Marshals an mpak back into .map + .mpak format.
 function chaudloader.Mpak:to_raw(): (string, string)
 

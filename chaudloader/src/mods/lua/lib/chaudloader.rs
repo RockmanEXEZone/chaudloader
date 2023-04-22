@@ -39,7 +39,7 @@ pub fn new<'a>(
             move |lua, (path,): (String,)| {
                 let path = ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                    .map_err(|e| e.to_lua_err())?;
+                    .map_err(|e| e.into_lua_err())?;
                 Ok(lua.create_string(&std::fs::read(mod_path.join(path))?)?)
             }
         })?,
@@ -53,14 +53,14 @@ pub fn new<'a>(
             move |_, (path, buf): (String, mlua::String)| {
                 let path = ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                    .map_err(|e| e.to_lua_err())?;
+                    .map_err(|e| e.into_lua_err())?;
                 let mut state = state.borrow_mut();
                 type ChaudLoaderInitFn =
                     unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool;
                 let dll = unsafe {
                     let dll = windows_libloader::ModuleHandle::load(&mod_path.join(&path))
                         .ok_or_else(|| anyhow::anyhow!("DLL {} failed to load", path.display()))
-                        .map_err(|e| e.to_lua_err())?;
+                        .map_err(|e| e.into_lua_err())?;
                     let init_fn = std::mem::transmute::<_, ChaudLoaderInitFn>(
                         dll.get_symbol_address("ChaudLoaderInit")
                             .ok_or_else(|| {
@@ -69,7 +69,7 @@ pub fn new<'a>(
                                     path.display()
                                 )
                             })
-                            .map_err(|e| e.to_lua_err())?,
+                            .map_err(|e| e.into_lua_err())?,
                     );
                     let buf = buf.as_bytes();
                     if !init_fn(buf.as_ptr(), buf.len()) {
@@ -77,7 +77,7 @@ pub fn new<'a>(
                             "ChaudLoaderInit for DLL {} returned false",
                             path.display()
                         )
-                        .to_lua_err());
+                        .into_lua_err());
                     }
                     dll
                 };

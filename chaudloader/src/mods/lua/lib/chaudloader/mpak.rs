@@ -27,13 +27,23 @@ impl mlua::UserData for Mpak {
             Ok(Some(lua.create_string(entry)?))
         });
 
-        // methods.add_meta_method(mlua::MetaMethod::Pairs, |lua, this, (rom_addr,): (u32,)| {
-        //     let stateless_iter = lua.create_function(|_, (this, i): (Mpak, usize)| {
-        //         let this = this.0.borrow();
-        //         Ok(())
-        //     })?;
-        //     Ok((stateless_iter, Mpak(std::rc::Rc::clone(&this.0)), 0))
-        // });
+        methods.add_meta_method(mlua::MetaMethod::Pairs, |lua, this, (): ()| {
+            Ok(lua.create_function({
+                let i = std::rc::Rc::new(std::cell::RefCell::new(0usize));
+                let this = std::rc::Rc::clone(&this.0);
+                move |lua, (): ()| {
+                    let mut i = i.borrow_mut();
+                    let this = this.borrow();
+                    let (k, v) = if let Some((k, v)) = this.get_index(*i) {
+                        (k, v)
+                    } else {
+                        return Ok((None, None));
+                    };
+                    *i = *i + 1;
+                    Ok((Some(k), Some(lua.create_string(v.to_vec())?)))
+                }
+            })?)
+        });
 
         methods.add_method("to_raw", |lua, this, (): ()| {
             let this = this.0.borrow();

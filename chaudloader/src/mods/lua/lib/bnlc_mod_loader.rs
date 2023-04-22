@@ -38,11 +38,11 @@ pub fn new<'a>(
                 let overlay = overlays
                     .get(&dat_filename)
                     .ok_or_else(|| anyhow::format_err!("no such dat file: {}", dat_filename))
-                    .map_err(|e| e.to_lua_err())?;
+                    .map_err(|e| e.into_lua_err())?;
                 let mut overlay = overlay.borrow_mut();
                 overlay
                     .write(&path, contents.as_bytes().to_vec())
-                    .map_err(|e| e.to_lua_err())?;
+                    .map_err(|e| e.into_lua_err())?;
                 Ok(())
             }
         })?,
@@ -56,10 +56,10 @@ pub fn new<'a>(
                 let overlay = overlays
                     .get(&dat_filename)
                     .ok_or_else(|| anyhow::format_err!("no such dat file: {}", dat_filename))
-                    .map_err(|e| e.to_lua_err())?;
+                    .map_err(|e| e.into_lua_err())?;
                 let mut overlay = overlay.borrow_mut();
                 Ok(Some(lua.create_string(
-                    &overlay.read(&path).map_err(|e| e.to_lua_err())?.to_vec(),
+                    &overlay.read(&path).map_err(|e| e.into_lua_err())?.to_vec(),
                 )?))
             }
         })?,
@@ -72,7 +72,7 @@ pub fn new<'a>(
             move |lua, (path,): (String,)| {
                 let path = ensure_path_is_safe(&std::path::PathBuf::from_str(&path).unwrap())
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                    .map_err(|e| e.to_lua_err())?;
+                    .map_err(|e| e.into_lua_err())?;
                 Ok(lua.create_string(&std::fs::read(mod_path.join(path))?)?)
             }
         })?,

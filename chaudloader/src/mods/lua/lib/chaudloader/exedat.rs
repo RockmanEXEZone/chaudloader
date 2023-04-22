@@ -8,7 +8,7 @@ impl mlua::UserData for ExeDat {
         methods.add_method("read_file", |lua, this, (path,): (String,)| {
             let mut this = this.0.borrow_mut();
             Ok(Some(lua.create_string(
-                &this.read(&path).map_err(|e| e.to_lua_err())?.to_vec(),
+                &this.read(&path).map_err(|e| e.into_lua_err())?.to_vec(),
             )?))
         });
 
@@ -17,7 +17,7 @@ impl mlua::UserData for ExeDat {
             |_, this, (path, contents): (String, mlua::String)| {
                 let mut this = this.0.borrow_mut();
                 this.write(&path, contents.as_bytes().to_vec())
-                    .map_err(|e| e.to_lua_err())?;
+                    .map_err(|e| e.into_lua_err())?;
                 Ok(())
             },
         );
@@ -36,7 +36,7 @@ pub fn new<'a>(
             let overlay = if let Some(overlay) = overlays.get(&name) {
                 std::rc::Rc::clone(&overlay)
             } else {
-                return Err(anyhow::format_err!("no such dat file: {}", name).to_lua_err());
+                return Err(anyhow::format_err!("no such dat file: {}", name).into_lua_err());
             };
             Ok(ExeDat(overlay))
         }
