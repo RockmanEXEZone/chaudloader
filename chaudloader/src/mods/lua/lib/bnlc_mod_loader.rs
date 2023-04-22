@@ -26,14 +26,14 @@ pub fn new<'a>(
     >,
 ) -> Result<mlua::Value<'a>, mlua::Error> {
     let table = lua.create_table()?;
-    let overlays = std::sync::Arc::new(overlays);
+    let overlays = std::rc::Rc::new(overlays);
 
     let mod_path = std::path::Path::new("mods").join(mod_name);
 
     table.set(
         "write_exe_dat_contents",
         lua.create_function({
-            let overlays = std::sync::Arc::clone(&overlays);
+            let overlays = std::rc::Rc::clone(&overlays);
             move |_, (dat_filename, path, contents): (String, String, mlua::String)| {
                 let overlay = overlays
                     .get(&dat_filename)
@@ -51,7 +51,7 @@ pub fn new<'a>(
     table.set(
         "read_exe_dat_contents",
         lua.create_function({
-            let overlays = std::sync::Arc::clone(&overlays);
+            let overlays = std::rc::Rc::clone(&overlays);
             move |lua: &mlua::Lua, (dat_filename, path): (String, String)| {
                 let overlay = overlays
                     .get(&dat_filename)
