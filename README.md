@@ -59,7 +59,7 @@ function chaudloader.Mpak:__newindex(rom_addr: number, contents: string)
 -- Reads an entry at the given ROM address.
 function chaudloader.Mpak:__index(rom_addr: number): number
 
--- Iterates through all entires of an mpak.
+-- Iterates through all entries of an mpak.
 function chaudloader.Mpak:__pairs(rom_addr: number): function(): (number, string)
 
 -- Marshals an mpak back into .map + .mpak format.
@@ -72,9 +72,9 @@ function chaudloader.Mpak:to_raw(): (string, string)
 -- Reads the contents of a file from the mod folder.
 function chaudloader.read_mod_file(path: string): string
 
--- Loads a library from the mod folder and call its ChaudLoaderInit function.
+-- Loads a library from the mod folder and call its chaudloader_init function.
 --
---     ChaudLoaderInit: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
+--     chaudloader_init: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
 function chaudloader.init_mod_dll(path: string, userdata: string)
 
 --
