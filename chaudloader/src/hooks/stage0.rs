@@ -112,7 +112,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
 
     let overlays = overlays
         .into_iter()
-        .map(|(k, v)| (k, std::sync::Arc::new(std::sync::Mutex::new(v))))
+        .map(|(k, v)| (k, std::rc::Rc::new(std::cell::RefCell::new(v))))
         .collect::<std::collections::HashMap<_, _>>();
 
     // Scan for mods.
@@ -145,7 +145,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
                 std::sync::Arc::clone(&mod_state),
                 overlays.clone(),
             )?;
-            lua.load(&init_lua).exec()?;
+            lua.load(&init_lua).set_name("init.lua")?.exec()?;
             log::info!("[mod: {}] Lua script complete", mod_name);
 
             loaded_mods.insert(mod_name.to_string(), mod_state);
@@ -170,7 +170,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
 
         let mut overlays = overlays;
         for (dat_filename, overlay) in overlays.drain() {
-            let mut overlay = overlay.lock().unwrap();
+            let mut overlay = overlay.borrow_mut();
 
             // TODO: This path is a little wobbly, since it relies on BNLC specifying this weird relative path.
             // We should canonicalize this path instead.

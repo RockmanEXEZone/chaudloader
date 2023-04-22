@@ -8,7 +8,7 @@ pub fn new(
     state: std::sync::Arc<std::sync::Mutex<mods::State>>,
     overlays: std::collections::HashMap<
         String,
-        std::sync::Arc<std::sync::Mutex<assets::exedat::Overlay>>,
+        std::rc::Rc<std::cell::RefCell<assets::exedat::Overlay>>,
     >,
 ) -> Result<mlua::Lua, mlua::Error> {
     let lua = mlua::Lua::new();

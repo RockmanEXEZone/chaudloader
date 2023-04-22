@@ -53,11 +53,11 @@ function chaudloader.ExeDat:write_file(path: string, contents: string): string
 -- Unmarshals an .map + .mpak file.
 function chaudloader.Mpak(map_contents: string, mpak_contents): Mpak
 
--- Gets an entry at the given ROM address from the mpak.
-function chaudloader.Mpak:get(rom_addr: number): string
+-- Inserts an entry at the given ROM address into the mpak. Existing entries will be clobbered. If contents is nil, the entry will be deleted.
+function chaudloader.Mpak:__newindex(rom_addr: number, contents: string)
 
--- Inserts an entry at the given ROM address into the mpak. Existing entries will be clobbered.
-function chaudloader.Mpak:insert(rom_addr: number, contents: string)
+-- Reads an entry at the given ROM address.
+function chaudloader.Mpak:__index(rom_addr: number): number
 
 -- Marshals an mpak back into .map + .mpak format.
 function chaudloader.Mpak:to_raw(): (string, string)
@@ -69,9 +69,9 @@ function chaudloader.Mpak:to_raw(): (string, string)
 -- Reads the contents of a file from the mod folder.
 function chaudloader.read_mod_file(path: string): string
 
--- Load a library from the mod folder and call its ChaudLoaderInit function.
+-- Loads a library from the mod folder and call its ChaudLoaderInit function.
 --
--- ChaudLoaderInit: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
+--     ChaudLoaderInit: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
 function chaudloader.init_mod_dll(path: string, userdata: string)
 
 --

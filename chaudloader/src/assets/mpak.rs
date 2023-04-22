@@ -72,8 +72,16 @@ impl Mpak {
         self.entries.insert(rom_addr, contents)
     }
 
+    pub fn remove(&mut self, rom_addr: u32) -> Option<Vec<u8>> {
+        self.entries.remove(&rom_addr)
+    }
+
     pub fn get<'a>(&'a self, rom_addr: u32) -> Option<&'a [u8]> {
         self.entries.get(&rom_addr).map(|v| &v[..])
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&u32, &Vec<u8>)> {
+        self.entries.iter()
     }
 
     pub fn write_into(

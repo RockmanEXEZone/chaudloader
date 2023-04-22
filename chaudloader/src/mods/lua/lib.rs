@@ -9,7 +9,7 @@ pub fn set_globals(
     state: std::sync::Arc<std::sync::Mutex<mods::State>>,
     overlays: std::collections::HashMap<
         String,
-        std::sync::Arc<std::sync::Mutex<assets::exedat::Overlay>>,
+        std::rc::Rc<std::cell::RefCell<assets::exedat::Overlay>>,
     >,
 ) -> Result<(), mlua::Error> {
     let globals = lua.globals();

@@ -22,7 +22,7 @@ pub fn new<'a>(
     mod_name: &'a str,
     overlays: std::collections::HashMap<
         String,
-        std::sync::Arc<std::sync::Mutex<assets::exedat::Overlay>>,
+        std::rc::Rc<std::cell::RefCell<assets::exedat::Overlay>>,
     >,
 ) -> Result<mlua::Value<'a>, mlua::Error> {
     let table = lua.create_table()?;
@@ -39,7 +39,7 @@ pub fn new<'a>(
                     .get(&dat_filename)
                     .ok_or_else(|| anyhow::format_err!("no such dat file: {}", dat_filename))
                     .map_err(|e| e.to_lua_err())?;
-                let mut overlay = overlay.lock().unwrap();
+                let mut overlay = overlay.borrow_mut();
                 overlay
                     .write(&path, contents.as_bytes().to_vec())
                     .map_err(|e| e.to_lua_err())?;
@@ -57,7 +57,7 @@ pub fn new<'a>(
                     .get(&dat_filename)
                     .ok_or_else(|| anyhow::format_err!("no such dat file: {}", dat_filename))
                     .map_err(|e| e.to_lua_err())?;
-                let mut overlay = overlay.lock().unwrap();
+                let mut overlay = overlay.borrow_mut();
                 Ok(Some(lua.create_string(
                     &overlay.read(&path).map_err(|e| e.to_lua_err())?.to_vec(),
                 )?))
