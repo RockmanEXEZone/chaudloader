@@ -103,7 +103,10 @@ function chaudloader.unsafe.read_process_memory(addr: number, n: number): string
 -- Utility functions
 --
 
--- Print a log line.
+-- Requires a module from the mods directory.
+function require(name: string): any
+
+-- Prints a log line.
 function print(...)
 ```
 

@@ -4,7 +4,6 @@ mod r#unsafe;
 
 use crate::{assets, mods, path};
 use mlua::ExternalError;
-use std::str::FromStr;
 
 fn new_env<'a>(lua: &'a mlua::Lua, env: &'a mods::Env) -> Result<mlua::Value<'a>, mlua::Error> {
     let table = lua.create_table()?;
@@ -35,7 +34,7 @@ pub fn new<'a>(
         lua.create_function({
             let mod_path = mod_path.clone();
             move |lua, (path,): (String,)| {
-                let path = path::ensure_safe(&std::path::PathBuf::from_str(&path).unwrap())
+                let path = path::ensure_safe(std::path::Path::new(&path))
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.into_lua_err())?;
                 Ok(lua.create_string(&std::fs::read(mod_path.join(path))?)?)

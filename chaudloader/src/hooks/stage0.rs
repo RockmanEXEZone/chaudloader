@@ -168,7 +168,10 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
                     std::rc::Rc::clone(&mod_state),
                     overlays.clone(),
                 )?;
-                lua.load(&init_lua).set_name("init.lua").exec()?;
+                lua.load(&init_lua)
+                    .set_name("=init.lua")
+                    .set_mode(mlua::ChunkMode::Text)
+                    .exec()?;
             }
             log::info!("[mod: {}] Lua script complete", mod_name);
 

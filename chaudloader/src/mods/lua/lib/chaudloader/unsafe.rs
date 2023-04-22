@@ -1,6 +1,5 @@
 use crate::{mods, path};
 use mlua::ExternalError;
-use std::str::FromStr;
 
 pub fn new<'a>(
     lua: &'a mlua::Lua,
@@ -63,7 +62,7 @@ pub fn new<'a>(
             let mod_path = mod_path.to_path_buf();
             let state = std::rc::Rc::clone(&state);
             move |_, (path, buf): (String, mlua::String)| {
-                let path = path::ensure_safe(&std::path::PathBuf::from_str(&path).unwrap())
+                let path = path::ensure_safe(std::path::Path::new(&path))
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.into_lua_err())?;
                 let mut state = state.borrow_mut();
