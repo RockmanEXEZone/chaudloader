@@ -31,16 +31,36 @@ Mods consists of the following files in a directory inside the `mods` folder:
 In `init.lua`, you may use the following functions:
 
 ```lua
--- Print a log line.
-function print(...)
+--
+-- exe/data .dat file functions
+--
 
--- Opens an exe .dat file.
+-- Opens an exe/data .dat file located in exe/data (e.g. `exe6.dat`).
 function chaudloader.ExeDat(dat_filename: string): ExeDat
+
+-- Reads the contents of a file out of the .dat file.
+--
+-- Previous calls to write_exe_dat_contents are visible to subsequent calls to read_exe_dat_contents.
 function chaudloader.ExeDat:read_file(path: string): string
+
+-- Writes the file data into the .dat file.
+--
+-- Note that this does not mutate the original .dat file on disk, but for all intents and purposes to both the game and the mod loader it does.
 function chaudloader.ExeDat:write_file(path: string, contents: string): string
+
+--
+-- Mod file functions
+--
 
 -- Reads the contents of a file from the mod folder.
 function chaudloader.read_mod_file(path: string): string
+
+--
+-- Utility functions
+--
+
+-- Print a log line.
+function print(...)
 ```
 
 For instance, for a simple font mod, you can write the following script:
