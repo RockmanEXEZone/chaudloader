@@ -90,35 +90,45 @@ pub fn set_globals(
                         .set_name(&format!("={}", source_name.display()))
                         .set_mode(mlua::ChunkMode::Text)
                         .call::<_, mlua::Value>(())?
-                } else if r#unsafe {
+                } else {
+                    let mut dll_path = path.clone();
+                    dll_path.as_mut_os_string().push(".dll");
+
+                    if !std::fs::try_exists(&mod_path.join(&dll_path)).unwrap_or(false) {
+                        return Err(mlua::Error::RuntimeError(format!("cannot find '{}'", name)));
+                    }
+
+                    if !r#unsafe {
+                        return Err(mlua::Error::RuntimeError(format!(
+                            "cannot find '{}', but a DLL was found: in order to load DLLs, you must mark your mod as unsafe!",
+                            name
+                        )));
+                    }
+
                     // Try load unsafe.
                     let mut state = state.borrow_mut();
-                    let mut path = path.clone();
-                    path.as_mut_os_string().push(".dll");
 
                     let luaopen = unsafe {
-                        let mh = windows_libloader::ModuleHandle::load(&mod_path.join(&path))
+                        let mh = windows_libloader::ModuleHandle::load(&mod_path.join(&dll_path))
                             .ok_or(mlua::Error::RuntimeError(format!(
-                                "cannot find '{}' (also tried DLL)",
-                                name
-                            )))?;
+                            "failed to load DLL for '{}' (do you have all dependent DLLs available?)",
+                            name
+                        )))?;
                         let symbol_name = format!("luaopen_{}", name.replace(".", "_"));
                         let luaopen = std::mem::transmute::<_, mlua::lua_CFunction>(
                             mh.get_symbol_address(&symbol_name).ok_or(
                                 mlua::Error::RuntimeError(format!(
                                     "cannot find symbol {} in {}",
                                     symbol_name,
-                                    path.display()
+                                    dll_path.display()
                                 )),
                             )?,
                         );
-                        state.dlls.insert(path, mh);
+                        state.dlls.insert(dll_path, mh);
                         lua.create_c_function(luaopen)?
                     };
 
                     luaopen.call(())?
-                } else {
-                    return Err(mlua::Error::RuntimeError(format!("cannot find '{}'", name)));
                 };
 
                 loaded_modules.raw_set(
