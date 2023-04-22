@@ -91,6 +91,8 @@ function chaudloader.read_mod_file(path: string): string
 -- Loads a library from the mod folder and call its chaudloader_init function.
 --
 --     chaudloader_init: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
+--
+-- This is not recommended: instead, you should just require a Lua DLL.
 function chaudloader.unsafe.init_mod_dll(path: string, userdata: string)
 
 -- Writes directly into process memory.
@@ -104,6 +106,8 @@ function chaudloader.unsafe.read_process_memory(addr: number, n: number): string
 --
 
 -- Requires a module from the mods directory.
+--
+-- If unsafe = true, require may load DLLs of the form <name>.dll from the mods directory.
 function require(name: string): any
 
 -- Prints a log line.
