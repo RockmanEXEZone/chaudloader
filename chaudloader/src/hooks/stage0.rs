@@ -122,8 +122,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
     let mod_names = mods.keys().collect::<Vec<_>>();
     log::info!("found mods: {:?}", mod_names);
 
-    let mut loaded_mods =
-        std::collections::HashMap::<String, std::rc::Rc<std::cell::RefCell<mods::State>>>::new();
+    let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
 
     for (mod_name, (mod_info, init_lua)) in mods {
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
@@ -150,7 +149,13 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
             lua.load(&init_lua).set_name("init.lua").exec()?;
             log::info!("[mod: {}] Lua script complete", mod_name);
 
-            loaded_mods.insert(mod_name.to_string(), mod_state);
+            loaded_mods.insert(
+                mod_name.to_string(),
+                std::rc::Rc::try_unwrap(mod_state)
+                    .map_err(|_| anyhow::anyhow!("mod_state: Rc was not unique"))
+                    .unwrap()
+                    .into_inner(),
+            );
 
             Ok(())
         })() {
@@ -162,7 +167,7 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
     std::thread_local! {
         static LOADED_MODS: std::cell::RefCell<
             Option<
-                std::collections::HashMap<String, std::rc::Rc<std::cell::RefCell<mods::State>>>,
+                std::collections::HashMap<String, mods::State>,
             >,
         > = RefCell::new(None);
     }
@@ -177,7 +182,10 @@ unsafe fn init(game_name: &str) -> Result<(), anyhow::Error> {
 
         let mut overlays = overlays;
         for (dat_filename, overlay) in overlays.drain() {
-            let mut overlay = overlay.borrow_mut();
+            let mut overlay = std::rc::Rc::try_unwrap(overlay)
+                .map_err(|_| anyhow::anyhow!("overlay: Rc was not unique"))
+                .unwrap()
+                .into_inner();
 
             // TODO: This path is a little wobbly, since it relies on BNLC specifying this weird relative path.
             // We should canonicalize this path instead.
