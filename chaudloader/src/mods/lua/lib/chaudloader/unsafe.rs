@@ -92,7 +92,7 @@ pub fn new<'a>(
                     }
                     dll
                 };
-                state.add_dll(path, dll);
+                state.dlls.insert(path, dll);
                 Ok(())
             }
         })?,

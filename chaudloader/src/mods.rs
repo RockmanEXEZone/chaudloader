@@ -22,7 +22,7 @@ pub struct Env {
 }
 
 pub struct State {
-    dlls: std::collections::HashMap<std::path::PathBuf, windows_libloader::ModuleHandle>,
+    pub dlls: std::collections::HashMap<std::path::PathBuf, windows_libloader::ModuleHandle>,
 }
 
 impl State {
@@ -30,9 +30,5 @@ impl State {
         Self {
             dlls: std::collections::HashMap::new(),
         }
-    }
-
-    pub fn add_dll(&mut self, path: std::path::PathBuf, dll: windows_libloader::ModuleHandle) {
-        self.dlls.insert(path, dll);
     }
 }

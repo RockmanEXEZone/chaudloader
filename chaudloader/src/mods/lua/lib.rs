@@ -46,7 +46,9 @@ pub fn set_globals(
     globals.set(
         "require",
         lua.create_function({
+            let state = std::rc::Rc::clone(&state);
             let mod_path = mod_path.clone();
+            let r#unsafe = info.r#unsafe;
             move |lua, name: String| {
                 let path = path::ensure_safe(std::path::Path::new(&name))
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
@@ -83,14 +85,54 @@ pub fn set_globals(
                     }
                 }
 
-                let source = source
-                    .ok_or_else(|| mlua::Error::RuntimeError(format!("cannot find '{}'", name)))?;
+                let value = if let Some(source) = source {
+                    lua.load(&source)
+                        .set_name(&format!("={}", source_name.display()))
+                        .set_mode(mlua::ChunkMode::Text)
+                        .call::<_, mlua::Value>(())?
+                } else if r#unsafe {
+                    // Try load unsafe.
+                    let lib_name = path
+                        .file_name()
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("cannot deciper library name: {}", path.display())
+                                .into_lua_err()
+                        })?
+                        .to_str()
+                        .ok_or_else(|| {
+                            anyhow::anyhow!("cannot deciper path: {}", path.display())
+                                .into_lua_err()
+                        })?;
 
-                let value = lua
-                    .load(&source)
-                    .set_name(&format!("={}", source_name.display()))
-                    .set_mode(mlua::ChunkMode::Text)
-                    .call::<_, mlua::Value>(())?;
+                    let mut state = state.borrow_mut();
+                    let mut path = path.clone();
+                    path.as_mut_os_string().push(".dll");
+
+                    let luaopen = unsafe {
+                        let mh = windows_libloader::ModuleHandle::load(&mod_path.join(&path))
+                            .ok_or(mlua::Error::RuntimeError(format!(
+                                "cannot find '{}' (also tried DLL)",
+                                name
+                            )))?;
+                        let symbol_name = format!("luaopen_{}", lib_name);
+                        let luaopen = std::mem::transmute::<_, mlua::lua_CFunction>(
+                            mh.get_symbol_address(&symbol_name).ok_or(
+                                mlua::Error::RuntimeError(format!(
+                                    "cannot find symbol {} in {}",
+                                    symbol_name,
+                                    path.display()
+                                )),
+                            )?,
+                        );
+                        state.dlls.insert(path, mh);
+                        lua.create_c_function(luaopen)?
+                    };
+
+                    luaopen.call(())?
+                } else {
+                    return Err(mlua::Error::RuntimeError(format!("cannot find '{}'", name)));
+                };
+
                 loaded_modules.raw_set(
                     cache_key,
                     match value.clone() {
