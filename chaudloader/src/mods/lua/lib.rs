@@ -6,7 +6,7 @@ pub mod chaudloader;
 
 pub fn set_globals(
     lua: &mlua::Lua,
-    env: &mods::Env,
+    game_env: &mods::GameEnv,
     name: &str,
     info: &mods::Info,
     state: std::rc::Rc<std::cell::RefCell<mods::State>>,
@@ -151,7 +151,7 @@ pub fn set_globals(
 
     globals.set(
         "chaudloader",
-        chaudloader::new(&lua, env, name, info, state, overlays)?,
+        chaudloader::new(&lua, game_env, name, info, state, overlays)?,
     )?;
 
     Ok(())

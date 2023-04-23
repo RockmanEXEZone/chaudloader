@@ -5,19 +5,33 @@ mod r#unsafe;
 use crate::{assets, mods, path};
 use mlua::ExternalError;
 
-fn new_env<'a>(lua: &'a mlua::Lua, env: &'a mods::Env) -> Result<mlua::Value<'a>, mlua::Error> {
+fn new_game_env<'a>(
+    lua: &'a mlua::Lua,
+    env: &'a mods::GameEnv,
+) -> Result<mlua::Value<'a>, mlua::Error> {
     let table = lua.create_table()?;
-    table.set(
-        "game_volume",
-        serde_plain::to_string(&env.game_volume).unwrap(),
-    )?;
+    table.set("name", serde_plain::to_string(&env.volume).unwrap())?;
     table.set("exe_sha256", hex::encode(&env.exe_sha256))?;
+    Ok(mlua::Value::Table(table))
+}
+
+fn new_mod_env<'a>(lua: &'a mlua::Lua, name: &'a str) -> Result<mlua::Value<'a>, mlua::Error> {
+    let table = lua.create_table()?;
+    let mod_path = std::path::Path::new("mods").join(name);
+    table.set("name", name)?;
+    table.set(
+        "path",
+        mod_path.as_os_str().to_str().ok_or_else(|| {
+            anyhow::format_err!("failed to decipher mod path: {}", mod_path.display())
+                .into_lua_err()
+        })?,
+    )?;
     Ok(mlua::Value::Table(table))
 }
 
 pub fn new<'a>(
     lua: &'a mlua::Lua,
-    env: &mods::Env,
+    game_env: &mods::GameEnv,
     name: &'a str,
     info: &mods::Info,
     state: std::rc::Rc<std::cell::RefCell<mods::State>>,
@@ -42,7 +56,8 @@ pub fn new<'a>(
         })?,
     )?;
 
-    table.set("ENV", new_env(lua, env)?)?;
+    table.set("GAME_ENV", new_game_env(lua, game_env)?)?;
+    table.set("MOD_ENV", new_mod_env(lua, name)?)?;
 
     table.set("ExeDat", exedat::new(lua, overlays)?)?;
     table.set("Mpak", mpak::new(lua)?)?;

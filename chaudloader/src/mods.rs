@@ -16,8 +16,8 @@ pub struct Info {
     pub authors: Vec<String>,
 }
 
-pub struct Env {
-    pub game_volume: crate::GameVolume,
+pub struct GameEnv {
+    pub volume: crate::GameVolume,
     pub exe_sha256: Vec<u8>,
 }
 

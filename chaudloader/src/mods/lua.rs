@@ -4,7 +4,7 @@ use crate::{assets, mods};
 
 pub fn new(
     name: &str,
-    env: &mods::Env,
+    game_env: &mods::GameEnv,
     info: &mods::Info,
     state: std::rc::Rc<std::cell::RefCell<mods::State>>,
     overlays: std::collections::HashMap<
@@ -17,6 +17,6 @@ pub fn new(
     } else {
         mlua::Lua::new()
     };
-    lib::set_globals(&lua, env, &name, info, state, overlays)?;
+    lib::set_globals(&lua, game_env, &name, info, state, overlays)?;
     Ok(lua)
 }

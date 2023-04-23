@@ -113,8 +113,8 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
         std::io::copy(&mut exe_f, &mut hasher)?;
     }
 
-    let mod_env = mods::Env {
-        game_volume,
+    let mod_env = mods::GameEnv {
+        volume: game_volume,
         exe_sha256: hasher.finalize().to_vec(),
     };
 

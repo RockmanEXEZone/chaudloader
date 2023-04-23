@@ -35,11 +35,17 @@ In `init.lua`, you may use the following functions:
 -- Execution environment
 --
 
--- Game volume ("Vol1" or "Vol2").
-chaudloader.ENV.game_volume: string
+-- Game name ("Vol1" or "Vol2").
+chaudloader.GAME_ENV.name: string
 
 -- SHA256 of the EXE.
-chaudloader.ENV.exe_sha256: string
+chaudloader.GAME_ENV.exe_sha256: string
+
+-- Name of the current mod.
+chaudloader.MOD_ENV.name: string
+
+-- Path to the current mod.
+chaudloader.MOD_ENV.path: string
 
 --
 -- exe/data .dat file functions
