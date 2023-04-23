@@ -28,8 +28,7 @@ jobs:
             - run: Move-Item build/lua54/lua54.dll ./lua54.dll
               shell: powershell
             - run: |
-                  7z a -tzip dist.zip ./target/release/chaudloader.dll ./target/release/dxgi.dll ./target/release/install.exe ./lua54.dll ./README.md
-                  7z a -r -tzip dist.zip ./build
+                  7z a -tzip dist.zip ./target/release/chaudloader.dll ./target/release/dxgi.dll ./target/release/install.exe ./lua54.dll ./README.md build
               shell: bash
             - uses: actions/upload-release-asset@v1
               env:
