@@ -8,7 +8,7 @@ now = datetime.datetime.now()
 
 def zfile(name, mode=0o644):
     zi = zipfile.ZipInfo(name, now.timetuple()[:6])
-    zi.external_attr = mode << 16
+    zi.external_attr = (0o100000 | mode) << 16
     return zi
 
 
