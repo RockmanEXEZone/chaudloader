@@ -4,5 +4,6 @@ members = [
     "chaudloader",
     "chaudloader-installer",
     "windows-libloader",
-    "dxgi-shim"
+    "dxgi-shim",
+    "xinput1_4-shim"
 ]

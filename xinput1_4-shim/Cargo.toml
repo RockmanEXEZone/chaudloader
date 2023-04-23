@@ -1,0 +1,12 @@
+[package]
+name = "xinput1_4-shim"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "xinput1_4"
+crate-type = ["cdylib"]
+
+[dependencies]
+winapi = { version = "0.3", features = ["xinput"] }
+windows-libloader = { path = "../windows-libloader" }
