@@ -26,7 +26,7 @@ def zip_info(name, permissions=0o644):
 files = [
     (zip_info("chaudloader.dll"), File("target/release/chaudloader.dll")),
     (zip_info("dxgi.dll"), File("target/release/chaudloader.dll")),
-    (zip_info("lua54.dll"), File("target/release/lua54.dll")),
+    (zip_info("lua54.dll"), File("lua54.dll")),
     (zip_info("install.exe"), File("target/release/install.exe")),
     (
         zip_info("install-linux", 0o755),
