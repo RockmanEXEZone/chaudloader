@@ -22,8 +22,7 @@ def make_entries():
 
     build_dir = "build"
     for root, _, filenames in os.walk(build_dir):
-        if root != build_dir:
-            root = "/".join(os.path.split(root))
+        root = root.replace(os.path.sep, "/")
         entries.append(Entry(f"{root}/", f"{root}/"))
         for filename in filenames:
             entries.append(Entry(f"{root}/{filename}", f"{root}/{filename}"))
