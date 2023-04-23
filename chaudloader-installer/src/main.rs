@@ -77,21 +77,22 @@ fn main() -> Result<(), anyhow::Error> {
             .parent()
             .ok_or_else(|| anyhow::anyhow!("could not get parent directory"))?;
 
-        let dxgi_dll = std::fs::read(src_path.join("dxgi.dll"))?;
-        let chaudloader_dll = std::fs::read(src_path.join("chaudloader.dll"))?;
+        let files = ["dxgi.dll", "chaudloader.dll", "lua54.dll"]
+            .into_iter()
+            .map(|filename| {
+                Ok::<_, anyhow::Error>((filename, std::fs::read(src_path.join(filename))?))
+            })
+            .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?;
 
         for path in paths {
             let exe_path = path.join("exe");
 
-            let dxgi_dll_path = exe_path.join("dxgi.dll");
-            let mut dxgi_dll_f = std::fs::File::create(&dxgi_dll_path)?;
-            dxgi_dll_f.write_all(&dxgi_dll)?;
-            println!("OK: {}", dxgi_dll_path.display());
-
-            let chaudloader_dll_path = exe_path.join("chaudloader.dll");
-            let mut chaudloader_dll_f = std::fs::File::create(&chaudloader_dll_path)?;
-            chaudloader_dll_f.write_all(&chaudloader_dll)?;
-            println!("OK: {}", chaudloader_dll_path.display());
+            for (filename, contents) in files.iter() {
+                let path = exe_path.join(filename);
+                let mut f = std::fs::File::create(&path)?;
+                f.write_all(&contents)?;
+                println!("OK: {}", path.display());
+            }
 
             let mods_path = exe_path.join("mods");
             match std::fs::create_dir(&mods_path) {
