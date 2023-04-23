@@ -25,6 +25,7 @@ struct Args {
 }
 
 const FILES_TO_COPY: &[&str] = &["dxgi.dll", "chaudloader.dll", "lua54.dll"];
+const FILES_TO_DELETE: &[&str] = &["bnlc_mod_loader.dll"];
 
 fn main() -> Result<(), anyhow::Error> {
     let args = Args::parse();
@@ -94,11 +95,24 @@ fn main() -> Result<(), anyhow::Error> {
         for path in paths {
             let exe_path = path.join("exe");
 
+            for filename in FILES_TO_DELETE.iter() {
+                let path = exe_path.join(filename);
+                match std::fs::remove_file(&path) {
+                    Ok(()) => {
+                        println!("DELETE  {}", path.display());
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => {
+                        return Err(e.into());
+                    }
+                }
+            }
+
             for (filename, contents) in files.iter() {
                 let path = exe_path.join(filename);
                 let mut f = std::fs::File::create(&path)?;
                 f.write_all(&contents)?;
-                println!("OK: {}", path.display());
+                println!("COPY   {}", path.display());
             }
 
             let mods_path = exe_path.join("mods");
@@ -109,7 +123,7 @@ fn main() -> Result<(), anyhow::Error> {
                     return Err(e.into());
                 }
             }
-            println!("OK: {}", mods_path.display());
+            println!("MKDIR  {}", mods_path.display());
         }
         println!();
 

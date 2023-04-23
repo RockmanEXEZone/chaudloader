@@ -16,7 +16,7 @@ def make_entries():
     entries = [
         Entry("README.md", "README.md"),
         Entry("chaudloader.dll", "target/release/chaudloader.dll"),
-        Entry("dxgi.dll", "target/release/chaudloader.dll"),
+        Entry("dxgi.dll", "target/release/dxgi.dll"),
         Entry("lua54.dll", "lua54.dll"),
     ]
 
