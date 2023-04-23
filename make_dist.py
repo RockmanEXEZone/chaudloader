@@ -53,6 +53,7 @@ def make_tar(entries: typing.List[Entry]):
     with tarfile.open("dist.tar.bz2", "w:bz2") as tf:
         for entry in entries:
             ti = tf.gettarinfo(entry.src)
+            ti.name = entry.dest
             if entry.mode is not None:
                 ti.mode = entry.mode
             if not ti.isdir():
