@@ -24,6 +24,8 @@ struct Args {
     yes: bool,
 }
 
+const FILES_TO_COPY: &[&str] = &["dxgi.dll", "chaudloader.dll", "lua54.dll"];
+
 fn main() -> Result<(), anyhow::Error> {
     let args = Args::parse();
     let r = (|| {
@@ -54,6 +56,11 @@ fn main() -> Result<(), anyhow::Error> {
                 " ! Mega Man Battle Network Legacy Collection could not be detected on your computer."
             );
             println!();
+            println!("It is possible that the installer was not able to detect your installation automatically. If this is the case, please copy the following files into the same directory as MMBN_LC1.exe and MMBN_LC2.exe:");
+            for filename in FILES_TO_COPY.iter() {
+                println!(" - {}", filename);
+            }
+            println!();
             println!("Installation cancelled.");
             return Ok(());
         }
@@ -77,8 +84,8 @@ fn main() -> Result<(), anyhow::Error> {
             .parent()
             .ok_or_else(|| anyhow::anyhow!("could not get parent directory"))?;
 
-        let files = ["dxgi.dll", "chaudloader.dll", "lua54.dll"]
-            .into_iter()
+        let files = FILES_TO_COPY
+            .iter()
             .map(|filename| {
                 Ok::<_, anyhow::Error>((filename, std::fs::read(src_path.join(filename))?))
             })
