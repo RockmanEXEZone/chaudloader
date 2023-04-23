@@ -72,13 +72,13 @@ function chaudloader.ExeDat:write_file(path: string, contents: string): string
 function chaudloader.Mpak(map_contents: string, mpak_contents: string): Mpak
 
 -- Inserts an entry at the given ROM address into the mpak. Existing entries will be clobbered. If contents is nil, the entry will be deleted.
-chaudloader.Mpak[rom_addr: number] = string
+chaudloader.Mpak[rom_addr: integer] = string
 
 -- Reads an entry at the given ROM address.
-chaudloader.Mpak[rom_addr: number]: string
+chaudloader.Mpak[rom_addr: integer]: string
 
 -- Iterates through all entries of an mpak.
-pairs(chaudloader.Mpak): (number, string)
+pairs(chaudloader.Mpak): (integer, string)
 
 -- Marshals an mpak back into .map + .mpak format.
 function chaudloader.Mpak:to_raw(): (string, string)
@@ -90,15 +90,21 @@ function chaudloader.Mpak:to_raw(): (string, string)
 -- Reads the contents of a file from the mod folder.
 function chaudloader.read_mod_file(path: string): string
 
+-- Lists the contents of a directory from the mod folder.
+function chaudloader.list_mod_directory(path: string): string[]
+
+-- Gets the metadata of a file from the mod folder.
+function chaudloader.get_mod_file_metadata(path: string): { type = "dir" | "file", size = integer }
+
 --
 -- Unsafe functions (mod must have unsafe = true)
 --
 
 -- Writes directly into process memory.
-function chaudloader.unsafe.write_process_memory(addr: number, buf: string)
+function chaudloader.unsafe.write_process_memory(addr: integer, buf: string)
 
 -- Reads directly from process memory.
-function chaudloader.unsafe.read_process_memory(addr: number, n: number): string
+function chaudloader.unsafe.read_process_memory(addr: integer, n: integer): string
 
 --
 -- Utility functions
