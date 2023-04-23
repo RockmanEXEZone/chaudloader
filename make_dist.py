@@ -20,8 +20,10 @@ def make_entries():
         Entry("lua54.dll", "lua54.dll"),
     ]
 
-    for root, _, filenames in os.walk("build"):
-        root = "/".join(os.path.split(root))
+    build_dir = "build"
+    for root, _, filenames in os.walk(build_dir):
+        if root != build_dir:
+            root = "/".join(os.path.split(root))
         entries.append(Entry(f"{root}/", f"{root}/"))
         for filename in filenames:
             entries.append(Entry(f"{root}/{filename}", f"{root}/{filename}"))
