@@ -19,8 +19,12 @@ jobs:
             - uses: dtolnay/rust-toolchain@nightly
             - run: ./download_and_build_lua.ps1
               shell: powershell
-            - run: LUA_INC=build/lua54/include LUA_LIB=build/lua54 LUA_LIB_NAME=lua54 cargo build --release
-              shell: bash
+            - run: |
+                  $Env:LUA_INC="build/lua54/include"
+                  $Env:LUA_LIB="build/lua54"
+                  $Env:LUA_LIB_NAME="lua54"
+                  cargo build --release
+              shell: powershell
             - run: Move-Item build/lua54/lua54.dll ./lua54.dll
               shell: powershell
             - run: 7z a -r -tzip dist.zip ./target/release/chaudloader.dll ./target/release/dxgi.dll ./target/release/install.exe ./lua54.dll ./build ./README.md
