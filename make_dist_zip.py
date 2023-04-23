@@ -1,51 +1,50 @@
-import dataclasses
 import os
 import datetime
 import zipfile
 
 
-@dataclasses.dataclass
-class File:
-    path: str
-
-
-@dataclasses.dataclass
-class Directory:
-    pass
-
-
 now = datetime.datetime.now()
 
 
-def zip_info(name, permissions=0o644):
+def zfile(name, mode=0o644):
     zi = zipfile.ZipInfo(name, now.timetuple()[:6])
-    zi.external_attr = permissions << 16
+    zi.external_attr = mode << 16
+    return zi
+
+
+def zdir(name, mode=0o755):
+    zi = zipfile.ZipInfo(name, now.timetuple()[:6])
+    zi.compress_size = 0
+    zi.file_size = 0
+    zi.CRC = 0
+    zi.external_attr = (0o40000 | mode) << 16
+    zi.external_attr |= 0x10
     return zi
 
 
 files = [
-    (zip_info("README.md"), File("README.md")),
-    (zip_info("chaudloader.dll"), File("target/release/chaudloader.dll")),
-    (zip_info("dxgi.dll"), File("target/release/chaudloader.dll")),
-    (zip_info("lua54.dll"), File("lua54.dll")),
-    (zip_info("install.exe"), File("target/release/install.exe")),
+    (zfile("README.md"), "README.md"),
+    (zfile("chaudloader.dll"), "target/release/chaudloader.dll"),
+    (zfile("dxgi.dll"), "target/release/chaudloader.dll"),
+    (zfile("lua54.dll"), "lua54.dll"),
+    (zfile("install.exe"), "target/release/install.exe"),
     (
-        zip_info("install-linux", 0o755),
-        File("target/x86_64-unknown-linux-musl/release/install"),
+        zfile("install-linux", 0o755),
+        "target/x86_64-unknown-linux-musl/release/install",
     ),
 ]
 
 for root, _, filenames in os.walk("build"):
-    files.append((zip_info(root, 0o755), Directory()))
+    files.append((zdir(f"{root}/"), None))
     for filename in filenames:
-        files.append((zip_info(f"{root}/{filename}"), File(f"{root}/{filename}")))
+        files.append((zfile(f"{root}/{filename}"), f"{root}/{filename}"))
 
 
 with zipfile.ZipFile("dist.zip", "w", zipfile.ZIP_DEFLATED) as zf:
     for zi, src in files:
-        if isinstance(src, Directory):
-            zf.mkdir(zi)
-        elif isinstance(src, File):
-            with open(src.path, "rb") as f:
+        if src is not None:
+            with open(src, "rb") as f:
                 buf = f.read()
-            zf.writestr(zi, buf)
+        else:
+            buf = b""
+        zf.writestr(zi, buf)
