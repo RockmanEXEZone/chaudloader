@@ -24,6 +24,7 @@ def zip_info(name, permissions=0o644):
 
 
 files = [
+    (zip_info("README.md"), File("README.md")),
     (zip_info("chaudloader.dll"), File("target/release/chaudloader.dll")),
     (zip_info("dxgi.dll"), File("target/release/chaudloader.dll")),
     (zip_info("lua54.dll"), File("lua54.dll")),

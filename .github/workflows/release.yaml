@@ -28,8 +28,6 @@ jobs:
                   cargo build --release
               shell: powershell
             - run: cargo build --release --target x86_64-unknown-linux-musl --bin install
-            - run: Move-Item ./target/x86_64-unknown-linux-musl/release/install install-linux
-              shell: powershell
             - run: Move-Item build/lua54/lua54.dll ./lua54.dll
               shell: powershell
             - run: python3 make_dist_zip.py
