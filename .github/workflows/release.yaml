@@ -32,9 +32,7 @@ jobs:
               shell: powershell
             - run: Move-Item build/lua54/lua54.dll ./lua54.dll
               shell: powershell
-            - run: |
-                  chmod a+x ./install-linux
-                  7z a -tzip dist.zip ./target/release/chaudloader.dll ./target/release/dxgi.dll ./target/release/install.exe ./lua54.dll ./README.md ./install-linux build
+            - run: python3 make_dist_zip.py
               shell: bash
             - uses: actions/upload-release-asset@v1
               env:
