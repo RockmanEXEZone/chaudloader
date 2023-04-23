@@ -33,12 +33,20 @@ jobs:
                   cargo build --release
             - run: cargo build --release --target x86_64-unknown-linux-musl --bin install
             - run: Move-Item build/lua54/lua54.dll ./lua54.dll
-            - run: python make_dist_zip.py
+            - run: python make_dist.py
             - uses: actions/upload-release-asset@v1
               env:
                   GITHUB_TOKEN: ${{ github.token }}
               with:
                   upload_url: ${{ github.event.release.upload_url }}
                   asset_path: dist.zip
-                  asset_name: chaudloader-${{ github.ref_name }}.zip
+                  asset_name: chaudloader-${{ github.ref_name }}-windows.zip
+                  asset_content_type: application/octet-stream
+            - uses: actions/upload-release-asset@v1
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+              with:
+                  upload_url: ${{ github.event.release.upload_url }}
+                  asset_path: dist.tar.bz2
+                  asset_name: chaudloader-${{ github.ref_name }}-linux.tar.bz2
                   asset_content_type: application/octet-stream
