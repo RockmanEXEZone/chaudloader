@@ -6,7 +6,7 @@ chaudloader is a mod loader for Mega Man Battle Network Legacy Collection.
 
 ## For users
 
-1. Run `install.exe`. If you are on Steam Deck, you will need to run `install-linux` instead.
+1. Run `install.exe`. If you are on Steam Deck, you will need to run `install` instead.
 
 2. Start the game. Mods in the `mods` folder will be activated in alphabetical order.
 
