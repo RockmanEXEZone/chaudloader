@@ -17,6 +17,8 @@ jobs:
                   submodules: recursive
             - uses: ilammy/msvc-dev-cmd@v1
             - uses: dtolnay/rust-toolchain@nightly
+              with:
+                  targets: x86_64-unknown-linux-musl
             - run: ./download_and_build_lua.ps1
               shell: powershell
             - run: |
@@ -25,10 +27,12 @@ jobs:
                   $Env:LUA_LIB_NAME="lua54"
                   cargo build --release
               shell: powershell
+            - run: cargo build --release --target x86_64-unknown-linux-musl --bin install
             - run: Move-Item build/lua54/lua54.dll ./lua54.dll
               shell: powershell
             - run: |
-                  7z a -tzip dist.zip ./target/release/chaudloader.dll ./target/release/dxgi.dll ./target/release/install.exe ./lua54.dll ./README.md build
+                  chmod a+x ./install-linux
+                  7z a -tzip dist.zip ./target/release/chaudloader.dll ./target/release/dxgi.dll ./target/release/install.exe ./lua54.dll ./README.md ./install-linux build
               shell: bash
             - uses: actions/upload-release-asset@v1
               env:
