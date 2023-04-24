@@ -11,7 +11,7 @@ pub trait WriteSeek: std::io::Write + std::io::Seek {}
 impl<T: std::io::Write + std::io::Seek> WriteSeek for T {}
 
 enum Replacement {
-    Pending(Box<dyn FnOnce(&mut dyn WriteSeek) -> Result<(), anyhow::Error> + Send>),
+    Pending(Box<dyn FnOnce(&mut dyn WriteSeek) -> Result<(), std::io::Error> + Send>),
     Complete(std::path::PathBuf),
 }
 
@@ -50,16 +50,16 @@ impl Replacer {
     pub fn add(
         &mut self,
         path: &std::path::Path,
-        pack_f: impl FnOnce(&mut dyn WriteSeek) -> Result<(), anyhow::Error> + Send + 'static,
+        pack_cb: impl FnOnce(&mut dyn WriteSeek) -> Result<(), std::io::Error> + Send + 'static,
     ) {
         self.replacements
-            .insert(path.to_path_buf(), Replacement::Pending(Box::new(pack_f)));
+            .insert(path.to_path_buf(), Replacement::Pending(Box::new(pack_cb)));
     }
 
     pub fn get<'a>(
         &'a mut self,
         path: &'a std::path::Path,
-    ) -> Result<(&'a std::path::Path, bool), anyhow::Error> {
+    ) -> Result<(&'a std::path::Path, bool), std::io::Error> {
         let replacement = if let Some(replacement) = self.replacements.get_mut(path) {
             replacement
         } else {
@@ -68,10 +68,13 @@ impl Replacer {
 
         match replacement {
             Replacement::Pending(_) => {
+                // Unwrap these hook guards because there's not much we can do if they fail.
                 let _create_file_a_hook_guard =
-                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileAHook) }?;
+                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileAHook) }
+                        .unwrap();
                 let _create_file_w_hook_guard =
-                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileWHook) }?;
+                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileWHook) }
+                        .unwrap();
 
                 let dest_f = tempfile::NamedTempFile::new_in(&self.temp_dir)?;
                 log::info!(
@@ -84,11 +87,11 @@ impl Replacer {
                 let mut new_replacement = Replacement::Complete(dest_path);
                 std::mem::swap(&mut new_replacement, replacement);
 
-                let pack_f = match new_replacement {
-                    Replacement::Pending(pack_f) => pack_f,
+                let pack_cb = match new_replacement {
+                    Replacement::Pending(pack_cb) => pack_cb,
                     Replacement::Complete(_) => unreachable!(),
                 };
-                pack_f(&mut dest_f)?;
+                pack_cb(&mut dest_f)?;
 
                 Ok((
                     match replacement {

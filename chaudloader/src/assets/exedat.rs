@@ -1,23 +1,5 @@
 use std::io::{Read, Write};
 
-#[derive(thiserror::Error, Debug)]
-pub enum Error {
-    #[error("zip: {0}")]
-    Zip(#[from] zip::result::ZipError),
-
-    #[error("io: {0}")]
-    Io(#[from] std::io::Error),
-
-    #[error("persist: {0}")]
-    Persist(#[from] tempfile::PersistError),
-
-    #[error("cannot replace directory")]
-    CannotReplaceDirectory,
-
-    #[error("other: {0}")]
-    Other(#[from] anyhow::Error),
-}
-
 pub struct Reader {
     zr: zip::ZipArchive<Box<dyn super::ReadSeek + Send>>,
 }
@@ -52,7 +34,10 @@ impl Overlay {
         }
     }
 
-    pub fn read<'a>(&'a mut self, path: &str) -> Result<std::borrow::Cow<'a, [u8]>, Error> {
+    pub fn read<'a>(
+        &'a mut self,
+        path: &str,
+    ) -> Result<std::borrow::Cow<'a, [u8]>, std::io::Error> {
         if let Some(contents) = self.overlaid_files.get(path) {
             return Ok(std::borrow::Cow::Borrowed(&contents));
         }
@@ -62,9 +47,12 @@ impl Overlay {
         Ok(std::borrow::Cow::Owned(buf))
     }
 
-    pub fn write<'a>(&'a mut self, path: &str, contents: Vec<u8>) -> Result<(), Error> {
+    pub fn write<'a>(&'a mut self, path: &str, contents: Vec<u8>) -> Result<(), std::io::Error> {
         if self.base.get(path)?.is_dir() {
-            return Err(Error::CannotReplaceDirectory);
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "cannot replace directory",
+            ));
         }
         self.overlaid_files.insert(path.to_string(), contents);
         Ok(())
@@ -74,7 +62,10 @@ impl Overlay {
         !self.overlaid_files.is_empty()
     }
 
-    pub fn pack_into(&mut self, writer: impl std::io::Write + std::io::Seek) -> Result<(), Error> {
+    pub fn pack_into(
+        &mut self,
+        writer: impl std::io::Write + std::io::Seek,
+    ) -> Result<(), std::io::Error> {
         let mut zw = zip::ZipWriter::new(writer);
         for i in 0..self.base.zr.len() {
             let entry = self.base.zr.by_index_raw(i)?;
