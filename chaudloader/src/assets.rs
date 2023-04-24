@@ -69,9 +69,9 @@ impl Replacer {
         match replacement {
             Replacement::Pending(_) => {
                 let _create_file_a_hook_guard =
-                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileAHook) };
+                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileAHook) }?;
                 let _create_file_w_hook_guard =
-                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileWHook) };
+                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileWHook) }?;
 
                 let dest_f = tempfile::NamedTempFile::new_in(&self.temp_dir)?;
                 log::info!(
