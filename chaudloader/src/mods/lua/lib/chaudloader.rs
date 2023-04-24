@@ -57,6 +57,28 @@ pub fn new<'a>(
     )?;
 
     table.set(
+        "unpack_textarchive",
+        lua.create_function(|lua, (raw,): (mlua::String,)| {
+            Ok(
+                assets::textarchive::unpack(std::io::Cursor::new(raw.as_bytes()))?
+                    .into_iter()
+                    .map(|v| lua.create_string(&v))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )
+        })?,
+    )?;
+
+    table.set(
+        "pack_textarchive",
+        lua.create_function(|lua, (entries,): (Vec<mlua::String>,)| {
+            let mut buf = vec![];
+            let entries = entries.iter().map(|v| v.as_bytes()).collect::<Vec<_>>();
+            assets::textarchive::pack(&entries, &mut buf)?;
+            Ok(lua.create_string(&buf)?)
+        })?,
+    )?;
+
+    table.set(
         "list_mod_directory",
         lua.create_function({
             let mod_path = mod_path.clone();
