@@ -1,3 +1,5 @@
+use crate::hooks;
+
 pub mod exedat;
 pub mod mpak;
 pub mod textarchive;
@@ -8,9 +10,14 @@ impl<T: std::io::Read + std::io::Seek> ReadSeek for T {}
 pub trait WriteSeek: std::io::Write + std::io::Seek {}
 impl<T: std::io::Write + std::io::Seek> WriteSeek for T {}
 
+enum Replacement {
+    Pending(Option<Box<dyn FnOnce(&mut dyn WriteSeek) -> Result<(), anyhow::Error> + Send>>),
+    Complete(std::path::PathBuf),
+}
+
 pub struct Replacer {
     temp_dir: std::path::PathBuf,
-    replacements: std::collections::HashMap<std::path::PathBuf, std::path::PathBuf>,
+    replacements: std::collections::HashMap<std::path::PathBuf, Replacement>,
 }
 
 impl Replacer {
@@ -40,23 +47,53 @@ impl Replacer {
         })
     }
 
-    pub fn add(&mut self, path: &std::path::Path) -> Result<impl WriteSeek, std::io::Error> {
-        let dest_f = tempfile::NamedTempFile::new_in(&self.temp_dir)?;
-        log::info!(
-            "replacing {} -> {}",
-            path.display(),
-            dest_f.path().display()
+    pub fn add(
+        &mut self,
+        path: &std::path::Path,
+        pack_f: impl FnOnce(&mut dyn WriteSeek) -> Result<(), anyhow::Error> + Send + 'static,
+    ) {
+        self.replacements.insert(
+            path.to_path_buf(),
+            Replacement::Pending(Some(Box::new(pack_f))),
         );
-        let (dest_f, dest_path) = dest_f.keep()?;
-        self.replacements.insert(path.to_path_buf(), dest_path);
-        Ok(dest_f)
     }
 
-    pub fn get<'a>(&'a self, path: &'a std::path::Path) -> (&'a std::path::Path, bool) {
-        self.replacements
-            .get(path)
-            .map(|p| (p.as_path(), true))
-            .unwrap_or((path, false))
+    pub fn get<'a>(
+        &'a mut self,
+        path: &'a std::path::Path,
+    ) -> Result<(&'a std::path::Path, bool), anyhow::Error> {
+        let replacement = if let Some(replacement) = self.replacements.get_mut(path) {
+            replacement
+        } else {
+            return Ok((path, false));
+        };
+
+        match replacement {
+            Replacement::Pending(pack_f) => {
+                let _create_file_a_hook_guard =
+                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileAHook) };
+                let _create_file_w_hook_guard =
+                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileWHook) };
+
+                let dest_f = tempfile::NamedTempFile::new_in(&self.temp_dir)?;
+                log::info!(
+                    "replacing {} -> {}",
+                    path.display(),
+                    dest_f.path().display()
+                );
+                let (mut dest_f, dest_path) = dest_f.keep()?;
+                pack_f.take().unwrap()(&mut dest_f)?;
+                *replacement = Replacement::Complete(dest_path);
+                Ok((
+                    match replacement {
+                        Replacement::Pending(_) => unreachable!(),
+                        Replacement::Complete(p) => p.as_path(),
+                    },
+                    true,
+                ))
+            }
+            Replacement::Complete(p) => Ok((p.as_path(), true)),
+        }
     }
 }
 

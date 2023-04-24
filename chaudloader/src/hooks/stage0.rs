@@ -223,8 +223,7 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
                 continue;
             }
 
-            let mut writer = assets_replacer.add(&dat_path)?;
-            overlay.pack_into(&mut writer)?;
+            assets_replacer.add(&dat_path, move |writer| Ok(overlay.pack_into(writer)?));
         }
     }
     super::stage1::install()?;

@@ -38,8 +38,8 @@ unsafe fn on_create_file(
     // FIXME: This path is relative to the exe folder, but is sometimes something like ..\exe\data\exe1.dat. We should canonicalize it in all cases to intercept all reads.
     let path = clean_path::clean(path);
 
-    let assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
-    let (new_path, is_replaced) = assets_replacer.get(&path);
+    let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
+    let (new_path, is_replaced) = assets_replacer.get(&path).unwrap();
 
     if is_replaced {
         log::info!(

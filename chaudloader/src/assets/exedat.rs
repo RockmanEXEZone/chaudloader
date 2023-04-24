@@ -19,13 +19,15 @@ pub enum Error {
 }
 
 pub struct Reader {
-    zr: zip::ZipArchive<Box<dyn super::ReadSeek>>,
+    zr: zip::ZipArchive<Box<dyn super::ReadSeek + Send>>,
 }
 
 impl Reader {
-    pub fn new(reader: impl super::ReadSeek + 'static) -> Result<Self, zip::result::ZipError> {
+    pub fn new(
+        reader: impl super::ReadSeek + Send + 'static,
+    ) -> Result<Self, zip::result::ZipError> {
         Ok(Self {
-            zr: zip::ZipArchive::new(Box::new(reader) as Box<dyn super::ReadSeek>)?,
+            zr: zip::ZipArchive::new(Box::new(reader) as Box<dyn super::ReadSeek + Send>)?,
         })
     }
 
