@@ -117,6 +117,13 @@ function chaudloader.unsafe.write_process_memory(addr: integer, buf: string)
 function chaudloader.unsafe.read_process_memory(addr: integer, n: integer): string
 
 --
+-- Convenience functions
+--
+chaudloader.util = {
+    -- whatever is in chaudloader/src/mods/lua/chaudloader/util.lua
+}
+
+--
 -- Utility functions
 --
 
