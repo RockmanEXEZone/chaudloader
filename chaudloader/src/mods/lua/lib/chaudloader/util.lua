@@ -21,14 +21,13 @@ end
 -- - Non-empty entries from the source text archive will be merged into the target text archive.
 local function merge_msgs_from_mod_directory(mpak, dir)
     for _, filename in ipairs(chaudloader.list_mod_directory(dir)) do
-        local raw_addr = string.gmatch(filename, "(%x+).msg$")()
+        local raw_addr = string.match(filename, "^(%x+).msg$")
         if raw_addr == nil then
             goto continue
         end
         local addr = tonumber(raw_addr, 16) | 0x08000000
         edit_msg(mpak, addr, function (ta)
-            local src_ta = chaudloader.unpack_msg(chaudloader.read_mod_file(dir .. '/' .. filename))
-            for i, entry in ipairs(src_ta) do
+            for i, entry in ipairs(chaudloader.unpack_msg(chaudloader.read_mod_file(dir .. '/' .. filename))) do
                 if entry ~= "" then
                     ta[i] = entry
                 end
