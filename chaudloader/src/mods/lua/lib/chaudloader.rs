@@ -57,23 +57,21 @@ pub fn new<'a>(
     )?;
 
     table.set(
-        "unpack_textarchive",
+        "unpack_msg",
         lua.create_function(|lua, (raw,): (mlua::String,)| {
-            Ok(
-                assets::textarchive::unpack(std::io::Cursor::new(raw.as_bytes()))?
-                    .into_iter()
-                    .map(|v| lua.create_string(&v))
-                    .collect::<Result<Vec<_>, _>>()?,
-            )
+            Ok(assets::msg::unpack(std::io::Cursor::new(raw.as_bytes()))?
+                .into_iter()
+                .map(|v| lua.create_string(&v))
+                .collect::<Result<Vec<_>, _>>()?)
         })?,
     )?;
 
     table.set(
-        "pack_textarchive",
+        "pack_msg",
         lua.create_function(|lua, (entries,): (Vec<mlua::String>,)| {
             let mut buf = vec![];
             let entries = entries.iter().map(|v| v.as_bytes()).collect::<Vec<_>>();
-            assets::textarchive::pack(&entries, &mut buf)?;
+            assets::msg::pack(&entries, &mut buf)?;
             Ok(lua.create_string(&buf)?)
         })?,
     )?;
@@ -147,6 +145,14 @@ pub fn new<'a>(
             r#unsafe::new(lua, &mod_path, std::rc::Rc::clone(&state))?,
         )?;
     }
+
+    table.set(
+        "util",
+        lua.load(include_str!("chaudloader/util.lua"))
+            .set_name("=<builtin>\\chaudloader\\util.lua")
+            .set_mode(mlua::ChunkMode::Text)
+            .eval::<mlua::Value>()?,
+    )?;
 
     Ok(mlua::Value::Table(table))
 }

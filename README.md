@@ -84,14 +84,14 @@ pairs(chaudloader.Mpak): (integer, string)
 function chaudloader.Mpak:pack(): (string, string)
 
 --
--- textarchive functions
+-- msg data functions
 --
 
--- Unmarshals a textarchive.
-function chaudloader.unpack_textarchive(raw: string): string[]
+-- Unmarshals msg data.
+function chaudloader.unpack_msg(raw: string): string[]
 
--- Marshals a textarchive.
-function chaudloader.pack_textarchive(entries: string[]): string
+-- Marshals msg data.
+function chaudloader.pack_msg(entries: string[]): string
 
 --
 -- Mod file functions
