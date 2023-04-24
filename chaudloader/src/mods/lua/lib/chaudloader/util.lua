@@ -18,7 +18,7 @@ end
 -- Merges all msgs from a directory.
 --
 -- - The directory must contain files named addresses of msgs to replace.
--- - Non-empty entries from the source text archive will be merged into the target text archive.
+-- - Non-empty entries from the source msg data will be merged into the target msg data.
 local function merge_msgs_from_mod_directory(mpak, dir)
     for _, filename in ipairs(chaudloader.list_mod_directory(dir)) do
         local raw_addr = string.match(filename, "^(%x+).msg$")
