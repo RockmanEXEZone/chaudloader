@@ -13,10 +13,20 @@ pub fn unpack(mut r: impl std::io::Read) -> Result<Vec<Vec<u8>>, std::io::Error>
 
     // Read entries.
     let mut entries = Vec::with_capacity(n);
-    for len in std::iter::zip(offsets.iter(), offsets[1..].iter())
-        .map(|(x, y)| Some(y - x))
-        .chain(std::iter::once(None))
+    for (i, len) in std::iter::zip(offsets.iter(), offsets[1..].iter())
+        .map(|(x, y)| y.checked_sub(*x).map(|v| Some(v)))
+        .chain(std::iter::once(Some(None)))
+        .enumerate()
     {
+        let len = if let Some(len) = len {
+            len
+        } else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!("offset {} went backwards", i),
+            ));
+        };
+
         entries.push(if let Some(len) = len {
             let mut buf = vec![0; len];
             r.read_exact(&mut buf)?;
@@ -59,7 +69,16 @@ mod tests {
         assert_eq!(buf, b"\x04\x00\x09\x00helloworld");
         assert_eq!(
             unpack(std::io::Cursor::new(&buf)).unwrap(),
-            vec![b"hello".to_vec(), b"world".to_vec(),]
+            vec![b"hello".to_vec(), b"world".to_vec()]
+        );
+    }
+
+    #[test]
+    fn test_pack_unpack_bad_offsets() {
+        let buf = b"\x04\x03uhoh";
+        assert_eq!(
+            unpack(std::io::Cursor::new(&buf)).unwrap_err().kind(),
+            std::io::ErrorKind::InvalidData
         );
     }
 }
