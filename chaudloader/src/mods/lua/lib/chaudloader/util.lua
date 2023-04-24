@@ -17,7 +17,10 @@ end
 
 -- Merges all msgs from a directory.
 --
--- - The directory must contain files named addresses of msgs to replace.
+-- - The directory must contain files named addresses of msgs to replace, followed by `.msg`.
+--
+--   The addresses may be either mapped ROM addresses (08XXXXXX) or unmapped file offsets (00XXXXXX): if they are unmapped file offsets, they will be automatically transformed into mapped ROM addresses.
+--
 -- - Non-empty entries from the source msg data will be merged into the target msg data.
 local function merge_msgs_from_mod_directory(mpak, dir)
     for _, filename in ipairs(chaudloader.list_mod_directory(dir)) do

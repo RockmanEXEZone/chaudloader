@@ -104,7 +104,7 @@ function chaudloader.read_mod_file(path: string): string
 function chaudloader.list_mod_directory(path: string): string[]
 
 -- Gets the metadata of a file from the mod folder.
-function chaudloader.get_mod_file_metadata(path: string): { type = "dir" | "file", size = integer }
+function chaudloader.get_mod_file_metadata(path: string): { type: "dir" | "file", size: integer }
 
 --
 -- Unsafe functions (mod must have unsafe = true)
@@ -119,7 +119,7 @@ function chaudloader.unsafe.read_process_memory(addr: integer, n: integer): stri
 --
 -- Convenience functions
 --
-chaudloader.util = {
+chaudloader.util: {
     -- whatever is in chaudloader/src/mods/lua/chaudloader/util.lua
 }
 
