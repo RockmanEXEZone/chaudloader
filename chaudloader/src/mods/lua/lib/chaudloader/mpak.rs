@@ -45,7 +45,7 @@ impl mlua::UserData for Mpak {
             })?)
         });
 
-        methods.add_method("to_raw", |lua, this, (): ()| {
+        methods.add_method("pack", |lua, this, (): ()| {
             let this = this.0.borrow();
             let mut map_contents = vec![];
             let mut mpak_contents = vec![];

@@ -81,7 +81,7 @@ chaudloader.Mpak[rom_addr: integer]: string
 pairs(chaudloader.Mpak): (integer, string)
 
 -- Marshals an mpak back into .map + .mpak format.
-function chaudloader.Mpak:to_raw(): (string, string)
+function chaudloader.Mpak:pack(): (string, string)
 
 --
 -- textarchive functions
