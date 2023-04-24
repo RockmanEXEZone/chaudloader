@@ -11,7 +11,7 @@ pub trait WriteSeek: std::io::Write + std::io::Seek {}
 impl<T: std::io::Write + std::io::Seek> WriteSeek for T {}
 
 enum Replacement {
-    Pending(Option<Box<dyn FnOnce(&mut dyn WriteSeek) -> Result<(), anyhow::Error> + Send>>),
+    Pending(Box<dyn FnOnce(&mut dyn WriteSeek) -> Result<(), anyhow::Error> + Send>),
     Complete(std::path::PathBuf),
 }
 
@@ -52,10 +52,8 @@ impl Replacer {
         path: &std::path::Path,
         pack_f: impl FnOnce(&mut dyn WriteSeek) -> Result<(), anyhow::Error> + Send + 'static,
     ) {
-        self.replacements.insert(
-            path.to_path_buf(),
-            Replacement::Pending(Some(Box::new(pack_f))),
-        );
+        self.replacements
+            .insert(path.to_path_buf(), Replacement::Pending(Box::new(pack_f)));
     }
 
     pub fn get<'a>(
@@ -69,7 +67,7 @@ impl Replacer {
         };
 
         match replacement {
-            Replacement::Pending(pack_f) => {
+            Replacement::Pending(_) => {
                 let _create_file_a_hook_guard =
                     unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileAHook) };
                 let _create_file_w_hook_guard =
@@ -82,8 +80,16 @@ impl Replacer {
                     dest_f.path().display()
                 );
                 let (mut dest_f, dest_path) = dest_f.keep()?;
-                pack_f.take().unwrap()(&mut dest_f)?;
-                *replacement = Replacement::Complete(dest_path);
+
+                let mut new_replacement = Replacement::Complete(dest_path);
+                std::mem::swap(&mut new_replacement, replacement);
+
+                let pack_f = match new_replacement {
+                    Replacement::Pending(pack_f) => pack_f,
+                    Replacement::Complete(_) => unreachable!(),
+                };
+                pack_f(&mut dest_f)?;
+
                 Ok((
                     match replacement {
                         Replacement::Pending(_) => unreachable!(),
