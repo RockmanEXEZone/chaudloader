@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn test_pack_unpack_bad_offsets() {
-        let buf = b"\x04\x03uhoh";
+        let buf = b"\x04\x00\x03\x00uhoh";
         assert_eq!(
             unpack(std::io::Cursor::new(&buf)).unwrap_err().kind(),
             std::io::ErrorKind::InvalidData
