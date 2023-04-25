@@ -24,6 +24,8 @@ impl mlua::UserData for ByteArray {
 
         methods.add_method("pack", |lua, this, (): ()| Ok(lua.create_string(&this.0)?));
 
+        methods.add_method("clone", |_, this, (): ()| Ok(ByteArray(this.0.clone())));
+
         methods.add_method("get_string", |lua, this, (i, n): (usize, usize)| {
             Ok(lua.create_string(
                 &this

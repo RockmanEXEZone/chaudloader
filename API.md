@@ -166,6 +166,14 @@ chaudloader.ByteArray(...) == chaudloader.ByteArray(...): bool
 
 Compares two byte arrays for byte-for-byte equality.
 
+### `chaudloader.ByteArray:clone`
+
+```lua
+chaudloader.ByteArray:clone(): ByteArray
+```
+
+Clones the byte array into a new, unshared byte array.
+
 ### `chaudloader.ByteArray:len`
 
 ```lua
