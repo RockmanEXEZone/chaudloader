@@ -40,7 +40,8 @@ def make_windows_entries():
 def make_linux_entries():
     return [
         *make_entries(),
-        Entry("install", "target/x86_64-unknown-linux-musl/release/install", 0o755),
+        Entry("install-cli", "target/x86_64-unknown-linux-musl/release/install", 0o755),
+        Entry("install.desktop", "chaudloader-installer/linux-install.desktop", 0o755)
     ]
 
 

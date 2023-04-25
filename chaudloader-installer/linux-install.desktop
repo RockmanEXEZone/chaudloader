@@ -1,0 +1,4 @@
+[Desktop Entry]
+Type=Application
+Terminal=true
+Exec=cd "$(dirname %k)"; ./install-cli
