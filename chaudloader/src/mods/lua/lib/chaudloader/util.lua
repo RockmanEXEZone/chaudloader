@@ -10,6 +10,13 @@ local function edit_mpak(dat, name, cb)
     dat:write_file(name .. ".mpak", raw_mpak)
 end
 
+-- Reads a file as a ByteArray and saves it back when done.
+local function edit_as_bytearray(dat, path, cb)
+    local ba = chaudloader.ByteArray(dat:read_file(path))
+    cb(ba)
+    dat:write_file(path, ba:pack())
+end
+
 -- Unpacks msg data, calls a function on it, then writes it back when complete.
 local function edit_msg(mpak, address, cb)
     mpak[address] = chaudloader.pack_msg(cb(chaudloader.unpack_msg(mpak[address])))
@@ -50,6 +57,7 @@ end
 return {
     edit_mpak = edit_mpak,
     edit_msg = edit_msg,
+    edit_as_bytearray = edit_as_bytearray,
     merge_msg = merge_msg,
     merge_msgs_from_mod_directory = merge_msgs_from_mod_directory,
 }
