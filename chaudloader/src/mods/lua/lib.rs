@@ -148,8 +148,8 @@ pub fn set_globals(
         chaudloader::new(&lua, game_env, name, info, state, overlays)?,
     )?;
 
-    lua.load(include_str!("compat0_7.lua"))
-        .set_name("=<builtin>\\compat0_7.lua")
+    lua.load(include_str!("compat.lua"))
+        .set_name("=<builtin>\\compat.lua")
         .set_mode(mlua::ChunkMode::Text)
         .exec()?;
 

@@ -1,4 +1,6 @@
--- Compatibility shim for chaudloader 0.7 -> 0.8.
+-- Compatibility shims.
+
+-- 0.1 -> 0.8
 bnlc_mod_loader = {}
 
 function bnlc_mod_loader.write_exe_dat_contents(dat_filename, path, contents)
@@ -13,6 +15,7 @@ function bnlc_mod_loader.read_mod_contents(path)
     return chaudloader.modfiles.read_file(path)
 end
 
+-- 0.7 -> 0.8
 chaudloader.ExeDat = chaudloader.exedat.open
 chaudloader.Mpak = chaudloader.mpak.unpack
 chaudloader.ByteArray = chaudloader.bytearray.unpack

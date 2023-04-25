@@ -352,11 +352,13 @@ See [chaudloader/src/mods/lua/lib/chaudloader/util.lua](chaudloader/src/mods/lua
 
 ## Deprecated API
 
-<details>
+### Compatibility shims
 
-These APIs have been deprecated and may be removed in a future version. You should use the appropriate alternative.
+See [chaudloader/src/mods/lua/lib/compat.lua](chaudloader/src/mods/lua/lib/compat.lua) for compatibility functions with old versions of chaudloader. Note that these functions may be removed at any time.
 
-### `chaudloader.unsafe.init_mod_dll`
+### Other
+
+#### `chaudloader.unsafe.init_mod_dll`
 
 ```lua
 function chaudloader.unsafe.init_mod_dll(path: string, userdata: string)
@@ -371,39 +373,3 @@ The function should have the following signature:
 ```c
 __declspec(dllexport) bool chaudloader_init(const char* userdata, n: size_t)
 ```
-
-### `bnlc_mod_loader.read_exe_dat_contents`
-
-```lua
-function bnlc_mod_loader.read_exe_dat_contents(dat_filename: string, path: string): string
-```
-
-**Deprecated:** See `ExeDat:read_file`.
-
-Reads the contents of a file out of a .dat file located in exe/data (e.g. `exe6.dat`).
-
-Previous calls to write_exe_dat_contents are visible to subsequent calls to read_exe_dat_contents.
-
-### `bnlc_mod_loader.write_exe_dat_contents`
-
-```lua
-function bnlc_mod_loader.write_exe_dat_contents(dat_filename: string, path: string, contents: string)
-```
-
-**Deprecated:** See `ExeDat:write_file`.
-
-Writes the given data into a zip .dat file located in exe/data.
-
-Note that this does not mutate the original .dat file on disk, but for all intents and purposes to both the game and the mod loader it does.
-
-### `bnlc_mod_loader.read_mod_contents`
-
-**Deprecated:** See `chaudloader.read_mod_file`.
-
-```lua
-function bnlc_mod_loader.read_mod_contents(path: string): string
-```
-
-Reads the contents of a file from the mod folder.
-
-</details>
