@@ -1,5 +1,3 @@
-use sha2::Digest;
-
 use crate::{assets, mods};
 use retour::static_detour;
 
@@ -89,6 +87,23 @@ fn scan_mods() -> Result<std::collections::BTreeMap<String, (mods::Info, String)
     Ok(mods)
 }
 
+struct HashWriter<T: std::hash::Hasher>(T);
+
+impl<T: std::hash::Hasher> std::io::Write for HashWriter<T> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.write(buf);
+        Ok(buf.len())
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        self.write(buf).map(|_| ())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
     winapi::um::consoleapi::AllocConsole();
     env_logger::Builder::from_default_env()
@@ -107,15 +122,15 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
     };
 
     let exe_path = std::env::current_exe()?;
-    let mut hasher = sha2::Sha256::new();
+    let mut hasher = crc32fast::Hasher::new();
     {
         let mut exe_f = std::fs::File::open(&exe_path)?;
-        std::io::copy(&mut exe_f, &mut hasher)?;
+        std::io::copy(&mut exe_f, &mut HashWriter(&mut hasher))?;
     }
 
     let mod_env = mods::GameEnv {
         volume: game_volume,
-        exe_sha256: hasher.finalize().to_vec(),
+        exe_crc32: hasher.finalize(),
     };
 
     // Load all archives as overlays.

@@ -18,7 +18,7 @@ pub struct Info {
 
 pub struct GameEnv {
     pub volume: crate::GameVolume,
-    pub exe_sha256: Vec<u8>,
+    pub exe_crc32: u32,
 }
 
 pub struct State {

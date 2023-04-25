@@ -25,5 +25,4 @@ byteorder = "1"
 indexmap = "1"
 semver = { version = "1", features = ["serde"] }
 serde_plain = "1"
-hex = "0.4"
-sha2 = "0.10"
+crc32fast = "1"

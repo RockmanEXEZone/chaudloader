@@ -14,7 +14,7 @@ fn new_game_env<'a>(
 ) -> Result<mlua::Value<'a>, mlua::Error> {
     let table = lua.create_table()?;
     table.set("name", serde_plain::to_string(&env.volume).unwrap())?;
-    table.set("exe_sha256", hex::encode(&env.exe_sha256))?;
+    table.set("exe_crc32", env.exe_crc32)?;
     Ok(mlua::Value::Table(table))
 }
 
