@@ -14,8 +14,8 @@ If unsafe = true, require may load Lua DLLs of the form <name>.dll from the mods
 
 If the name contains dots (`.`), they will be translated to slashes for paths (`/`). If the name is for a Lua DLL, they will be replaced with underscores (`_`) in the loader function. For example, for a library named `foo.bar`:
 
--   Path: foo/bar.lua (or foo/bar.dll)
--   DLL entry point: luaopen_foo_bar
+-   **Path:** `foo/bar.lua` (or `foo/bar.dll`)
+-   **DLL entry point:** `luaopen_foo_bar`
 
 For more information on writing Lua libraries, see https://www.lua.org/pil/26.2.html. If you don't particularly feel like using any Lua features, you may define your luaopen function like so:
 
