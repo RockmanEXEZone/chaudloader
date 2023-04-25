@@ -20,7 +20,7 @@ If the name contains dots (`.`), they will be translated to slashes for paths (`
 For more information on writing Lua libraries, see https://www.lua.org/pil/26.2.html. If you don't particularly feel like using any Lua features, you may define your luaopen function like so:
 
 ```c
-int luaopen_mylibrary(void* unused) {
+__declspec(dllexport) int luaopen_mylibrary(void* unused) {
     // Do all your logic here.
     return 0;
 }
@@ -127,7 +127,7 @@ Reads an entry at the given ROM address.
 ### `chaudloader.Mpak:__pairs`
 
 ```lua
-pairs(chaudloader.Mpak): (integer, string)
+pairs(chaudloader.Mpak): function (): integer, string
 ```
 
 Iterates through all entries of an mpak.
@@ -135,7 +135,7 @@ Iterates through all entries of an mpak.
 ### `chaudloader.Mpak:pack`
 
 ```lua
-function chaudloader.Mpak:pack(): (string, string)
+function chaudloader.Mpak:pack(): string, string
 ```
 
 Marshals an mpak back into .map + .mpak format.
@@ -316,10 +316,19 @@ function chaudloader.unsafe.read_process_memory(addr: integer, n: integer): stri
 
 Reads directly from process memory.
 
-<details>
-<summary>Deprecated API</summary>
+## Convenience functions
+
+```lua
+chaudloader.util: {
+    -- whatever is in chaudloader/src/mods/lua/lib/chaudloader/util.lua
+}
+```
+
+See [chaudloader/src/mods/lua/lib/chaudloader/util.lua](chaudloader/src/mods/lua/lib/chaudloader/util.lua) for functions available in this namespace.
 
 ## Deprecated API
+
+<details>
 
 These APIs have been deprecated and may be removed in a future version. You should use the appropriate alternative.
 
@@ -333,8 +342,10 @@ function chaudloader.unsafe.init_mod_dll(path: string, userdata: string)
 
 Loads a library from the mod folder and call its chaudloader_init function.
 
-```rust
-chaudloader_init: unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool
+The function should have the following signature:
+
+```c
+__declspec(dllexport) bool chaudloader_init(const char* userdata, n: size_t)
 ```
 
 ### `bnlc_mod_loader.read_exe_dat_contents`
@@ -372,11 +383,3 @@ function bnlc_mod_loader.read_mod_contents(path: string): string
 Reads the contents of a file from the mod folder.
 
 </details>
-
-## Convenience functions
-
-```lua
-chaudloader.util: {
-    -- whatever is in chaudloader/src/mods/lua/chaudloader/util.lua
-}
-```
