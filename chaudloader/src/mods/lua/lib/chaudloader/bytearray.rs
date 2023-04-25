@@ -22,13 +22,9 @@ impl mlua::UserData for ByteArray {
 
         methods.add_method("len", |_, this, (): ()| Ok(this.0.len()));
 
-        methods.add_method("slice", |_, this, (i, n): (usize, usize)| {
-            Ok(this.0[i..i + n].to_vec())
-        });
-
         methods.add_method("pack", |lua, this, (): ()| Ok(lua.create_string(&this.0)?));
 
-        methods.add_method("get", |lua, this, (i, n): (usize, usize)| {
+        methods.add_method("get_string", |lua, this, (i, n): (usize, usize)| {
             Ok(lua.create_string(
                 &this
                     .0
@@ -37,7 +33,7 @@ impl mlua::UserData for ByteArray {
             )?)
         });
 
-        methods.add_method_mut("set", |_, this, (i, s): (usize, mlua::String)| {
+        methods.add_method_mut("set_string", |_, this, (i, s): (usize, mlua::String)| {
             let slice = this
                 .0
                 .get_mut(i..i + s.as_bytes().len())
@@ -45,6 +41,22 @@ impl mlua::UserData for ByteArray {
             slice.copy_from_slice(s.as_bytes());
             Ok(())
         });
+
+        methods.add_method("get_bytearray", |_, this, (i, n): (usize, usize)| {
+            Ok(this.0[i..i + n].to_vec())
+        });
+
+        methods.add_method_mut(
+            "set_bytearray",
+            |_, this, (i, ba): (usize, mlua::UserDataRef<ByteArray>)| {
+                let slice = this
+                    .0
+                    .get_mut(i..i + ba.0.len())
+                    .ok_or_else(|| anyhow::anyhow!("out of bounds").into_lua_err())?;
+                slice.copy_from_slice(&ba.0);
+                Ok(())
+            },
+        );
 
         methods.add_method("get_u8", |_, this, (i,): (usize,)| {
             Ok(*(this
@@ -153,6 +165,6 @@ impl mlua::UserData for ByteArray {
 
 pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
     Ok(mlua::Value::Function(lua.create_function({
-        move |_, (raw,): (mlua::String,)| Ok(ByteArray(raw.as_bytes().to_vec()))
+        |_, (raw,): (mlua::String,)| Ok(ByteArray(raw.as_bytes().to_vec()))
     })?))
 }
