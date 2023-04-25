@@ -24,6 +24,10 @@ static_detour! {
         /* dw_flags_and_attributes: */ winapi::shared::minwindef::DWORD,
         /* handle: */ winapi::shared::ntdef::HANDLE
     ) -> winapi::shared::ntdef::HANDLE;
+
+    pub static CloseHandle: unsafe extern "system" fn(
+        /* h_object: */ winapi::shared::ntdef::HANDLE
+    ) -> winapi::shared::minwindef::BOOL;
 }
 
 unsafe fn on_create_file(
