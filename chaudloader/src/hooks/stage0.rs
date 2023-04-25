@@ -232,7 +232,7 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
 
             // TODO: This path is a little wobbly, since it relies on BNLC specifying this weird relative path.
             // We should canonicalize this path instead.
-            let dat_path = std::path::Path::new("..\\exe\\data").join(&dat_filename);
+            let dat_path = std::path::Path::new("data").join(&dat_filename);
 
             if !overlay.has_overlaid_files() {
                 continue;

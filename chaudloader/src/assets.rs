@@ -1,5 +1,3 @@
-use crate::hooks;
-
 pub mod exedat;
 pub mod mpak;
 pub mod msg;
@@ -55,42 +53,41 @@ impl Replacer {
         self.replacers.insert(path.to_path_buf(), Box::new(pack_cb));
     }
 
+    pub fn purge(
+        &mut self,
+        path: &std::path::Path,
+    ) -> Result<Option<std::path::PathBuf>, std::io::Error> {
+        let replacement_path = if let Some(path) = self.replacement_paths.remove(path) {
+            path
+        } else {
+            return Ok(None);
+        };
+        std::fs::remove_file(&replacement_path)?;
+        Ok(Some(replacement_path))
+    }
+
     pub fn get<'a>(
         &'a mut self,
-        path: &'a std::path::Path,
-    ) -> Result<(&'a std::path::Path, bool), std::io::Error> {
-        Ok((
-            match self.replacement_paths.entry(path.to_path_buf()) {
-                std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut().as_path(),
-                std::collections::hash_map::Entry::Vacant(entry) => {
-                    let replacer = if let Some(replacer) = self.replacers.get(path) {
-                        replacer
-                    } else {
-                        return Ok((path, false));
-                    };
+        path: &std::path::Path,
+    ) -> Result<Option<&'a std::path::Path>, std::io::Error> {
+        Ok(match self.replacement_paths.entry(path.to_path_buf()) {
+            std::collections::hash_map::Entry::Occupied(entry) => Some(entry.into_mut().as_path()),
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                let replacer = if let Some(replacer) = self.replacers.get(path) {
+                    replacer
+                } else {
+                    return Ok(None);
+                };
 
-                    // Unwrap these hook guards because there's not much we can do if they fail.
-                    let _create_file_a_hook_guard =
-                        unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileAHook) }
-                            .unwrap();
-                    let _create_file_w_hook_guard =
-                        unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileWHook) }
-                            .unwrap();
+                let dest_f = tempfile::NamedTempFile::new_in(&self.temp_dir)?;
+                let (mut dest_f, dest_path) = dest_f.keep()?;
 
-                    let dest_f = tempfile::NamedTempFile::new_in(&self.temp_dir)?;
-                    log::info!(
-                        "replacing {} -> {}",
-                        path.display(),
-                        dest_f.path().display()
-                    );
-                    let (mut dest_f, dest_path) = dest_f.keep()?;
-                    replacer(&mut dest_f)?;
+                log::info!("replacing {} -> {}", path.display(), dest_path.display());
+                replacer(&mut dest_f)?;
 
-                    entry.insert(dest_path).as_path()
-                }
-            },
-            true,
-        ))
+                Some(entry.insert(dest_path).as_path())
+            }
+        })
     }
 }
 
