@@ -228,20 +228,20 @@ Sets the bytes starting at `i` to the bytes in `s`.
 
 If `i + #s` is greater than the length of the buffer, an error will be raised.
 
-### `Buffer:get_buffer`
+### `Buffer:get`
 
 ```lua
-Buffer:get_buffer(i: integer, n: integer): Buffer
+Buffer:get(i: integer, n: integer): Buffer
 ```
 
 Gets the bytes at [`i`, `n`) as a buffer.
 
 If `i + n` is greater than the length of the buffer, an error will be raised.
 
-### `Buffer:set_buffer`
+### `Buffer:set`
 
 ```lua
-Buffer:set_buffer(i: integer, buf: Buffer)
+Buffer:set(i: integer, buf: Buffer)
 ```
 
 Sets the bytes starting at `i` to the bytes in `buf`.

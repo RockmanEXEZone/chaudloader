@@ -56,12 +56,12 @@ impl mlua::UserData for Buffer {
             Ok(())
         });
 
-        methods.add_method("get_bytearray", |_, this, (i, n): (usize, usize)| {
+        methods.add_method("get", |_, this, (i, n): (usize, usize)| {
             Ok(this.0[i..i + n].to_vec())
         });
 
         methods.add_method_mut(
-            "set_bytearray",
+            "set",
             |_, this, (i, buf): (usize, mlua::UserDataRef<Buffer>)| {
                 let slice = this
                     .0
