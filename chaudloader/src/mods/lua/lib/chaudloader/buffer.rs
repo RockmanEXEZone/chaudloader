@@ -186,6 +186,11 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
     )?;
 
     table.set(
+        "from_u8_table",
+        lua.create_function(|_, (raw,): (Vec<u8>,)| Ok(Buffer(raw)))?,
+    )?;
+
+    table.set(
         "filled",
         lua.create_function(|_, (v, n): (u8, usize)| Ok(Buffer(vec![v; n])))?,
     )?;
