@@ -136,6 +136,104 @@ function chaudloader.Mpak:pack(): (string, string)
 
 Marshals an mpak back into .map + .mpak format.
 
+## `chaudloader.ByteArray`
+
+```lua
+function chaudloader.ByteArray(raw: string): ByteArray
+```
+
+Turns a string into a byte array.
+
+### `chaudloader.ByteArray:__concat`
+
+```lua
+chaudloader.ByteArray(...) .. chaudloader.ByteArray(...): ByteArray
+```
+
+Concatenates two byte arrays together and returns the concatenated byte array.
+
+### `chaudloader.ByteArray:__eq`
+
+```lua
+chaudloader.ByteArray(...) == chaudloader.ByteArray(...): bool
+```
+
+Compares two byte arrays for byte-for-byte equality.
+
+### `chaudloader.ByteArray:len`
+
+```lua
+chaudloader.ByteArray:len(): integer
+```
+
+Returns the length of the byte array, in bytes.
+
+### `chaudloader.ByteArray:pack`
+
+```lua
+chaudloader.ByteArray:pack(): string
+```
+
+Packs the byte array back into a Lua string.
+
+### `chaudloader.ByteArray:get_string`
+
+```lua
+chaudloader.ByteArray:get_string(i: integer, n: integer): string
+```
+
+Gets the bytes at [`i`, `n`) as a string. If `i + n` is greater than the length of the byte array, an error will be raised.
+
+### `chaudloader.ByteArray:set_string`
+
+```lua
+chaudloader.ByteArray:set_string(i: integer, s: string)
+```
+
+Sets the bytes starting at `i` to the bytes in `s`. If `i + #s` is greater than the length of the byte array, an error will be raised.
+
+### `chaudloader.ByteArray:get_bytearray`
+
+```lua
+chaudloader.ByteArray:get_bytearray(i: integer, n: integer): ByteArray
+```
+
+Gets the bytes at [`i`, `n`) as a byte array. If `i + n` is greater than the length of the byte array, an error will be raised.
+
+### `chaudloader.ByteArray:set_bytearray`
+
+```lua
+chaudloader.ByteArray:set_bytearray(i: integer, ba: ByteArray)
+```
+
+Sets the bytes starting at `i` to the bytes in `ba`. If `i + ba:len()` is greater than the length of the byte array, an error will be raised.
+
+### `chaudloader.ByteArray:get_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
+
+```lua
+chaudloader.ByteArray:get_u8(i: integer): integer
+chaudloader.ByteArray:get_u16_le(i: integer): integer
+chaudloader.ByteArray:get_u32_le(i: integer): integer
+chaudloader.ByteArray:get_i8(i: integer): integer
+chaudloader.ByteArray:get_i16_le(i: integer): integer
+chaudloader.ByteArray:get_i32_le(i: integer): integer
+```
+
+Gets the bytes at `i` as the given integer type. If `i + width` is greater than the length of the byte array, an error will be raised.
+
+### `chaudloader.ByteArray:set_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
+
+```lua
+chaudloader.ByteArray:set_u8(i: integer, v: integer)
+chaudloader.ByteArray:set_u16_le(i: integer, v: integer)
+chaudloader.ByteArray:set_u32_le(i: integer, v: integer)
+chaudloader.ByteArray:set_i8(i: integer, v: integer)
+chaudloader.ByteArray:set_i16_le(i: integer, v: integer)
+chaudloader.ByteArray:set_i32_le(i: integer, v: integer)
+```
+
+Sets the bytes starting at `i` to the integer `v`. If `i + width` is greater than the length of the byte array, an error will be raised.
+
 ## msg data functions
 
 ### `chaudloader.unpack_msg`
@@ -202,6 +300,10 @@ Reads directly from process memory.
 
 <details>
 <summary>Deprecated API</summary>
+
+## Deprecated API
+
+These APIs have been deprecated and may be removed in a future version. You should use the appropriate alternative.
 
 ### `chaudloader.unsafe.init_mod_dll`
 
