@@ -142,7 +142,7 @@ Marshals an mpak back into .map + .mpak format.
 function chaudloader.ByteArray(raw: string): ByteArray
 ```
 
-Turns a string into a byte array.
+Copies a string into a byte array. Note that, unlike Lua tables and strings, byte arrays are 0-indexed: this is such that offsets in the byte array will match up directly to file offsets for convenience.
 
 ### `chaudloader.ByteArray:__concat`
 
