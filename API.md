@@ -10,7 +10,7 @@ function require(name: string): any
 
 Requires a module from the mods directory.
 
-If `unsafe = true` is set in `info.toml`, `require` also may load Lua DLLs of the form `<name>.dll` from the mods directory.
+If `unsafe = true` is set in `info.toml`, `require` also may load Lua DLLs of the form `{name}.dll` from the mods directory.
 
 If the name contains dots (`.`), they will be translated to slashes for paths (`/`). If the name is for a Lua DLL, they will be replaced with underscores (`_`) in the loader function. For example, for a library named `foo.bar`:
 
@@ -42,7 +42,7 @@ Prints a log line.
 chaudloader.GAME_ENV.name: string
 ```
 
-Game name ("Vol1" or "Vol2").
+Game name (`"Vol1"` or `"Vol2"`).
 
 ### `chaudloader.GAME_ENV.exe_sha256`
 
@@ -51,6 +51,8 @@ chaudloader.GAME_ENV.exe_sha256: string
 ```
 
 SHA256 of the EXE.
+
+This may be useful to ensure your mod is loaded for the correct version of the binary if you are hooking hard-coded addresses in the binary.
 
 ### `chaudloader.MOD_ENV.name`
 
@@ -84,7 +86,7 @@ function chaudloader.ExeDat:read_file(path: string): string
 
 Reads the contents of a file out of the .dat file.
 
-Previous calls to write_exe_dat_contents are visible to subsequent calls to read_exe_dat_contents.
+Previous calls to `write_file` are visible to subsequent calls to `read_file`.
 
 ### `chaudloader.ExeDat:write_file`
 
@@ -110,7 +112,9 @@ Unmarshals an .map + .mpak file.
 chaudloader.Mpak[rom_addr: integer] = string
 ```
 
-Inserts an entry at the given ROM address into the mpak. Existing entries will be clobbered. If contents is nil, the entry will be deleted.
+Inserts an entry at the given ROM address into the mpak.
+
+Existing entries will be clobbered. If contents is nil, the entry will be deleted.
 
 ### `chaudloader.Mpak:__newindex`
 
@@ -142,7 +146,9 @@ Marshals an mpak back into .map + .mpak format.
 function chaudloader.ByteArray(raw: string): ByteArray
 ```
 
-Copies a string into a byte array. Note that, unlike Lua tables and strings, byte arrays are 0-indexed: this is such that offsets in the byte array will match up directly to file offsets for convenience.
+Copies a string into a byte array.
+
+Unlike Lua tables and strings, byte arrays are 0-indexed: this is such that offsets in the byte array will match up directly to file offsets for convenience.
 
 ### `chaudloader.ByteArray:__concat`
 
@@ -182,7 +188,9 @@ Packs the byte array back into a Lua string.
 chaudloader.ByteArray:get_string(i: integer, n: integer): string
 ```
 
-Gets the bytes at [`i`, `n`) as a string. If `i + n` is greater than the length of the byte array, an error will be raised.
+Gets the bytes at [`i`, `n`) as a string.
+
+If `i + n` is greater than the length of the byte array, an error will be raised.
 
 ### `chaudloader.ByteArray:set_string`
 
@@ -190,7 +198,9 @@ Gets the bytes at [`i`, `n`) as a string. If `i + n` is greater than the length 
 chaudloader.ByteArray:set_string(i: integer, s: string)
 ```
 
-Sets the bytes starting at `i` to the bytes in `s`. If `i + #s` is greater than the length of the byte array, an error will be raised.
+Sets the bytes starting at `i` to the bytes in `s`.
+
+If `i + #s` is greater than the length of the byte array, an error will be raised.
 
 ### `chaudloader.ByteArray:get_bytearray`
 
@@ -198,7 +208,9 @@ Sets the bytes starting at `i` to the bytes in `s`. If `i + #s` is greater than 
 chaudloader.ByteArray:get_bytearray(i: integer, n: integer): ByteArray
 ```
 
-Gets the bytes at [`i`, `n`) as a byte array. If `i + n` is greater than the length of the byte array, an error will be raised.
+Gets the bytes at [`i`, `n`) as a byte array.
+
+If `i + n` is greater than the length of the byte array, an error will be raised.
 
 ### `chaudloader.ByteArray:set_bytearray`
 
@@ -206,7 +218,9 @@ Gets the bytes at [`i`, `n`) as a byte array. If `i + n` is greater than the len
 chaudloader.ByteArray:set_bytearray(i: integer, ba: ByteArray)
 ```
 
-Sets the bytes starting at `i` to the bytes in `ba`. If `i + ba:len()` is greater than the length of the byte array, an error will be raised.
+Sets the bytes starting at `i` to the bytes in `ba`.
+
+If `i + ba:len()` is greater than the length of the byte array, an error will be raised.
 
 ### `chaudloader.ByteArray:get_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
 
@@ -219,7 +233,9 @@ chaudloader.ByteArray:get_i16_le(i: integer): integer
 chaudloader.ByteArray:get_i32_le(i: integer): integer
 ```
 
-Gets the bytes at `i` as the given integer type. If `i + width` is greater than the length of the byte array, an error will be raised.
+Gets the bytes at `i` as the given integer type.
+
+If `i + width` is greater than the length of the byte array, an error will be raised.
 
 ### `chaudloader.ByteArray:set_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
 
@@ -232,7 +248,9 @@ chaudloader.ByteArray:set_i16_le(i: integer, v: integer)
 chaudloader.ByteArray:set_i32_le(i: integer, v: integer)
 ```
 
-Sets the bytes starting at `i` to the integer `v`. If `i + width` is greater than the length of the byte array, an error will be raised.
+Sets the bytes starting at `i` to the integer `v`.
+
+If `i + width` is greater than the length of the byte array, an error will be raised.
 
 ## msg data functions
 
