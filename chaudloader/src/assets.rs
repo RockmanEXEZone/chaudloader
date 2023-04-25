@@ -10,14 +10,13 @@ impl<T: std::io::Read + std::io::Seek> ReadSeek for T {}
 pub trait WriteSeek: std::io::Write + std::io::Seek {}
 impl<T: std::io::Write + std::io::Seek> WriteSeek for T {}
 
-enum Replacement {
-    Pending(Box<dyn FnOnce(&mut dyn WriteSeek) -> Result<(), std::io::Error> + Send>),
-    Complete(std::path::PathBuf),
-}
-
 pub struct Replacer {
     temp_dir: std::path::PathBuf,
-    replacements: std::collections::HashMap<std::path::PathBuf, Replacement>,
+    replacers: std::collections::HashMap<
+        std::path::PathBuf,
+        Box<dyn Fn(&mut dyn WriteSeek) -> Result<(), std::io::Error> + Send>,
+    >,
+    replacement_paths: std::collections::HashMap<std::path::PathBuf, std::path::PathBuf>,
 }
 
 impl Replacer {
@@ -43,66 +42,55 @@ impl Replacer {
 
         Ok(Self {
             temp_dir,
-            replacements: std::collections::HashMap::new(),
+            replacers: std::collections::HashMap::new(),
+            replacement_paths: std::collections::HashMap::new(),
         })
     }
 
     pub fn add(
         &mut self,
         path: &std::path::Path,
-        pack_cb: impl FnOnce(&mut dyn WriteSeek) -> Result<(), std::io::Error> + Send + 'static,
+        pack_cb: impl Fn(&mut dyn WriteSeek) -> Result<(), std::io::Error> + Send + 'static,
     ) {
-        self.replacements
-            .insert(path.to_path_buf(), Replacement::Pending(Box::new(pack_cb)));
+        self.replacers.insert(path.to_path_buf(), Box::new(pack_cb));
     }
 
     pub fn get<'a>(
         &'a mut self,
         path: &'a std::path::Path,
     ) -> Result<(&'a std::path::Path, bool), std::io::Error> {
-        let replacement = if let Some(replacement) = self.replacements.get_mut(path) {
-            replacement
-        } else {
-            return Ok((path, false));
-        };
+        Ok((
+            match self.replacement_paths.entry(path.to_path_buf()) {
+                std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut().as_path(),
+                std::collections::hash_map::Entry::Vacant(entry) => {
+                    let replacer = if let Some(replacer) = self.replacers.get(path) {
+                        replacer
+                    } else {
+                        return Ok((path, false));
+                    };
 
-        match replacement {
-            Replacement::Pending(_) => {
-                // Unwrap these hook guards because there's not much we can do if they fail.
-                let _create_file_a_hook_guard =
-                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileAHook) }
-                        .unwrap();
-                let _create_file_w_hook_guard =
-                    unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileWHook) }
-                        .unwrap();
+                    // Unwrap these hook guards because there's not much we can do if they fail.
+                    let _create_file_a_hook_guard =
+                        unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileAHook) }
+                            .unwrap();
+                    let _create_file_w_hook_guard =
+                        unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileWHook) }
+                            .unwrap();
 
-                let dest_f = tempfile::NamedTempFile::new_in(&self.temp_dir)?;
-                log::info!(
-                    "replacing {} -> {}",
-                    path.display(),
-                    dest_f.path().display()
-                );
-                let (mut dest_f, dest_path) = dest_f.keep()?;
+                    let dest_f = tempfile::NamedTempFile::new_in(&self.temp_dir)?;
+                    log::info!(
+                        "replacing {} -> {}",
+                        path.display(),
+                        dest_f.path().display()
+                    );
+                    let (mut dest_f, dest_path) = dest_f.keep()?;
+                    replacer(&mut dest_f)?;
 
-                let mut new_replacement = Replacement::Complete(dest_path);
-                std::mem::swap(&mut new_replacement, replacement);
-
-                let pack_cb = match new_replacement {
-                    Replacement::Pending(pack_cb) => pack_cb,
-                    Replacement::Complete(_) => unreachable!(),
-                };
-                pack_cb(&mut dest_f)?;
-
-                Ok((
-                    match replacement {
-                        Replacement::Pending(_) => unreachable!(),
-                        Replacement::Complete(p) => p.as_path(),
-                    },
-                    true,
-                ))
-            }
-            Replacement::Complete(p) => Ok((p.as_path(), true)),
-        }
+                    entry.insert(dest_path).as_path()
+                }
+            },
+            true,
+        ))
     }
 }
 

@@ -210,7 +210,7 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
 
         let mut overlays = overlays;
         for (dat_filename, overlay) in overlays.drain() {
-            let mut overlay = std::rc::Rc::try_unwrap(overlay)
+            let overlay = std::rc::Rc::try_unwrap(overlay)
                 .map_err(|_| anyhow::anyhow!("overlay: Rc was not unique"))
                 .unwrap()
                 .into_inner();
@@ -223,7 +223,11 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
                 continue;
             }
 
-            assets_replacer.add(&dat_path, move |writer| Ok(overlay.pack_into(writer)?));
+            let overlay = std::cell::RefCell::new(overlay);
+            assets_replacer.add(&dat_path, move |writer| {
+                let mut overlay = overlay.borrow_mut();
+                Ok(overlay.pack_into(writer)?)
+            });
         }
     }
     super::stage1::install()?;
