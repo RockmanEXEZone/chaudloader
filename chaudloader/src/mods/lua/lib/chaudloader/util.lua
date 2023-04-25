@@ -21,7 +21,9 @@ end
 
 -- Unpacks msg data, calls a function on it, then writes it back when complete.
 function exports.edit_msg(mpak, address, cb)
-    mpak[address] = chaudloader.pack_msg(cb(chaudloader.unpack_msg(mpak[address])))
+    local msg = chaudloader.unpack_msg(mpak[address])
+    cb(msg)
+    mpak[address] = chaudloader.pack_msg(msg)
 end
 
 -- Merges two messages together, preferring the latter one.
@@ -31,10 +33,8 @@ function exports.merge_msg(old, new)
     for i, entry in ipairs(new) do
         if entry ~= "" then
             old[i] = entry
-        else
         end
     end
-    return old
 end
 
 -- Merges all msgs from a directory.
@@ -49,8 +49,8 @@ function exports.merge_msgs_from_mod_directory(mpak, dir)
             goto continue
         end
         local addr = tonumber(raw_addr, 16) | 0x08000000
-        edit_msg(mpak, addr, function (msg)
-            return merge_msg(msg, chaudloader.unpack_msg(chaudloader.read_mod_file(dir .. '/' .. filename)))
+        exports.edit_msg(mpak, addr, function (msg)
+            exports.merge_msg(msg, chaudloader.unpack_msg(chaudloader.read_mod_file(dir .. '/' .. filename)))
         end)
         ::continue::
     end
