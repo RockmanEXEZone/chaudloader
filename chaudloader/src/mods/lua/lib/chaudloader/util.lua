@@ -2,7 +2,7 @@ local exports = {}
 
 -- Unpacks an .map and .mpak for loading, calls a function on it, then writes it back when complete.
 function exports.edit_mpak(dat, name, cb)
-    local mpak = chaudloader.Mpak(
+    local mpak = chaudloader.mpak.unpack(
         dat:read_file(name .. ".map"),
         dat:read_file(name .. ".mpak")
     )
@@ -14,16 +14,16 @@ end
 
 -- Reads a file as a ByteArray and saves it back when done.
 function exports.edit_as_bytearray(dat, path, cb)
-    local ba = chaudloader.ByteArray(dat:read_file(path))
+    local ba = chaudloader.bytearray.unpack(dat:read_file(path))
     cb(ba)
     dat:write_file(path, ba:pack())
 end
 
 -- Unpacks msg data, calls a function on it, then writes it back when complete.
 function exports.edit_msg(mpak, address, cb)
-    local msg = chaudloader.unpack_msg(mpak[address])
+    local msg = chaudloader.msg.unpack(mpak[address])
     cb(msg)
-    mpak[address] = chaudloader.pack_msg(msg)
+    mpak[address] = chaudloader.msg.pack(msg)
 end
 
 -- Merges two messages together, preferring the latter one.
@@ -43,14 +43,14 @@ end
 --
 -- The addresses may be either mapped ROM addresses (08XXXXXX) or unmapped file offsets (00XXXXXX): if they are unmapped file offsets, they will be automatically transformed into mapped ROM addresses.
 function exports.merge_msgs_from_mod_directory(mpak, dir)
-    for _, filename in ipairs(chaudloader.list_mod_directory(dir)) do
+    for _, filename in ipairs(chaudloader.modfiles.list_directory(dir)) do
         local raw_addr = string.match(filename, "^(%x+).msg$")
         if raw_addr == nil then
             goto continue
         end
         local addr = tonumber(raw_addr, 16) | 0x08000000
         exports.edit_msg(mpak, addr, function (msg)
-            exports.merge_msg(msg, chaudloader.unpack_msg(chaudloader.read_mod_file(dir .. '/' .. filename)))
+            exports.merge_msg(msg, chaudloader.msg.unpack(chaudloader.modfiles.read_file(dir .. '/' .. filename)))
         end)
         ::continue::
     end
