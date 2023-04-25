@@ -1,4 +1,4 @@
-mod bytearray;
+mod buffer;
 mod exedat;
 mod modfiles;
 mod mpak;
@@ -51,7 +51,7 @@ pub fn new<'a>(
 
     table.set("exedat", exedat::new(lua, overlays)?)?;
     table.set("mpak", mpak::new(lua)?)?;
-    table.set("bytearray", bytearray::new(lua)?)?;
+    table.set("buffer", buffer::new(lua)?)?;
     table.set("msg", msg::new(lua)?)?;
     table.set("modfiles", modfiles::new(lua, &mod_path)?)?;
 

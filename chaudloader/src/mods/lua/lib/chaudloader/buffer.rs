@@ -1,30 +1,42 @@
 use byteorder::ByteOrder;
 use mlua::ExternalError;
 
-pub struct ByteArray(Vec<u8>);
+pub struct Buffer(Vec<u8>);
 
-impl mlua::UserData for ByteArray {
+impl Buffer {
+    pub fn new(v: Vec<u8>) -> Self {
+        Self(v)
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0[..]
+    }
+}
+
+impl mlua::UserData for Buffer {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
         methods.add_meta_method(
             mlua::MetaMethod::Concat,
-            |_, this, (other,): (mlua::UserDataRef<ByteArray>,)| {
+            |_, this, (other,): (mlua::UserDataRef<Buffer>,)| {
                 let mut out = vec![0u8; this.0.len() + other.0.len()];
                 out[..this.0.len()].copy_from_slice(&this.0);
                 out[this.0.len()..].copy_from_slice(&other.0);
-                Ok(ByteArray(out))
+                Ok(Buffer(out))
             },
         );
 
         methods.add_meta_method(
             mlua::MetaMethod::Eq,
-            |_, this, (other,): (mlua::UserDataRef<ByteArray>,)| Ok(this.0 == other.0),
+            |_, this, (other,): (mlua::UserDataRef<Buffer>,)| Ok(this.0 == other.0),
         );
 
         methods.add_method("len", |_, this, (): ()| Ok(this.0.len()));
 
-        methods.add_method("pack", |lua, this, (): ()| Ok(lua.create_string(&this.0)?));
+        methods.add_method("to_string", |lua, this, (): ()| {
+            Ok(lua.create_string(&this.0)?)
+        });
 
-        methods.add_method("clone", |_, this, (): ()| Ok(ByteArray(this.0.clone())));
+        methods.add_method("clone", |_, this, (): ()| Ok(Buffer(this.0.clone())));
 
         methods.add_method("get_string", |lua, this, (i, n): (usize, usize)| {
             Ok(lua.create_string(
@@ -50,12 +62,12 @@ impl mlua::UserData for ByteArray {
 
         methods.add_method_mut(
             "set_bytearray",
-            |_, this, (i, ba): (usize, mlua::UserDataRef<ByteArray>)| {
+            |_, this, (i, buf): (usize, mlua::UserDataRef<Buffer>)| {
                 let slice = this
                     .0
-                    .get_mut(i..i + ba.0.len())
+                    .get_mut(i..i + buf.0.len())
                     .ok_or_else(|| anyhow::anyhow!("out of bounds").into_lua_err())?;
-                slice.copy_from_slice(&ba.0);
+                slice.copy_from_slice(&buf.0);
                 Ok(())
             },
         );
@@ -169,15 +181,13 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
     let table = lua.create_table()?;
 
     table.set(
-        "unpack",
-        lua.create_function({
-            |_, (raw,): (mlua::String,)| Ok(ByteArray(raw.as_bytes().to_vec()))
-        })?,
+        "from_string",
+        lua.create_function(|_, (raw,): (mlua::String,)| Ok(Buffer(raw.as_bytes().to_vec())))?,
     )?;
 
     table.set(
         "filled",
-        lua.create_function(|_, (v, n): (u8, usize)| Ok(ByteArray(vec![v; n])))?,
+        lua.create_function(|_, (v, n): (u8, usize)| Ok(Buffer(vec![v; n])))?,
     )?;
 
     Ok(mlua::Value::Table(table))

@@ -18,7 +18,6 @@ end
 -- 0.7 -> 0.8
 chaudloader.ExeDat = chaudloader.exedat.open
 chaudloader.Mpak = chaudloader.mpak.unpack
-chaudloader.ByteArray = chaudloader.bytearray.unpack
 chaudloader.unpack_msg = chaudloader.msg.unpack
 chaudloader.pack_msg = chaudloader.msg.pack
 chaudloader.read_mod_file = chaudloader.modfiles.read_file

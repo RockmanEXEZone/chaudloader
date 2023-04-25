@@ -83,7 +83,7 @@ Opens an exe/data .dat file located in exe/data (e.g. `exe6.dat`).
 ### `ExeDat:read_file`
 
 ```lua
-function ExeDat:read_file(path: string): string
+function ExeDat:read_file(path: string): Buffer
 ```
 
 Reads the contents of a file out of the .dat file.
@@ -93,7 +93,7 @@ Previous calls to `write_file` are visible to subsequent calls to `read_file`.
 ### `ExeDat:write_file`
 
 ```lua
-function ExeDat:write_file(path: string, contents: string): string
+function ExeDat:write_file(path: string, contents: Buffer)
 ```
 
 Writes the file data into the .dat file.
@@ -105,7 +105,7 @@ Note that this does not mutate the original .dat file on disk, but for all inten
 ### `chaudloader.exedat.unpack`
 
 ```lua
-function chaudloader.mpak.unpack(map_contents: string, mpak_contents: string): Mpak
+function chaudloader.mpak.unpack(map_contents: Buffer, mpak_contents: Buffer): Mpak
 ```
 
 Unmarshals an .map + .mpak file.
@@ -113,7 +113,7 @@ Unmarshals an .map + .mpak file.
 ### `Mpak:__index`
 
 ```lua
-Mpak[rom_addr: integer] = string
+Mpak[rom_addr: integer] = Buffer
 ```
 
 Inserts an entry at the given ROM address into the mpak.
@@ -123,7 +123,7 @@ Existing entries will be clobbered. If contents is nil, the entry will be delete
 ### `Mpak:__newindex`
 
 ```lua
-Mpak[rom_addr: integer]: string
+Mpak[rom_addr: integer]: Buffer
 ```
 
 Reads an entry at the given ROM address.
@@ -131,7 +131,7 @@ Reads an entry at the given ROM address.
 ### `Mpak:__pairs`
 
 ```lua
-pairs(Mpak): function (): integer, string
+pairs(Mpak): function (): integer, Buffer
 ```
 
 Iterates through all entries of an mpak.
@@ -139,147 +139,151 @@ Iterates through all entries of an mpak.
 ### `Mpak:pack`
 
 ```lua
-function Mpak:pack(): string, string
+function Mpak:pack(): Buffer, Buffer
 ```
 
 Marshals an mpak back into .map + .mpak format.
 
-## `chaudloader.bytearray`
+## `chaudloader.buffer`
 
-### `chaudloader.bytearray.unpack`
+Buffers are mutable arrays of bytes with immutable length.
+
+Unlike Lua tables and strings, buffers are 0-indexed: this is such that offsets in the buffer will match up directly to file offsets for convenience.
+
+Note that a bunch of standard Lua metamethods that expose indexing (i.e. `__ipairs`, `__len`, `__index`, `__newindex`) are not implemented to avoid confusion with 1-based Lua tables.
+
+### `chaudloader.buffer.from_string`
 
 ```lua
-function chaudloader.bytearray.unpack(raw: string): ByteArray
+function chaudloader.buffer.from_string(raw: string): Buffer
 ```
 
-Copies a string into a byte array.
+Copies a string into a buffer.
 
-Unlike Lua tables and strings, byte arrays are 0-indexed: this is such that offsets in the byte array will match up directly to file offsets for convenience.
-
-### `chaudloader.bytearray.filled`
+### `chaudloader.buffer.filled`
 
 ```lua
-function chaudloader.bytearray.filled(v: integer, n: integer): ByteArray
+function chaudloader.buffer.filled(v: integer, n: integer): Buffer
 ```
 
-Creates a new byte array filled with `n` bytes of `v`.
+Creates a new buffer filled with `n` bytes of `v`.
 
-### `ByteArray:__concat`
+### `Buffer:__concat`
 
 ```lua
-ByteArray(...) .. ByteArray(...): ByteArray
+Buffer(...) .. Buffer(...): Buffer
 ```
 
-Concatenates two byte arrays together and returns the concatenated byte array.
+Concatenates two buffers together and returns the concatenated buffer.
 
-### `ByteArray:__eq`
+### `Buffer:__eq`
 
 ```lua
-ByteArray(...) == ByteArray(...): bool
+Buffer(...) == Buffer(...): bool
 ```
 
-Compares two byte arrays for byte-for-byte equality.
+Compares two buffers for byte-for-byte equality.
 
-### `ByteArray:clone`
+### `Buffer:clone`
 
 ```lua
-ByteArray:clone(): ByteArray
+Buffer:clone(): Buffer
 ```
 
-Clones the byte array into a new, unshared byte array.
+Clones the buffer into a new, unshared buffer.
 
-### `ByteArray:len`
+### `Buffer:len`
 
 ```lua
-ByteArray:len(): integer
+Buffer:len(): integer
 ```
 
-Returns the length of the byte array, in bytes.
+Returns the length of the buffer, in bytes.
 
-### `ByteArray:pack`
+### `Buffer:to_string`
 
 ```lua
-ByteArray:pack(): string
+Buffer:to_string(): string
 ```
 
-Packs the byte array back into a Lua string.
+Packs the buffer back into a Lua string.
 
-### `ByteArray:get_string`
+### `Buffer:get_string`
 
 ```lua
-ByteArray:get_string(i: integer, n: integer): string
+Buffer:get_string(i: integer, n: integer): string
 ```
 
 Gets the bytes at [`i`, `n`) as a string.
 
-If `i + n` is greater than the length of the byte array, an error will be raised.
+If `i + n` is greater than the length of the buffer, an error will be raised.
 
-### `ByteArray:set_string`
+### `Buffer:set_string`
 
 ```lua
-ByteArray:set_string(i: integer, s: string)
+Buffer:set_string(i: integer, s: string)
 ```
 
 Sets the bytes starting at `i` to the bytes in `s`.
 
-If `i + #s` is greater than the length of the byte array, an error will be raised.
+If `i + #s` is greater than the length of the buffer, an error will be raised.
 
-### `ByteArray:get_bytearray`
+### `Buffer:get_buffer`
 
 ```lua
-ByteArray:get_bytearray(i: integer, n: integer): ByteArray
+Buffer:get_buffer(i: integer, n: integer): Buffer
 ```
 
-Gets the bytes at [`i`, `n`) as a byte array.
+Gets the bytes at [`i`, `n`) as a buffer.
 
-If `i + n` is greater than the length of the byte array, an error will be raised.
+If `i + n` is greater than the length of the buffer, an error will be raised.
 
-### `ByteArray:set_bytearray`
+### `Buffer:set_buffer`
 
 ```lua
-ByteArray:set_bytearray(i: integer, ba: ByteArray)
+Buffer:set_buffer(i: integer, buf: Buffer)
 ```
 
-Sets the bytes starting at `i` to the bytes in `ba`.
+Sets the bytes starting at `i` to the bytes in `buf`.
 
-If `i + ba:len()` is greater than the length of the byte array, an error will be raised.
+If `i + buf:len()` is greater than the length of the buffer, an error will be raised.
 
-### `ByteArray:get_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
+### `Buffer:get_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
 
 ```lua
-ByteArray:get_u8(i: integer): integer
-ByteArray:get_u16_le(i: integer): integer
-ByteArray:get_u32_le(i: integer): integer
-ByteArray:get_i8(i: integer): integer
-ByteArray:get_i16_le(i: integer): integer
-ByteArray:get_i32_le(i: integer): integer
+Buffer:get_u8(i: integer): integer
+Buffer:get_u16_le(i: integer): integer
+Buffer:get_u32_le(i: integer): integer
+Buffer:get_i8(i: integer): integer
+Buffer:get_i16_le(i: integer): integer
+Buffer:get_i32_le(i: integer): integer
 ```
 
 Gets the bytes at `i` as the given integer type.
 
-If `i + width` is greater than the length of the byte array, an error will be raised.
+If `i + width` is greater than the length of the buffer, an error will be raised.
 
-### `ByteArray:set_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
+### `Buffer:set_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
 
 ```lua
-ByteArray:set_u8(i: integer, v: integer)
-ByteArray:set_u16_le(i: integer, v: integer)
-ByteArray:set_u32_le(i: integer, v: integer)
-ByteArray:set_i8(i: integer, v: integer)
-ByteArray:set_i16_le(i: integer, v: integer)
-ByteArray:set_i32_le(i: integer, v: integer)
+Buffer:set_u8(i: integer, v: integer)
+Buffer:set_u16_le(i: integer, v: integer)
+Buffer:set_u32_le(i: integer, v: integer)
+Buffer:set_i8(i: integer, v: integer)
+Buffer:set_i16_le(i: integer, v: integer)
+Buffer:set_i32_le(i: integer, v: integer)
 ```
 
 Sets the bytes starting at `i` to the integer `v`.
 
-If `i + width` is greater than the length of the byte array, an error will be raised.
+If `i + width` is greater than the length of the buffer, an error will be raised.
 
 ## `chaudloader.msg`
 
 ### `chaudloader.msg.unpack`
 
 ```lua
-function chaudloader.msg.unpack(raw: string): {[integer]: string}
+function chaudloader.msg.unpack(raw: Buffer): {[integer]: Buffer}
 ```
 
 Unmarshals msg data.
@@ -287,7 +291,7 @@ Unmarshals msg data.
 ### `chaudloader.msg.pack`
 
 ```lua
-function chaudloader.msg.pack(entries: {[integer]: string}): string
+function chaudloader.msg.pack(entries: {[integer]: Buffer}): Buffer
 ```
 
 Marshals msg data.
@@ -299,7 +303,7 @@ Functions for accessing files from the mod's directory.
 ### `chaudloader.modfiles.read_file`
 
 ```lua
-function chaudloader.modfiles.read_file(path: string): string
+function chaudloader.modfiles.read_file(path: string): Buffer
 ```
 
 Reads the contents of a file from the mod folder.
@@ -327,7 +331,7 @@ Your mod must have `unsafe = true` in `info.toml` to use these functions.
 ### `chaudloader.unsafe.write_process_memory`
 
 ```lua
-function chaudloader.unsafe.write_process_memory(addr: integer, buf: string)
+function chaudloader.unsafe.write_process_memory(addr: integer, buf: Buffer)
 ```
 
 Writes directly into process memory.
@@ -335,7 +339,7 @@ Writes directly into process memory.
 ### `chaudloader.unsafe.read_process_memory`
 
 ```lua
-function chaudloader.unsafe.read_process_memory(addr: integer, n: integer): string
+function chaudloader.unsafe.read_process_memory(addr: integer, n: integer): Buffer
 ```
 
 Reads directly from process memory.

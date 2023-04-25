@@ -12,13 +12,6 @@ function exports.edit_mpak(dat, name, cb)
     dat:write_file(name .. ".mpak", raw_mpak)
 end
 
--- Reads a file as a ByteArray and saves it back when done.
-function exports.edit_as_bytearray(dat, path, cb)
-    local ba = chaudloader.bytearray.unpack(dat:read_file(path))
-    cb(ba)
-    dat:write_file(path, ba:pack())
-end
-
 -- Unpacks msg data, calls a function on it, then writes it back when complete.
 function exports.edit_msg(mpak, address, cb)
     local msg = chaudloader.msg.unpack(mpak[address])

@@ -1,4 +1,4 @@
-use crate::path;
+use crate::{mods::lua::lib::chaudloader::buffer::Buffer, path};
 use mlua::ExternalError;
 
 pub fn new<'a>(
@@ -11,11 +11,11 @@ pub fn new<'a>(
         "read_file",
         lua.create_function({
             let mod_path = mod_path.to_path_buf();
-            move |lua, (path,): (String,)| {
+            move |_, (path,): (String,)| {
                 let path = path::ensure_safe(std::path::Path::new(&path))
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.into_lua_err())?;
-                Ok(lua.create_string(&std::fs::read(mod_path.join(path))?)?)
+                Ok(Buffer::new(std::fs::read(mod_path.join(path))?))
             }
         })?,
     )?;

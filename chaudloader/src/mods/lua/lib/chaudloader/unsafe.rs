@@ -1,4 +1,7 @@
-use crate::{mods, path};
+use crate::{
+    mods::{self, lua::lib::chaudloader::buffer::Buffer},
+    path,
+};
 use mlua::ExternalError;
 
 pub fn new<'a>(
@@ -10,7 +13,7 @@ pub fn new<'a>(
 
     table.set(
         "read_process_memory",
-        lua.create_function(|lua, (addr, len): (usize, usize)| {
+        lua.create_function(|_, (addr, len): (usize, usize)| {
             let mut buf = vec![0u8; len];
             let mut number_of_bytes_read: winapi::shared::basetsd::SIZE_T = 0;
             unsafe {
@@ -29,21 +32,21 @@ pub fn new<'a>(
                 }
             }
             buf.drain(number_of_bytes_read as usize..);
-            Ok(lua.create_string(buf.as_slice())?)
+            Ok(Buffer::new(buf))
         })?,
     )?;
 
     table.set(
         "write_process_memory",
-        lua.create_function(|_, (addr, buf): (usize, mlua::String)| {
+        lua.create_function(|_, (addr, buf): (usize, mlua::UserDataRef<Buffer>)| {
             let mut number_of_bytes_written: winapi::shared::basetsd::SIZE_T = 0;
             unsafe {
                 let current_process = winapi::um::processthreadsapi::GetCurrentProcess();
                 if winapi::um::memoryapi::WriteProcessMemory(
                     current_process,
                     addr as winapi::shared::minwindef::LPVOID,
-                    buf.as_bytes().as_ptr() as winapi::shared::minwindef::LPVOID,
-                    buf.as_bytes().len() as winapi::shared::basetsd::SIZE_T,
+                    buf.as_slice().as_ptr() as winapi::shared::minwindef::LPVOID,
+                    buf.as_slice().len() as winapi::shared::basetsd::SIZE_T,
                     &mut number_of_bytes_written as *mut winapi::shared::basetsd::SIZE_T,
                 ) != winapi::shared::minwindef::TRUE
                 {

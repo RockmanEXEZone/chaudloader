@@ -1,22 +1,22 @@
-use crate::assets;
+use crate::{assets, mods::lua::lib::chaudloader::buffer::Buffer};
 use mlua::ExternalError;
 
 struct ExeDat(std::rc::Rc<std::cell::RefCell<assets::exedat::Overlay>>);
 
 impl mlua::UserData for ExeDat {
     fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
-        methods.add_method("read_file", |lua, this, (path,): (String,)| {
+        methods.add_method("read_file", |_, this, (path,): (String,)| {
             let mut this = this.0.borrow_mut();
-            Ok(Some(lua.create_string(
-                &this.read(&path).map_err(|e| e.into_lua_err())?.to_vec(),
-            )?))
+            Ok(Some(Buffer::new(
+                this.read(&path).map_err(|e| e.into_lua_err())?.to_vec(),
+            )))
         });
 
         methods.add_method(
             "write_file",
-            |_, this, (path, contents): (String, mlua::String)| {
+            |_, this, (path, contents): (String, mlua::UserDataRef<Buffer>)| {
                 let mut this = this.0.borrow_mut();
-                this.write(&path, contents.as_bytes().to_vec())
+                this.write(&path, contents.as_slice().to_vec())
                     .map_err(|e| e.into_lua_err())?;
                 Ok(())
             },
