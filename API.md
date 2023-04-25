@@ -70,236 +70,252 @@ chaudloader.MOD_ENV.path: string
 
 Path to the current mod.
 
-## `chaudloader.ExeDat`
+## `chaudloader.exedat`
+
+### `chaudloader.exedat.open`
 
 ```lua
-function chaudloader.ExeDat(dat_filename: string): ExeDat
+function chaudloader.exedat.open(dat_filename: string): ExeDat
 ```
 
 Opens an exe/data .dat file located in exe/data (e.g. `exe6.dat`).
 
-### `chaudloader.ExeDat:read_file`
+### `ExeDat:read_file`
 
 ```lua
-function chaudloader.ExeDat:read_file(path: string): string
+function ExeDat:read_file(path: string): string
 ```
 
 Reads the contents of a file out of the .dat file.
 
 Previous calls to `write_file` are visible to subsequent calls to `read_file`.
 
-### `chaudloader.ExeDat:write_file`
+### `ExeDat:write_file`
 
 ```lua
-function chaudloader.ExeDat:write_file(path: string, contents: string): string
+function ExeDat:write_file(path: string, contents: string): string
 ```
 
 Writes the file data into the .dat file.
 
 Note that this does not mutate the original .dat file on disk, but for all intents and purposes to both the game and the mod loader it does.
 
-## `chaudloader.Mpak`
+## `chaudloader.mpak`
+
+### `chaudloader.exedat.unpack`
 
 ```lua
-function chaudloader.Mpak(map_contents: string, mpak_contents: string): Mpak
+function chaudloader.mpak.unpack(map_contents: string, mpak_contents: string): Mpak
 ```
 
 Unmarshals an .map + .mpak file.
 
-### `chaudloader.Mpak:__index`
+### `Mpak:__index`
 
 ```lua
-chaudloader.Mpak[rom_addr: integer] = string
+Mpak[rom_addr: integer] = string
 ```
 
 Inserts an entry at the given ROM address into the mpak.
 
 Existing entries will be clobbered. If contents is nil, the entry will be deleted.
 
-### `chaudloader.Mpak:__newindex`
+### `Mpak:__newindex`
 
 ```lua
-chaudloader.Mpak[rom_addr: integer]: string
+Mpak[rom_addr: integer]: string
 ```
 
 Reads an entry at the given ROM address.
 
-### `chaudloader.Mpak:__pairs`
+### `Mpak:__pairs`
 
 ```lua
-pairs(chaudloader.Mpak): function (): integer, string
+pairs(Mpak): function (): integer, string
 ```
 
 Iterates through all entries of an mpak.
 
-### `chaudloader.Mpak:pack`
+### `Mpak:pack`
 
 ```lua
-function chaudloader.Mpak:pack(): string, string
+function Mpak:pack(): string, string
 ```
 
 Marshals an mpak back into .map + .mpak format.
 
-## `chaudloader.ByteArray`
+## `chaudloader.bytearray`
+
+### `chaudloader.bytearray.unpack`
 
 ```lua
-function chaudloader.ByteArray(raw: string): ByteArray
+function chaudloader.bytearray.unpack(raw: string): ByteArray
 ```
 
 Copies a string into a byte array.
 
 Unlike Lua tables and strings, byte arrays are 0-indexed: this is such that offsets in the byte array will match up directly to file offsets for convenience.
 
-### `chaudloader.ByteArray:__concat`
+### `chaudloader.bytearray.filled`
 
 ```lua
-chaudloader.ByteArray(...) .. chaudloader.ByteArray(...): ByteArray
+function chaudloader.bytearray.filled(v: integer, n: integer): ByteArray
+```
+
+Creates a new byte array filled with `n` bytes of `v`.
+
+### `ByteArray:__concat`
+
+```lua
+ByteArray(...) .. ByteArray(...): ByteArray
 ```
 
 Concatenates two byte arrays together and returns the concatenated byte array.
 
-### `chaudloader.ByteArray:__eq`
+### `ByteArray:__eq`
 
 ```lua
-chaudloader.ByteArray(...) == chaudloader.ByteArray(...): bool
+ByteArray(...) == ByteArray(...): bool
 ```
 
 Compares two byte arrays for byte-for-byte equality.
 
-### `chaudloader.ByteArray:clone`
+### `ByteArray:clone`
 
 ```lua
-chaudloader.ByteArray:clone(): ByteArray
+ByteArray:clone(): ByteArray
 ```
 
 Clones the byte array into a new, unshared byte array.
 
-### `chaudloader.ByteArray:len`
+### `ByteArray:len`
 
 ```lua
-chaudloader.ByteArray:len(): integer
+ByteArray:len(): integer
 ```
 
 Returns the length of the byte array, in bytes.
 
-### `chaudloader.ByteArray:pack`
+### `ByteArray:pack`
 
 ```lua
-chaudloader.ByteArray:pack(): string
+ByteArray:pack(): string
 ```
 
 Packs the byte array back into a Lua string.
 
-### `chaudloader.ByteArray:get_string`
+### `ByteArray:get_string`
 
 ```lua
-chaudloader.ByteArray:get_string(i: integer, n: integer): string
+ByteArray:get_string(i: integer, n: integer): string
 ```
 
 Gets the bytes at [`i`, `n`) as a string.
 
 If `i + n` is greater than the length of the byte array, an error will be raised.
 
-### `chaudloader.ByteArray:set_string`
+### `ByteArray:set_string`
 
 ```lua
-chaudloader.ByteArray:set_string(i: integer, s: string)
+ByteArray:set_string(i: integer, s: string)
 ```
 
 Sets the bytes starting at `i` to the bytes in `s`.
 
 If `i + #s` is greater than the length of the byte array, an error will be raised.
 
-### `chaudloader.ByteArray:get_bytearray`
+### `ByteArray:get_bytearray`
 
 ```lua
-chaudloader.ByteArray:get_bytearray(i: integer, n: integer): ByteArray
+ByteArray:get_bytearray(i: integer, n: integer): ByteArray
 ```
 
 Gets the bytes at [`i`, `n`) as a byte array.
 
 If `i + n` is greater than the length of the byte array, an error will be raised.
 
-### `chaudloader.ByteArray:set_bytearray`
+### `ByteArray:set_bytearray`
 
 ```lua
-chaudloader.ByteArray:set_bytearray(i: integer, ba: ByteArray)
+ByteArray:set_bytearray(i: integer, ba: ByteArray)
 ```
 
 Sets the bytes starting at `i` to the bytes in `ba`.
 
 If `i + ba:len()` is greater than the length of the byte array, an error will be raised.
 
-### `chaudloader.ByteArray:get_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
+### `ByteArray:get_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
 
 ```lua
-chaudloader.ByteArray:get_u8(i: integer): integer
-chaudloader.ByteArray:get_u16_le(i: integer): integer
-chaudloader.ByteArray:get_u32_le(i: integer): integer
-chaudloader.ByteArray:get_i8(i: integer): integer
-chaudloader.ByteArray:get_i16_le(i: integer): integer
-chaudloader.ByteArray:get_i32_le(i: integer): integer
+ByteArray:get_u8(i: integer): integer
+ByteArray:get_u16_le(i: integer): integer
+ByteArray:get_u32_le(i: integer): integer
+ByteArray:get_i8(i: integer): integer
+ByteArray:get_i16_le(i: integer): integer
+ByteArray:get_i32_le(i: integer): integer
 ```
 
 Gets the bytes at `i` as the given integer type.
 
 If `i + width` is greater than the length of the byte array, an error will be raised.
 
-### `chaudloader.ByteArray:set_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
+### `ByteArray:set_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
 
 ```lua
-chaudloader.ByteArray:set_u8(i: integer, v: integer)
-chaudloader.ByteArray:set_u16_le(i: integer, v: integer)
-chaudloader.ByteArray:set_u32_le(i: integer, v: integer)
-chaudloader.ByteArray:set_i8(i: integer, v: integer)
-chaudloader.ByteArray:set_i16_le(i: integer, v: integer)
-chaudloader.ByteArray:set_i32_le(i: integer, v: integer)
+ByteArray:set_u8(i: integer, v: integer)
+ByteArray:set_u16_le(i: integer, v: integer)
+ByteArray:set_u32_le(i: integer, v: integer)
+ByteArray:set_i8(i: integer, v: integer)
+ByteArray:set_i16_le(i: integer, v: integer)
+ByteArray:set_i32_le(i: integer, v: integer)
 ```
 
 Sets the bytes starting at `i` to the integer `v`.
 
 If `i + width` is greater than the length of the byte array, an error will be raised.
 
-## msg data functions
+## `chaudloader.msg`
 
-### `chaudloader.unpack_msg`
+### `chaudloader.msg.unpack`
 
 ```lua
-function chaudloader.unpack_msg(raw: string): {[integer]: string}
+function chaudloader.msg.unpack(raw: string): {[integer]: string}
 ```
 
 Unmarshals msg data.
 
-### `chaudloader.pack_msg`
+### `chaudloader.msg.pack`
 
 ```lua
-function chaudloader.pack_msg(entries: {[integer]: string}): string
+function chaudloader.msg.pack(entries: {[integer]: string}): string
 ```
 
 Marshals msg data.
 
-## Mod file functions
+## `chaudloader.modfiles`
 
-### `chaudloader.read_mod_file`
+Functions for accessing files from the mod's directory.
+
+### `chaudloader.modfiles.read_file`
 
 ```lua
-function chaudloader.read_mod_file(path: string): string
+function chaudloader.modfiles.read_file(path: string): string
 ```
 
 Reads the contents of a file from the mod folder.
 
-### `chaudloader.list_mod_directory`
+### `chaudloader.modfiles.list_directory`
 
 ```lua
-function chaudloader.list_mod_directory(path: string): {[integer]: string}
+function chaudloader.modfiles.list_directory(path: string): {[integer]: string}
 ```
 
 Lists the contents of a directory from the mod folder.
 
-### `chaudloader.get_mod_file_metadata`
+### `chaudloader.modfiles.get_file_metadata`
 
 ```lua
-function chaudloader.get_mod_file_metadata(path: string): {type: "dir" | "file", size: integer}
+function chaudloader.modfiles.get_file_metadata(path: string): {type: "dir" | "file", size: integer}
 ```
 
 Gets the metadata of a file from the mod folder.
@@ -362,7 +378,7 @@ __declspec(dllexport) bool chaudloader_init(const char* userdata, n: size_t)
 function bnlc_mod_loader.read_exe_dat_contents(dat_filename: string, path: string): string
 ```
 
-**Deprecated:** See `chaudloader.ExeDat:read_file`.
+**Deprecated:** See `ExeDat:read_file`.
 
 Reads the contents of a file out of a .dat file located in exe/data (e.g. `exe6.dat`).
 
@@ -374,7 +390,7 @@ Previous calls to write_exe_dat_contents are visible to subsequent calls to read
 function bnlc_mod_loader.write_exe_dat_contents(dat_filename: string, path: string, contents: string)
 ```
 
-**Deprecated:** See `chaudloader.ExeDat:write_file`.
+**Deprecated:** See `ExeDat:write_file`.
 
 Writes the given data into a zip .dat file located in exe/data.
 

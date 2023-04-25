@@ -1,7 +1,6 @@
 use crate::{assets, mods, path};
 use mlua::ExternalError;
 
-pub mod bnlc_mod_loader;
 pub mod chaudloader;
 
 pub fn set_globals(
@@ -145,14 +144,14 @@ pub fn set_globals(
     )?;
 
     globals.set(
-        "bnlc_mod_loader",
-        bnlc_mod_loader::new(&lua, name, overlays.clone())?,
-    )?;
-
-    globals.set(
         "chaudloader",
         chaudloader::new(&lua, game_env, name, info, state, overlays)?,
     )?;
+
+    lua.load(include_str!("compat0_7.lua"))
+        .set_name("=<builtin>\\compat0_7.lua")
+        .set_mode(mlua::ChunkMode::Text)
+        .exec()?;
 
     Ok(())
 }

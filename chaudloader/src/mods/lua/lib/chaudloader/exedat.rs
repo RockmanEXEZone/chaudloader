@@ -31,14 +31,21 @@ pub fn new<'a>(
         std::rc::Rc<std::cell::RefCell<assets::exedat::Overlay>>,
     >,
 ) -> Result<mlua::Value<'a>, mlua::Error> {
-    Ok(mlua::Value::Function(lua.create_function({
-        move |_, (name,): (String,)| {
-            let overlay = if let Some(overlay) = overlays.get(&name) {
-                std::rc::Rc::clone(&overlay)
-            } else {
-                return Err(anyhow::format_err!("no such dat file: {}", name).into_lua_err());
-            };
-            Ok(ExeDat(overlay))
-        }
-    })?))
+    let table = lua.create_table()?;
+
+    table.set(
+        "open",
+        lua.create_function({
+            move |_, (name,): (String,)| {
+                let overlay = if let Some(overlay) = overlays.get(&name) {
+                    std::rc::Rc::clone(&overlay)
+                } else {
+                    return Err(anyhow::format_err!("no such dat file: {}", name).into_lua_err());
+                };
+                Ok(ExeDat(overlay))
+            }
+        })?,
+    )?;
+
+    Ok(mlua::Value::Table(table))
 }
