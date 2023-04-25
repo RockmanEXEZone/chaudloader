@@ -166,7 +166,19 @@ impl mlua::UserData for ByteArray {
 }
 
 pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
-    Ok(mlua::Value::Function(lua.create_function({
-        |_, (raw,): (mlua::String,)| Ok(ByteArray(raw.as_bytes().to_vec()))
-    })?))
+    let table = lua.create_table()?;
+
+    table.set(
+        "unpack",
+        lua.create_function({
+            |_, (raw,): (mlua::String,)| Ok(ByteArray(raw.as_bytes().to_vec()))
+        })?,
+    )?;
+
+    table.set(
+        "filled",
+        lua.create_function(|_, (v, n): (u8, usize)| Ok(ByteArray(vec![v; n])))?,
+    )?;
+
+    Ok(mlua::Value::Table(table))
 }

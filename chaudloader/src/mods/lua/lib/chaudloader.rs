@@ -1,9 +1,11 @@
 mod bytearray;
 mod exedat;
+mod modfiles;
 mod mpak;
+mod msg;
 mod r#unsafe;
 
-use crate::{assets, mods, path};
+use crate::{assets, mods};
 use mlua::ExternalError;
 
 fn new_game_env<'a>(
@@ -44,102 +46,14 @@ pub fn new<'a>(
     let table = lua.create_table()?;
     let mod_path = std::path::Path::new("mods").join(name);
 
-    table.set(
-        "read_mod_file",
-        lua.create_function({
-            let mod_path = mod_path.clone();
-            move |lua, (path,): (String,)| {
-                let path = path::ensure_safe(std::path::Path::new(&path))
-                    .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                    .map_err(|e| e.into_lua_err())?;
-                Ok(lua.create_string(&std::fs::read(mod_path.join(path))?)?)
-            }
-        })?,
-    )?;
-
-    table.set(
-        "unpack_msg",
-        lua.create_function(|lua, (raw,): (mlua::String,)| {
-            Ok(assets::msg::unpack(std::io::Cursor::new(raw.as_bytes()))?
-                .into_iter()
-                .map(|v| lua.create_string(&v))
-                .collect::<Result<Vec<_>, _>>()?)
-        })?,
-    )?;
-
-    table.set(
-        "pack_msg",
-        lua.create_function(|lua, (entries,): (Vec<mlua::String>,)| {
-            let mut buf = vec![];
-            let entries = entries.iter().map(|v| v.as_bytes()).collect::<Vec<_>>();
-            assets::msg::pack(&entries, &mut buf)?;
-            Ok(lua.create_string(&buf)?)
-        })?,
-    )?;
-
-    table.set(
-        "list_mod_directory",
-        lua.create_function({
-            let mod_path = mod_path.clone();
-            move |lua, (path,): (String,)| {
-                let path = path::ensure_safe(std::path::Path::new(&path))
-                    .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                    .map_err(|e| e.into_lua_err())?;
-                Ok(lua.create_sequence_from(
-                    std::fs::read_dir(mod_path.join(path))?
-                        .into_iter()
-                        .map(|entry| {
-                            let path = entry?.path();
-                            let file_name = path.file_name().ok_or_else(|| {
-                                anyhow::format_err!("failed to decipher path: {}", path.display())
-                            })?;
-                            Ok(file_name
-                                .to_str()
-                                .ok_or_else(|| {
-                                    anyhow::format_err!(
-                                        "failed to decipher file name: {}",
-                                        file_name.to_string_lossy()
-                                    )
-                                })?
-                                .to_string())
-                        })
-                        .collect::<Result<Vec<_>, anyhow::Error>>()
-                        .map_err(|e| e.into_lua_err())?,
-                )?)
-            }
-        })?,
-    )?;
-
-    table.set(
-        "get_mod_file_metadata",
-        lua.create_function({
-            let mod_path = mod_path.clone();
-            move |lua, (path,): (String,)| {
-                let path = path::ensure_safe(std::path::Path::new(&path))
-                    .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                    .map_err(|e| e.into_lua_err())?;
-                let metadata = std::fs::metadata(mod_path.join(path))?;
-                Ok(lua.create_table_from([
-                    (
-                        "type",
-                        mlua::Value::String(lua.create_string(if metadata.is_dir() {
-                            "dir"
-                        } else {
-                            "file"
-                        })?),
-                    ),
-                    ("size", mlua::Value::Integer(metadata.len() as i64)),
-                ])?)
-            }
-        })?,
-    )?;
-
     table.set("GAME_ENV", new_game_env(lua, game_env)?)?;
     table.set("MOD_ENV", new_mod_env(lua, name)?)?;
 
-    table.set("ExeDat", exedat::new(lua, overlays)?)?;
-    table.set("Mpak", mpak::new(lua)?)?;
-    table.set("ByteArray", bytearray::new(lua)?)?;
+    table.set("exedat", exedat::new(lua, overlays)?)?;
+    table.set("mpak", mpak::new(lua)?)?;
+    table.set("bytearray", bytearray::new(lua)?)?;
+    table.set("msg", msg::new(lua)?)?;
+    table.set("modfiles", modfiles::new(lua, &mod_path)?)?;
 
     if info.r#unsafe {
         table.set(

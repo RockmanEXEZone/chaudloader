@@ -59,14 +59,21 @@ impl mlua::UserData for Mpak {
 }
 
 pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
-    Ok(mlua::Value::Function(lua.create_function({
-        move |_, (map_contents, mpak_contents): (mlua::String, mlua::String)| {
-            Ok(Mpak(std::rc::Rc::new(std::cell::RefCell::new(
-                assets::mpak::Mpak::read_from(
-                    std::io::Cursor::new(map_contents.as_bytes()),
-                    std::io::Cursor::new(mpak_contents.as_bytes()),
-                )?,
-            ))))
-        }
-    })?))
+    let table = lua.create_table()?;
+
+    table.set(
+        "unpack",
+        lua.create_function({
+            move |_, (map_contents, mpak_contents): (mlua::String, mlua::String)| {
+                Ok(Mpak(std::rc::Rc::new(std::cell::RefCell::new(
+                    assets::mpak::Mpak::read_from(
+                        std::io::Cursor::new(map_contents.as_bytes()),
+                        std::io::Cursor::new(mpak_contents.as_bytes()),
+                    )?,
+                ))))
+            }
+        })?,
+    )?;
+
+    Ok(mlua::Value::Table(table))
 }
