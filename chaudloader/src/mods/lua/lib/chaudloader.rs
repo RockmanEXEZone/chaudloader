@@ -1,3 +1,4 @@
+mod bytearray;
 mod exedat;
 mod mpak;
 mod r#unsafe;
@@ -138,6 +139,7 @@ pub fn new<'a>(
 
     table.set("ExeDat", exedat::new(lua, overlays)?)?;
     table.set("Mpak", mpak::new(lua)?)?;
+    table.set("ByteArray", bytearray::new(lua)?)?;
 
     if info.r#unsafe {
         table.set(
