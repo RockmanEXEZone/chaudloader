@@ -358,7 +358,7 @@ See [chaudloader/src/mods/lua/lib/chaudloader/util.lua](chaudloader/src/mods/lua
 
 ### Compatibility shims
 
-See [chaudloader/src/mods/lua/lib/compat.lua](chaudloader/src/mods/lua/lib/compat.lua) for compatibility functions with old versions of chaudloader. Note that these functions may be removed at any time.
+See [chaudloader/src/mods/lua/compat.lua](chaudloader/src/mods/lua/compat.lua) for compatibility functions with old versions of chaudloader. Note that these functions may be removed at any time.
 
 ### Other
 
