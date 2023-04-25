@@ -10,7 +10,7 @@ function require(name: string): any
 
 Requires a module from the mods directory.
 
-If unsafe = true, require may load Lua DLLs of the form <name>.dll from the mods directory.
+If `unsafe = true` is set in `info.toml`, `require` also may load Lua DLLs of the form `<name>.dll` from the mods directory.
 
 If the name contains dots (`.`), they will be translated to slashes for paths (`/`). If the name is for a Lua DLL, they will be replaced with underscores (`_`) in the loader function. For example, for a library named `foo.bar`:
 
