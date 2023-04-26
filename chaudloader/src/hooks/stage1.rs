@@ -92,6 +92,70 @@ struct HandleTracker {
         std::collections::HashMap<std::path::PathBuf, std::collections::HashSet<usize>>,
 }
 
+impl HandleTracker {
+    fn insert(&mut self, path: &std::path::Path, handle: winapi::shared::ntdef::HANDLE) {
+        let handle = unsafe { std::mem::transmute(handle) };
+        self.handle_to_path.insert(handle, path.to_path_buf());
+        self.path_to_handles
+            .entry(path.to_path_buf())
+            .or_insert_with(|| std::collections::HashSet::new())
+            .insert(handle);
+    }
+
+    fn dupe(
+        &mut self,
+        src_handle: winapi::shared::ntdef::HANDLE,
+        dest_handle: winapi::shared::ntdef::HANDLE,
+    ) -> bool {
+        let src_handle = unsafe { std::mem::transmute(src_handle) };
+        let path = if let Some(path) = self.handle_to_path.get(&src_handle).cloned() {
+            path
+        } else {
+            return false;
+        };
+
+        let dest_handle = unsafe { std::mem::transmute(dest_handle) };
+
+        self.handle_to_path.insert(dest_handle, path.clone());
+        self.path_to_handles
+            .get_mut(&path)
+            .unwrap()
+            .insert(dest_handle);
+
+        true
+    }
+
+    fn remove(
+        &mut self,
+        handle: winapi::shared::ntdef::HANDLE,
+    ) -> Option<(std::path::PathBuf, usize)> {
+        let handle = unsafe { std::mem::transmute(handle) };
+        let path = if let Some(path) = self.handle_to_path.remove(&handle) {
+            path
+        } else {
+            return None;
+        };
+
+        let mut handles_entry = match self.path_to_handles.entry(path) {
+            std::collections::hash_map::Entry::Occupied(entry) => entry,
+            std::collections::hash_map::Entry::Vacant(_) => unreachable!(),
+        };
+
+        handles_entry.get_mut().remove(&handle);
+        let path = handles_entry.key().to_path_buf();
+
+        Some((
+            path,
+            if handles_entry.get().is_empty() {
+                handles_entry.remove();
+                0
+            } else {
+                handles_entry.get().len()
+            },
+        ))
+    }
+}
+
 unsafe fn on_nt_create_file(
     file_handle: winapi::shared::ntdef::PHANDLE,
     desired_access: winapi::um::winnt::ACCESS_MASK,
@@ -189,15 +253,7 @@ unsafe fn on_nt_create_file(
 
     let handle = unsafe { *file_handle };
 
-    handle_tracker
-        .handle_to_path
-        .insert(std::mem::transmute(handle), path.to_path_buf());
-    handle_tracker
-        .path_to_handles
-        .entry(path.to_path_buf())
-        .or_insert_with(|| std::collections::HashSet::new())
-        .insert(std::mem::transmute(handle));
-
+    handle_tracker.insert(path, handle);
     log::info!(
         "NtCreateFile: read to {} was redirected -> {} (handle: {:p}, open handles: {})",
         path.display(),
@@ -239,25 +295,16 @@ unsafe fn on_duplicate_handle(
 
     let mut handle_tracker: std::sync::MutexGuard<HandleTracker> = HANDLE_TRACKER.lock().unwrap();
 
-    if let Some(path) = handle_tracker
-        .handle_to_path
-        .get(&std::mem::transmute(h_source_handle))
-        .cloned()
-    {
-        let target_handle = unsafe { *lp_target_handle };
+    let target_handle = *lp_target_handle;
+
+    if handle_tracker.dupe(h_source_handle, target_handle) {
         log::info!(
             "DuplicateHandle: tracked handle duped: {:p} -> {:p}",
             h_source_handle,
             target_handle
         );
-        handle_tracker
-            .handle_to_path
-            .insert(std::mem::transmute(target_handle), path.clone());
-
-        // If we have a handle_to_path entry, then we must have a path_to_handles entry as well.
-        let paths = handle_tracker.path_to_handles.get_mut(&path).unwrap();
-        paths.insert(std::mem::transmute(target_handle));
     }
+
     winapi::shared::minwindef::TRUE
 }
 
@@ -274,34 +321,21 @@ unsafe fn on_close_handle(
     let mut handle_tracker: std::sync::MutexGuard<HandleTracker> = HANDLE_TRACKER.lock().unwrap();
     let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
 
-    if let Some(path) = handle_tracker
-        .handle_to_path
-        .remove(&std::mem::transmute(h_object))
-    {
-        let mut handles_entry = match handle_tracker.path_to_handles.entry(path) {
-            std::collections::hash_map::Entry::Occupied(entry) => entry,
-            std::collections::hash_map::Entry::Vacant(_) => unreachable!(),
-        };
-
-        handles_entry
-            .get_mut()
-            .remove(&std::mem::transmute(h_object));
-
-        if handles_entry.get().is_empty() {
-            let purged_path = assets_replacer.purge(handles_entry.key()).unwrap();
+    if let Some((path, refcount)) = handle_tracker.remove(h_object) {
+        if refcount == 0 {
+            let purged_path = assets_replacer.purge(&path).unwrap();
             if let Some(purged_path) = purged_path {
                 log::info!(
                     "CloseHandle: last handle to {} was closed, purged: {}",
-                    handles_entry.key().display(),
+                    path.display(),
                     purged_path.display()
                 );
             } else {
                 log::warn!(
-                    "CloseHandle: last handle to {} was closed, but path was not found in asset replacer!",
-                    handles_entry.key().display(),
-                );
+                "CloseHandle: last handle to {} was closed, but path was not found in asset replacer!",
+                path.display(),
+            );
             }
-            handles_entry.remove();
         }
     }
 
