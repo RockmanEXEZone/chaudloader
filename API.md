@@ -44,13 +44,13 @@ chaudloader.GAME_ENV.name: string
 
 Game name (`"Vol1"` or `"Vol2"`).
 
-### `chaudloader.GAME_ENV.exe_sha256`
+### `chaudloader.GAME_ENV.exe_crc32`
 
 ```lua
-chaudloader.GAME_ENV.exe_sha256: string
+chaudloader.GAME_ENV.exe_crc32: integer
 ```
 
-SHA256 of the EXE.
+CRC32 of the EXE.
 
 This may be useful to ensure your mod is loaded for the correct version of the binary if you are hooking hard-coded addresses in the binary.
 
