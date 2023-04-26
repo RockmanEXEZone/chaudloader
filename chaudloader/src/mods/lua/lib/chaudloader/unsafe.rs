@@ -60,6 +60,60 @@ pub fn new<'a>(
     )?;
 
     table.set(
+        "alloc_executable_memory",
+        lua.create_function(|_, (buf,): (mlua::UserDataRef<Buffer>,)| unsafe {
+            // We allocate the page with read/write, then set it to execute after our copy is complete. This means we comply with W^X requirements.
+            let out_buf = winapi::um::memoryapi::VirtualAlloc(
+                std::ptr::null_mut(),
+                buf.as_slice().len(),
+                winapi::um::winnt::MEM_COMMIT,
+                winapi::um::winnt::PAGE_READWRITE,
+            );
+            if out_buf.is_null() {
+                return Err(anyhow::anyhow!("VirtualAlloc returned null").into_lua_err());
+            }
+
+            std::slice::from_raw_parts_mut::<'_, u8>(
+                std::mem::transmute(out_buf),
+                buf.as_slice().len(),
+            )
+            .copy_from_slice(buf.as_slice());
+
+            let mut dummy = 0;
+            if winapi::um::memoryapi::VirtualProtect(
+                out_buf,
+                buf.as_slice().len(),
+                winapi::um::winnt::PAGE_EXECUTE_READ,
+                &mut dummy,
+            ) != winapi::shared::minwindef::TRUE
+            {
+                // Failing to free the memory is a memory leak!
+                assert_eq!(
+                    winapi::um::memoryapi::VirtualFree(out_buf, 0, winapi::um::winnt::MEM_FREE),
+                    winapi::shared::minwindef::TRUE
+                );
+                return Err(anyhow::anyhow!("VirtualProtect returned false").into_lua_err());
+            }
+            Ok(std::mem::transmute::<_, usize>(out_buf))
+        })?,
+    )?;
+
+    table.set(
+        "free_executable_memory",
+        lua.create_function(|_, (addr,): (usize,)| unsafe {
+            if winapi::um::memoryapi::VirtualFree(
+                std::mem::transmute(addr),
+                0,
+                winapi::um::winnt::MEM_FREE,
+            ) != winapi::shared::minwindef::TRUE
+            {
+                return Err(anyhow::anyhow!("VirtualFree returned false").into_lua_err());
+            }
+            Ok(())
+        })?,
+    )?;
+
+    table.set(
         "init_mod_dll",
         lua.create_function({
             let mod_path = mod_path.to_path_buf();

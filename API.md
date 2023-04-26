@@ -344,6 +344,22 @@ function chaudloader.unsafe.read_process_memory(addr: integer, n: integer): Buff
 
 Reads directly from process memory.
 
+### `chaudloader.unsafe.alloc_executable_memory`
+
+```lua
+function chaudloader.unsafe.alloc_executable_memory(buf: Buffer): integer
+```
+
+Allocates and copies a Buffer into a W^X memory page.
+
+### `chaudloader.unsafe.free_executable_memory`
+
+```lua
+function chaudloader.unsafe.free_executable_memory(addr: integer)
+```
+
+Frees memory allocated by `alloc_executable_memory`.
+
 ## Convenience functions
 
 ```lua
