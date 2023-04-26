@@ -24,7 +24,7 @@ end
 -- Only non-empty entries from the new msg data will be merged.
 function exports.merge_msg(old, new)
     for i, entry in ipairs(new) do
-        if entry ~= "" then
+        if entry:len() ~= 0 then
             old[i] = entry
         end
     end
