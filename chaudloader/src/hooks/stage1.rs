@@ -1,11 +1,31 @@
-use crate::assets;
+use crate::{assets, hooks};
 use retour::static_detour;
 
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::ffi::OsStringExt;
 
+type CreateFileWFunc = unsafe extern "system" fn(
+    lp_file_name: winapi::shared::ntdef::LPCWSTR,
+    dw_desired_access: winapi::shared::minwindef::DWORD,
+    dw_share_mode: winapi::shared::minwindef::DWORD,
+    lp_security_attributes: winapi::um::minwinbase::LPSECURITY_ATTRIBUTES,
+    dw_creation_disposition: winapi::shared::minwindef::DWORD,
+    dw_flags_and_attributes: winapi::shared::minwindef::DWORD,
+    handle: winapi::shared::ntdef::HANDLE,
+) -> winapi::shared::ntdef::HANDLE;
+
+type CreateFileAFunc = unsafe extern "system" fn(
+    lp_file_name: winapi::shared::ntdef::LPCSTR,
+    dw_desired_access: winapi::shared::minwindef::DWORD,
+    dw_share_mode: winapi::shared::minwindef::DWORD,
+    lp_security_attributes: winapi::um::minwinbase::LPSECURITY_ATTRIBUTES,
+    dw_creation_disposition: winapi::shared::minwindef::DWORD,
+    dw_flags_and_attributes: winapi::shared::minwindef::DWORD,
+    handle: winapi::shared::ntdef::HANDLE,
+) -> winapi::shared::ntdef::HANDLE;
+
 static_detour! {
-    pub static CreateFileWHook: unsafe extern "system" fn(
+    static CreateFileWHook: unsafe extern "system" fn(
         /* lp_file_name: */ winapi::shared::ntdef::LPCWSTR,
         /* dw_desired_access: */ winapi::shared::minwindef::DWORD,
         /* dw_share_mode: */ winapi::shared::minwindef::DWORD,
@@ -15,7 +35,7 @@ static_detour! {
         /* handle: */ winapi::shared::ntdef::HANDLE
     ) -> winapi::shared::ntdef::HANDLE;
 
-    pub static CreateFileAHook: unsafe extern "system" fn(
+    static CreateFileAHook: unsafe extern "system" fn(
         /* lp_file_name: */ winapi::shared::ntdef::LPCSTR,
         /* dw_desired_access: */ winapi::shared::minwindef::DWORD,
         /* dw_share_mode: */ winapi::shared::minwindef::DWORD,
@@ -24,10 +44,20 @@ static_detour! {
         /* dw_flags_and_attributes: */ winapi::shared::minwindef::DWORD,
         /* handle: */ winapi::shared::ntdef::HANDLE
     ) -> winapi::shared::ntdef::HANDLE;
+}
 
-    pub static CloseHandle: unsafe extern "system" fn(
-        /* h_object: */ winapi::shared::ntdef::HANDLE
-    ) -> winapi::shared::minwindef::BOOL;
+struct HooksDisableGuard {
+    _create_file_w_guard: hooks::HookDisableGuard<CreateFileWFunc>,
+    _create_file_a_guard: hooks::HookDisableGuard<CreateFileAFunc>,
+}
+
+impl HooksDisableGuard {
+    unsafe fn new() -> Result<Self, retour::Error> {
+        Ok(Self {
+            _create_file_w_guard: hooks::HookDisableGuard::new(&CreateFileWHook)?,
+            _create_file_a_guard: hooks::HookDisableGuard::new(&CreateFileAHook)?,
+        })
+    }
 }
 
 unsafe fn on_create_file(
@@ -39,6 +69,8 @@ unsafe fn on_create_file(
     dw_flags_and_attributes: winapi::shared::minwindef::DWORD,
     handle: winapi::shared::ntdef::HANDLE,
 ) -> winapi::shared::ntdef::HANDLE {
+    let _hooks_disable_guard: HooksDisableGuard = HooksDisableGuard::new().unwrap();
+
     // FIXME: This path is relative to the exe folder, but is sometimes something like ..\exe\data\exe1.dat. We should canonicalize it in all cases to intercept all reads.
     let path = clean_path::clean(path);
 

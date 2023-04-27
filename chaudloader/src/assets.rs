@@ -1,5 +1,3 @@
-use crate::hooks;
-
 pub mod exedat;
 pub mod mpak;
 pub mod msg;
@@ -68,14 +66,6 @@ impl Replacer {
                     } else {
                         return Ok((path, false));
                     };
-
-                    // Unwrap these hook guards because there's not much we can do if they fail.
-                    let _create_file_a_hook_guard =
-                        unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileAHook) }
-                            .unwrap();
-                    let _create_file_w_hook_guard =
-                        unsafe { hooks::HookDisableGuard::new(&hooks::stage1::CreateFileWHook) }
-                            .unwrap();
 
                     let dest_f = tempfile::NamedTempFile::new_in(&self.temp_dir)?;
                     log::info!(
