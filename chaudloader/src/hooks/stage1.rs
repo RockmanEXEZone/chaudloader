@@ -75,22 +75,36 @@ unsafe fn on_create_file(
     let path = clean_path::clean(path);
 
     let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
-    let (new_path, is_replaced) = assets_replacer.get(&path).unwrap();
-
-    if is_replaced {
-        log::info!(
-            "read to {} was redirected -> {}",
-            path.display(),
-            new_path.display()
+    let new_path = if let Some(new_path) = assets_replacer.get(&path).unwrap() {
+        new_path
+    } else {
+        let path_wstr = path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect::<Vec<_>>();
+        return CreateFileWHook.call(
+            path_wstr[..].as_ptr(),
+            dw_desired_access,
+            dw_share_mode,
+            lp_security_attributes,
+            dw_creation_disposition,
+            dw_flags_and_attributes,
+            handle,
         );
-    }
+    };
+
+    log::info!(
+        "read to {} was redirected -> {}",
+        path.display(),
+        new_path.display()
+    );
 
     let path_wstr = new_path
         .as_os_str()
         .encode_wide()
         .chain(std::iter::once(0))
         .collect::<Vec<_>>();
-
     CreateFileWHook.call(
         path_wstr[..].as_ptr(),
         dw_desired_access,

@@ -55,32 +55,37 @@ impl Replacer {
 
     pub fn get<'a>(
         &'a mut self,
-        path: &'a std::path::Path,
-    ) -> Result<(&'a std::path::Path, bool), std::io::Error> {
-        Ok((
-            match self.replacement_paths.entry(path.to_path_buf()) {
-                std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut().as_path(),
-                std::collections::hash_map::Entry::Vacant(entry) => {
-                    let replacer = if let Some(replacer) = self.replacers.get(path) {
-                        replacer
-                    } else {
-                        return Ok((path, false));
-                    };
+        path: &std::path::Path,
+    ) -> Result<Option<&'a std::path::Path>, std::io::Error> {
+        Ok(match self.replacement_paths.entry(path.to_path_buf()) {
+            std::collections::hash_map::Entry::Occupied(entry) => Some(entry.into_mut().as_path()),
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                let replacer = if let Some(replacer) = self.replacers.get(path) {
+                    replacer
+                } else {
+                    return Ok(None);
+                };
 
-                    let dest_f = tempfile::NamedTempFile::new_in(&self.temp_dir)?;
-                    log::info!(
-                        "replacing {} -> {}",
-                        path.display(),
-                        dest_f.path().display()
-                    );
-                    let (mut dest_f, dest_path) = dest_f.keep()?;
+                let dest_path = self.temp_dir.join(std::path::Path::new(
+                    &path
+                        .as_os_str()
+                        .to_string_lossy()
+                        .replace("_", "__")
+                        .replace("../", "_DOTDOTSLASH_")
+                        .replace("./", "_DOTSLASH_")
+                        .replace("/", "_SLASH_")
+                        .replace("..\\", "_DOTDOTSLASH_")
+                        .replace(".\\", "_DOTSLASH_")
+                        .replace("\\", "_SLASH_"),
+                ));
+                {
+                    let mut dest_f = std::fs::File::create(&dest_path)?;
+                    log::info!("replacing {} -> {}", path.display(), dest_path.display());
                     replacer(&mut dest_f)?;
-
-                    entry.insert(dest_path).as_path()
                 }
-            },
-            true,
-        ))
+                Some(entry.insert(dest_path).as_path())
+            }
+        })
     }
 }
 
