@@ -160,6 +160,14 @@ function chaudloader.buffer.from_string(raw: string): Buffer
 
 Copies a string into a buffer.
 
+### `chaudloader.buffer.from_string`
+
+```lua
+function chaudloader.buffer.from_u8_table(raw: {[integer]: integer}): Buffer
+```
+
+Copies a table of u8s into a buffer.
+
 ### `chaudloader.buffer.filled`
 
 ```lua
@@ -167,6 +175,14 @@ function chaudloader.buffer.filled(v: integer, n: integer): Buffer
 ```
 
 Creates a new buffer filled with `n` bytes of `v`.
+
+### `chaudloader.buffer.filled`
+
+```lua
+function chaudloader.buffer.empty(): Buffer
+```
+
+Creates a new buffer with zero length.
 
 ### `Buffer:__concat`
 

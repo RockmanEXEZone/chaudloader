@@ -195,5 +195,10 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
         lua.create_function(|_, (v, n): (u8, usize)| Ok(Buffer(vec![v; n])))?,
     )?;
 
+    table.set(
+        "empty",
+        lua.create_function(|_, (): ()| Ok(Buffer(vec![])))?,
+    )?;
+
     Ok(mlua::Value::Table(table))
 }
