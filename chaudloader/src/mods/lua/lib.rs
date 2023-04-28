@@ -119,13 +119,15 @@ pub fn set_globals(
                 }
 
                 let v = match (|| {
+                    const EXTENSIONS: &[&str] = &["lua", "dll"];
+
                     let mut errs: Vec<(std::path::PathBuf, String, anyhow::Error)> = vec![];
 
                     if path
                         .extension()
                         .as_ref()
                         .map(|ext| ext.to_string_lossy())
-                        .map(|ext| ext == "lua" || ext == "dll")
+                        .map(|ext| EXTENSIONS.contains(&ext.as_ref()))
                         .unwrap_or(false)
                     {
                         // Try load via exact path.
@@ -157,21 +159,10 @@ pub fn set_globals(
                         // Try load via short name.
                         let name = filename.to_str().unwrap().to_string();
 
-                        {
+                        for ext in EXTENSIONS {
                             let mut path = path.clone();
-                            path.as_mut_os_string().push(".lua");
-
-                            match load(lua, &mut state, r#unsafe, &name, &mod_path, &path) {
-                                Ok(v) => return Ok(v),
-                                Err(err) => {
-                                    errs.push((path.clone(), name.clone(), err));
-                                }
-                            }
-                        }
-
-                        {
-                            let mut path = path.clone();
-                            path.as_mut_os_string().push(".dll");
+                            path.as_mut_os_string().push(".");
+                            path.as_mut_os_string().push(ext);
 
                             match load(lua, &mut state, r#unsafe, &name, &mod_path, &path) {
                                 Ok(v) => return Ok(v),
@@ -196,21 +187,10 @@ pub fn set_globals(
                         // Try load via dotted.
                         let path = std::path::Path::new(&name.replace(".", "/")).to_path_buf();
 
-                        {
+                        for ext in EXTENSIONS {
                             let mut path = path.clone();
-                            path.as_mut_os_string().push(".lua");
-
-                            match load(lua, &mut state, r#unsafe, &name, &mod_path, &path) {
-                                Ok(v) => return Ok(v),
-                                Err(err) => {
-                                    errs.push((path.clone(), name.clone(), err));
-                                }
-                            }
-                        }
-
-                        {
-                            let mut path = path.clone();
-                            path.as_mut_os_string().push(".dll");
+                            path.as_mut_os_string().push(".");
+                            path.as_mut_os_string().push(ext);
 
                             match load(lua, &mut state, r#unsafe, &name, &mod_path, &path) {
                                 Ok(v) => return Ok(v),
@@ -225,7 +205,7 @@ pub fn set_globals(
                         "failed to load library. tried:\n{}",
                         errs.into_iter()
                             .map(|(path, name, err)| format!(
-                                " - {} ({}): {}",
+                                " - {} (library name: {}): {}",
                                 path.display(),
                                 name,
                                 err
