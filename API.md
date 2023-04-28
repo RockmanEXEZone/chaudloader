@@ -184,7 +184,7 @@ function chaudloader.buffer.filled(v: integer, n: integer): Buffer
 
 Creates a new buffer filled with `n` bytes of `v`.
 
-### `chaudloader.buffer.filled`
+### `chaudloader.buffer.empty`
 
 ```lua
 function chaudloader.buffer.empty(): Buffer
