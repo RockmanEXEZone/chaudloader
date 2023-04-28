@@ -8,16 +8,24 @@
 function require(name: string): any
 ```
 
-Requires a module from the mods directory.
+Requires a package from the mod directory.
 
-If `unsafe = true` is set in `info.toml`, `require` also may load Lua DLLs of the form `{name}.dll` from the mods directory.
+If `unsafe = true` is set in `info.toml`, `require` also may load Lua DLLs of the form `{name}.dll` from the mods directory. If the name contains dots (`.`), they will be replaced with underscores (`_`) to resolve the loader function, named `luaopen_<package name>`.
 
-If the name contains dots (`.`), they will be translated to slashes for paths (`/`). If the name is for a Lua DLL, they will be replaced with underscores (`_`) in the loader function. For example, for a library named `foo.bar`:
+The search order is as follows:
 
--   **Path:** `foo/bar.lua` (or `foo/bar.dll`)
--   **DLL entry point:** `luaopen_foo_bar`
+-   **Exact path:** `require("foo.lua")` will require a file named `foo.lua`, and `require("foo.dll")` will require a file named `foo.dll` exposing `luaopen_foo`.
 
-For more information on writing Lua libraries, see https://www.lua.org/pil/26.2.html. If you don't particularly feel like using any Lua features, you may define your luaopen function like so:
+-   **Short path:**
+
+    -   `require("foo.lua")` will try to require a file named `foo.lua.lua`, then try to require a file named `foo.lua.dll` exposing `luaopen_foo_lua`.
+    -   `require("foo/bar")` will try to require a file named `foo/bar.lua`, then try to require a file named `foo/bar.dll` exposing `luaopen_bar`.
+
+-   **Dotted name:**
+
+    -   `require("foo.lua")` will try to require a file named `foo/lua.lua`, then try to require a file named `foo/lua.dll` exposing `luaopen_foo_lua`.
+
+For more information on writing Lua libraries, see https://www.lua.org/pil/26.2.html. If you don't particularly feel like using any Lua features, you may define your luaopen function like so for e.g. a library named `mylibrary`:
 
 ```c
 __declspec(dllexport) int luaopen_mylibrary(void* unused) {

@@ -202,10 +202,10 @@ pub fn set_globals(
                     }
 
                     Err(anyhow::format_err!(
-                        "failed to load library. tried:\n{}",
+                        "failed to load package. tried:\n{}",
                         errs.into_iter()
                             .map(|(path, name, err)| format!(
-                                " - {} (library name: {}): {}",
+                                " - {} (package name: {}): {}",
                                 path.display(),
                                 name,
                                 err
