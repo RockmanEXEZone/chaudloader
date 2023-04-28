@@ -27,16 +27,16 @@ pub struct ModuleHandle {
 
 impl ModuleHandle {
     /// Gets an already loaded module by its name.
-    pub unsafe fn get(module_name: &str) -> Option<Self> {
+    pub unsafe fn get(module_name: &str) -> Result<Self, get_last_error::Win32Error> {
         let module_name_w = module_name
             .encode_utf16()
             .chain(std::iter::once(0))
             .collect::<Vec<u16>>();
         let hmodule = winapi::um::libloaderapi::GetModuleHandleW(module_name_w.as_ptr());
         if hmodule.is_null() {
-            None
+            Err(get_last_error::Win32Error::get_last_error())
         } else {
-            Some(ModuleHandle {
+            Ok(ModuleHandle {
                 hmodule,
                 free_on_drop: false,
             })
@@ -44,7 +44,7 @@ impl ModuleHandle {
     }
 
     /// Loads a DLL by path.
-    pub unsafe fn load(path: &std::path::Path) -> Option<Self> {
+    pub unsafe fn load(path: &std::path::Path) -> Result<Self, get_last_error::Win32Error> {
         let path_w = path
             .as_os_str()
             .encode_wide()
@@ -52,9 +52,9 @@ impl ModuleHandle {
             .collect::<Vec<_>>();
         let hmodule = winapi::um::libloaderapi::LoadLibraryW(path_w.as_ptr());
         if hmodule.is_null() {
-            None
+            Err(get_last_error::Win32Error::get_last_error())
         } else {
-            Some(ModuleHandle {
+            Ok(ModuleHandle {
                 hmodule,
                 free_on_drop: true,
             })
@@ -65,13 +65,13 @@ impl ModuleHandle {
     pub unsafe fn get_symbol_address(
         &self,
         symbol: &str,
-    ) -> Option<winapi::shared::minwindef::FARPROC> {
+    ) -> Result<winapi::shared::minwindef::FARPROC, get_last_error::Win32Error> {
         let symbol_cstr = std::ffi::CString::new(symbol).unwrap();
         let farproc = winapi::um::libloaderapi::GetProcAddress(self.hmodule, symbol_cstr.as_ptr());
         if farproc.is_null() {
-            None
+            Err(get_last_error::Win32Error::get_last_error())
         } else {
-            Some(farproc)
+            Ok(farproc)
         }
     }
 

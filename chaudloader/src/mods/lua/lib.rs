@@ -3,6 +3,59 @@ use mlua::ExternalError;
 
 pub mod chaudloader;
 
+fn load<'lua>(
+    lua: &'lua mlua::Lua,
+    state: &mut mods::State,
+    r#unsafe: bool,
+    name: &str,
+    mod_path: &std::path::Path,
+    path: &std::path::Path,
+) -> Result<mlua::Value<'lua>, anyhow::Error> {
+    let path = path::ensure_safe(path)
+        .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
+        .map_err(|e| e.into_lua_err())?;
+
+    let full_path = mod_path.join(&path);
+
+    let extension = path.extension().map(|v| v.to_string_lossy());
+    Ok(
+        if extension.as_ref().map(|ext| ext == "lua").unwrap_or(false) {
+            lua.load(&std::fs::read_to_string(&full_path)?)
+                .set_name(&format!("={}", path.display()))
+                .set_mode(mlua::ChunkMode::Text)
+                .call::<_, mlua::Value>(())?
+        } else if extension.as_ref().map(|ext| ext == "dll").unwrap_or(false) {
+            std::fs::metadata(&full_path)?;
+
+            if !r#unsafe {
+                return Err(anyhow::anyhow!(
+                    "in order to load DLLs, you must mark your mod as unsafe!",
+                ));
+            }
+
+            let luaopen = unsafe {
+                let mh = windows_libloader::ModuleHandle::load(&full_path)
+                    .map_err(|e| e.into_lua_err())?;
+                let symbol_name = format!("luaopen_{}", name.replace(".", "_"));
+                let luaopen = std::mem::transmute::<_, mlua::lua_CFunction>(
+                    mh.get_symbol_address(&symbol_name).map_err(|e| {
+                        anyhow::format_err!("failed to find symbol {}: {}", symbol_name, e)
+                            .into_lua_err()
+                    })?,
+                );
+                state.dlls.insert(full_path, mh);
+                lua.create_c_function(luaopen)?
+            };
+
+            luaopen.call(())?
+        } else if let Some(extension) = extension {
+            return Err(anyhow::anyhow!("unknown file type: {}", extension));
+        } else {
+            return Err(anyhow::anyhow!("unknown file type with no extension"));
+        },
+    )
+}
+
 pub fn set_globals(
     lua: &mlua::Lua,
     game_env: &mods::GameEnv,
@@ -49,10 +102,9 @@ pub fn set_globals(
             let mod_path = mod_path.clone();
             let r#unsafe = info.r#unsafe;
             move |lua, name: String| {
-                let path = path::ensure_safe(std::path::Path::new(&name.replace(".", "/")))
-                    .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                    .map_err(|e| e.into_lua_err())?;
+                let mut state = state.borrow_mut();
 
+                let path = std::path::Path::new(&name).to_path_buf();
                 let cache_key = path
                     .as_os_str()
                     .to_str()
@@ -66,79 +118,136 @@ pub fn set_globals(
                     return Ok(v);
                 }
 
-                let (mut source, mut source_name) = (None, std::path::PathBuf::new());
-                for path in [path.clone(), {
-                    let mut path = path.clone();
-                    path.as_mut_os_string().push(".lua");
-                    path
-                }] {
-                    match std::fs::read_to_string(&mod_path.join(&path)) {
-                        Ok(s) => {
-                            source = Some(s);
-                            source_name = path.to_path_buf();
+                let v = match (|| {
+                    let mut errs: Vec<(std::path::PathBuf, String, anyhow::Error)> = vec![];
+
+                    if path
+                        .extension()
+                        .as_ref()
+                        .map(|ext| ext.to_string_lossy())
+                        .map(|ext| ext == "lua" || ext == "dll")
+                        .unwrap_or(false)
+                    {
+                        // Try load via exact path.
+                        if let Some(filename) = {
+                            let mut path = path.clone();
+                            path.set_extension("");
+                            path
                         }
-                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
-                        Err(e) => {
-                            return Err(e.into());
+                        .file_name()
+                        {
+                            let name = filename.to_str().unwrap().to_string();
+
+                            match load(lua, &mut state, r#unsafe, &name, &mod_path, &path) {
+                                Ok(v) => return Ok(v),
+                                Err(err) => {
+                                    errs.push((path.clone(), name.clone(), err));
+                                }
+                            }
+                        } else {
+                            errs.push((
+                                path.clone(),
+                                "".to_string(),
+                                anyhow::anyhow!("could not determine module name for {}", name),
+                            ));
                         }
                     }
-                }
 
-                let value = if let Some(source) = source {
-                    lua.load(&source)
-                        .set_name(&format!("={}", source_name.display()))
-                        .set_mode(mlua::ChunkMode::Text)
-                        .call::<_, mlua::Value>(())?
-                } else {
-                    let mut dll_path = path.clone();
-                    dll_path.as_mut_os_string().push(".dll");
+                    if let Some(filename) = path.file_name() {
+                        // Try load via short name.
+                        let name = filename.to_str().unwrap().to_string();
 
-                    if !std::fs::try_exists(&mod_path.join(&dll_path)).unwrap_or(false) {
-                        return Err(mlua::Error::RuntimeError(format!("cannot find '{}'", name)));
+                        {
+                            let mut path = path.clone();
+                            path.as_mut_os_string().push(".lua");
+
+                            match load(lua, &mut state, r#unsafe, &name, &mod_path, &path) {
+                                Ok(v) => return Ok(v),
+                                Err(err) => {
+                                    errs.push((path.clone(), name.clone(), err));
+                                }
+                            }
+                        }
+
+                        {
+                            let mut path = path.clone();
+                            path.as_mut_os_string().push(".dll");
+
+                            match load(lua, &mut state, r#unsafe, &name, &mod_path, &path) {
+                                Ok(v) => return Ok(v),
+                                Err(err) => {
+                                    errs.push((path.clone(), name.clone(), err));
+                                }
+                            }
+                        }
+                    } else {
+                        errs.push((
+                            path.clone(),
+                            "".to_string(),
+                            anyhow::anyhow!("could not determine module name for {}", name),
+                        ));
                     }
 
-                    if !r#unsafe {
-                        return Err(mlua::Error::RuntimeError(format!(
-                            "cannot find '{}', but a DLL was found: in order to load DLLs, you must mark your mod as unsafe!",
-                            name
-                        )));
+                    if path
+                        .parent()
+                        .map(|v| v.as_os_str().is_empty())
+                        .unwrap_or(false)
+                    {
+                        // Try load via dotted.
+                        let path = std::path::Path::new(&name.replace(".", "/")).to_path_buf();
+
+                        {
+                            let mut path = path.clone();
+                            path.as_mut_os_string().push(".lua");
+
+                            match load(lua, &mut state, r#unsafe, &name, &mod_path, &path) {
+                                Ok(v) => return Ok(v),
+                                Err(err) => {
+                                    errs.push((path.clone(), name.clone(), err));
+                                }
+                            }
+                        }
+
+                        {
+                            let mut path = path.clone();
+                            path.as_mut_os_string().push(".dll");
+
+                            match load(lua, &mut state, r#unsafe, &name, &mod_path, &path) {
+                                Ok(v) => return Ok(v),
+                                Err(err) => {
+                                    errs.push((path.clone(), name.clone(), err));
+                                }
+                            }
+                        }
                     }
 
-                    // Try load unsafe.
-                    let mut state = state.borrow_mut();
-
-                    let luaopen = unsafe {
-                        let mh = windows_libloader::ModuleHandle::load(&mod_path.join(&dll_path))
-                            .ok_or(mlua::Error::RuntimeError(format!(
-                            "failed to load DLL for '{}' (do you have all dependent DLLs available?)",
-                            name
-                        )))?;
-                        let symbol_name = format!("luaopen_{}", name.replace(".", "_"));
-                        let luaopen = std::mem::transmute::<_, mlua::lua_CFunction>(
-                            mh.get_symbol_address(&symbol_name).ok_or(
-                                mlua::Error::RuntimeError(format!(
-                                    "cannot find symbol {} in {}",
-                                    symbol_name,
-                                    dll_path.display()
-                                )),
-                            )?,
-                        );
-                        state.dlls.insert(dll_path, mh);
-                        lua.create_c_function(luaopen)?
-                    };
-
-                    luaopen.call(())?
+                    Err(anyhow::format_err!(
+                        "failed to load library. tried:\n{}",
+                        errs.into_iter()
+                            .map(|(path, name, err)| format!(
+                                " - {} ({}): {}",
+                                path.display(),
+                                name,
+                                err
+                            ))
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    ))
+                })() {
+                    Ok(v) => v,
+                    Err(e) => {
+                        return Err(e.into_lua_err());
+                    }
                 };
 
-                loaded_modules.raw_set(
-                    cache_key,
-                    match value.clone() {
-                        mlua::Value::Nil => mlua::Value::Boolean(true),
-                        v => v,
-                    },
-                )?;
+                let v = match v.clone() {
+                    mlua::Value::Nil => mlua::Value::Boolean(true),
+                    v => v,
+                };
 
-                Ok(value)
+                loaded_modules.raw_set(cache_key, v.clone())?;
+
+                Ok(v)
             }
         })?,
     )?;

@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 winapi = "0.3"
+get-last-error = "0.1"
