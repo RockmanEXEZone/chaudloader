@@ -1,5 +1,57 @@
-use byteorder::ByteOrder;
+use std::io::Write;
+
+use byteorder::{ByteOrder, WriteBytesExt};
 use mlua::ExternalError;
+
+pub struct Builder(Vec<u8>);
+
+impl mlua::UserData for Builder {
+    fn add_methods<'lua, M: mlua::UserDataMethods<'lua, Self>>(methods: &mut M) {
+        methods.add_method("tell", |_, this, (): ()| Ok(this.0.len()));
+
+        methods.add_method("build", |_, this, (): ()| Ok(Buffer(this.0.clone())));
+
+        methods.add_method_mut("write", |_, this, (buf,): (mlua::UserDataRef<Buffer>,)| {
+            this.0.write_all(buf.as_slice())?;
+            Ok(())
+        });
+
+        methods.add_method_mut("write_string", |_, this, (s,): (mlua::String,)| {
+            this.0.write_all(s.as_bytes())?;
+            Ok(())
+        });
+
+        methods.add_method_mut("write_u8", |_, this, (v,): (u8,)| {
+            this.0.write_u8(v)?;
+            Ok(())
+        });
+
+        methods.add_method_mut("write_u16_le", |_, this, (v,): (u16,)| {
+            this.0.write_u16::<byteorder::LittleEndian>(v)?;
+            Ok(())
+        });
+
+        methods.add_method_mut("write_u32_le", |_, this, (v,): (u32,)| {
+            this.0.write_u32::<byteorder::LittleEndian>(v)?;
+            Ok(())
+        });
+
+        methods.add_method_mut("write_i8", |_, this, (v,): (i8,)| {
+            this.0.write_i8(v)?;
+            Ok(())
+        });
+
+        methods.add_method_mut("write_i16_le", |_, this, (v,): (i16,)| {
+            this.0.write_i16::<byteorder::LittleEndian>(v)?;
+            Ok(())
+        });
+
+        methods.add_method_mut("write_i32_le", |_, this, (v,): (i32,)| {
+            this.0.write_i32::<byteorder::LittleEndian>(v)?;
+            Ok(())
+        });
+    }
+}
 
 pub struct Buffer(Vec<u8>);
 
@@ -198,6 +250,11 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
     table.set(
         "empty",
         lua.create_function(|_, (): ()| Ok(Buffer(vec![])))?,
+    )?;
+
+    table.set(
+        "new_builder",
+        lua.create_function(|_, (): ()| Ok(Builder(vec![])))?,
     )?;
 
     Ok(mlua::Value::Table(table))
