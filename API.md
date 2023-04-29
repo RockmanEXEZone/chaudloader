@@ -272,35 +272,94 @@ Sets the bytes starting at `i` to the bytes in `buf`.
 
 If `i + buf:len()` is greater than the length of the buffer, an error will be raised.
 
-### `Buffer:get_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
+### `Buffer:get_{u8,u16_le,u32_le,uq16_16,i8,i16_le,i32_le,iq16_16}`
 
 ```lua
 Buffer:get_u8(i: integer): integer
 Buffer:get_u16_le(i: integer): integer
 Buffer:get_u32_le(i: integer): integer
+Buffer:get_uq16_16_le(i: integer): number
 Buffer:get_i8(i: integer): integer
 Buffer:get_i16_le(i: integer): integer
 Buffer:get_i32_le(i: integer): integer
+Buffer:get_iq16_16_le(i: integer): number
 ```
 
-Gets the bytes at `i` as the given integer type.
+Gets the bytes at `i` as the given type.
 
 If `i + width` is greater than the length of the buffer, an error will be raised.
 
-### `Buffer:set_{u8,u16_le,u32_le,i8,i16_le,i32_le}`
+### `Buffer:set_{u8,u16_le,u32_le,uq16_16,i8,i16_le,i32_le,iq16_16}`
 
 ```lua
 Buffer:set_u8(i: integer, v: integer)
 Buffer:set_u16_le(i: integer, v: integer)
 Buffer:set_u32_le(i: integer, v: integer)
+Buffer:set_uq16_16_le(i: integer, v: number)
 Buffer:set_i8(i: integer, v: integer)
 Buffer:set_i16_le(i: integer, v: integer)
 Buffer:set_i32_le(i: integer, v: integer)
+Buffer:set_iq16_16_le(i: integer, v: number)
 ```
 
-Sets the bytes starting at `i` to the integer `v`.
+Sets the bytes starting at `i` to the value `v`.
 
 If `i + width` is greater than the length of the buffer, an error will be raised.
+
+### `chaudloader.buffer.new_builder`
+
+```lua
+chaudloader.buffer.new_builder(): BufferBuilder
+```
+
+Creates a mutable length mutable array for appending.
+
+### `BufferBuilder:tell`
+
+```lua
+BufferBuilder:tell(): integer
+```
+
+Gets the current length of the builder.
+
+### `BufferBuilder:build`
+
+```lua
+BufferBuilder:build(): Buffer
+```
+
+Finalizes the builder into a buffer.
+
+### `BufferBuilder:write`
+
+```lua
+BufferBuilder:write(buf: Buffer)
+```
+
+Appends a buffer to this builder.
+
+### `BufferBuilder:write_string`
+
+```lua
+BufferBuilder:write_string(s: string)
+```
+
+Appends a string to this builder.
+
+### `BufferBuilder:write_{u8,u16_le,u32_le,uq16_16,i8,i16_le,i32_le,iq16_16}`
+
+```lua
+BufferBuilder:write_u8(v: integer)
+BufferBuilder:write_u16_le(v: integer)
+BufferBuilder:write_u32_le(v: integer)
+BufferBuilder:write_uq16_16_le(v: number)
+BufferBuilder:write_i8(v: integer)
+BufferBuilder:write_i16_le(v: integer)
+BufferBuilder:write_i32_le(v: integer)
+BufferBuilder:write_iq16_16_le(v: number)
+```
+
+Appends a number to the buffer.
 
 ## `chaudloader.msg`
 
