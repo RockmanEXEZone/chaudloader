@@ -7,16 +7,16 @@ use mlua::ExternalError;
 struct UQ16_16(u32);
 
 impl UQ16_16 {
-    fn from_f32(v: f32) -> Self {
-        Self((v * (0x10000 as f32)) as u32)
+    fn from_f64(v: f64) -> Self {
+        Self((v * (0x10000 as f64)) as u32)
     }
 
     fn from_u32(v: u32) -> Self {
         Self(v)
     }
 
-    fn into_f32(self) -> f32 {
-        (self.0 as f32) / (0x10000 as f32)
+    fn into_f64(self) -> f64 {
+        (self.0 as f64) / (0x10000 as f64)
     }
 
     fn into_u32(self) -> u32 {
@@ -28,16 +28,16 @@ impl UQ16_16 {
 struct IQ16_16(i32);
 
 impl IQ16_16 {
-    fn from_f32(v: f32) -> Self {
-        Self((v * (0x10000 as f32)) as i32)
+    fn from_f64(v: f64) -> Self {
+        Self((v * (0x10000 as f64)) as i32)
     }
 
     fn from_i32(v: i32) -> Self {
         Self(v)
     }
 
-    fn into_f32(self) -> f32 {
-        (self.0 as f32) / (0x10000 as f32)
+    fn into_f64(self) -> f64 {
+        (self.0 as f64) / (0x10000 as f64)
     }
 
     fn into_i32(self) -> i32 {
@@ -73,9 +73,9 @@ impl mlua::UserData for Builder {
             Ok(())
         });
 
-        methods.add_method_mut("write_uq16_16_le", |_, this, (v,): (f32,)| {
+        methods.add_method_mut("write_uq16_16_le", |_, this, (v,): (f64,)| {
             this.0
-                .write_u32::<byteorder::LittleEndian>(UQ16_16::from_f32(v).into_u32())?;
+                .write_u32::<byteorder::LittleEndian>(UQ16_16::from_f64(v).into_u32())?;
             Ok(())
         });
 
@@ -99,9 +99,9 @@ impl mlua::UserData for Builder {
             Ok(())
         });
 
-        methods.add_method_mut("write_iq16_16_le", |_, this, (v,): (f32,)| {
+        methods.add_method_mut("write_iq16_16_le", |_, this, (v,): (f64,)| {
             this.0
-                .write_i32::<byteorder::LittleEndian>(IQ16_16::from_f32(v).into_i32())?;
+                .write_i32::<byteorder::LittleEndian>(IQ16_16::from_f64(v).into_i32())?;
             Ok(())
         });
     }
@@ -235,15 +235,15 @@ impl mlua::UserData for Buffer {
                     .get(i..i + std::mem::size_of::<u32>())
                     .ok_or_else(|| anyhow::anyhow!("out of bounds").into_lua_err())?,
             ))
-            .into_f32())
+            .into_f64())
         });
 
-        methods.add_method_mut("set_uq16_16_le", |_, this, (i, v): (usize, f32)| {
+        methods.add_method_mut("set_uq16_16_le", |_, this, (i, v): (usize, f64)| {
             byteorder::LittleEndian::write_u32(
                 this.0
                     .get_mut(i..i + std::mem::size_of::<u32>())
                     .ok_or_else(|| anyhow::anyhow!("out of bounds").into_lua_err())?,
-                UQ16_16::from_f32(v).into_u32(),
+                UQ16_16::from_f64(v).into_u32(),
             );
             Ok(())
         });
@@ -306,15 +306,15 @@ impl mlua::UserData for Buffer {
                     .get(i..i + std::mem::size_of::<i32>())
                     .ok_or_else(|| anyhow::anyhow!("out of bounds").into_lua_err())?,
             ))
-            .into_f32())
+            .into_f64())
         });
 
-        methods.add_method_mut("set_iq16_16_le", |_, this, (i, v): (usize, f32)| {
+        methods.add_method_mut("set_iq16_16_le", |_, this, (i, v): (usize, f64)| {
             byteorder::LittleEndian::write_i32(
                 this.0
                     .get_mut(i..i + std::mem::size_of::<i32>())
                     .ok_or_else(|| anyhow::anyhow!("out of bounds").into_lua_err())?,
-                IQ16_16::from_f32(v).into_i32(),
+                IQ16_16::from_f64(v).into_i32(),
             );
             Ok(())
         });
