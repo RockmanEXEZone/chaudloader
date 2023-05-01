@@ -16,7 +16,7 @@ impl mlua::UserData for ExeDat {
             "write_file",
             |_, this, (path, contents): (String, mlua::UserDataRef<Buffer>)| {
                 let mut this = this.0.borrow_mut();
-                this.write(&path, contents.as_slice().to_vec())
+                this.write(&path, contents.borrow().to_vec())
                     .map_err(|e| e.into_lua_err())?;
                 Ok(())
             },

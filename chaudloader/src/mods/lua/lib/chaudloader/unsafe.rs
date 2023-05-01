@@ -40,13 +40,14 @@ pub fn new<'a>(
         "write_process_memory",
         lua.create_function(|_, (addr, buf): (usize, mlua::UserDataRef<Buffer>)| {
             let mut number_of_bytes_written: winapi::shared::basetsd::SIZE_T = 0;
+            let buf = buf.borrow();
             unsafe {
                 let current_process = winapi::um::processthreadsapi::GetCurrentProcess();
                 if winapi::um::memoryapi::WriteProcessMemory(
                     current_process,
                     addr as winapi::shared::minwindef::LPVOID,
-                    buf.as_slice().as_ptr() as winapi::shared::minwindef::LPVOID,
-                    buf.as_slice().len() as winapi::shared::basetsd::SIZE_T,
+                    buf.as_ptr() as winapi::shared::minwindef::LPVOID,
+                    buf.len() as winapi::shared::basetsd::SIZE_T,
                     &mut number_of_bytes_written as *mut winapi::shared::basetsd::SIZE_T,
                 ) != winapi::shared::minwindef::TRUE
                 {
@@ -62,10 +63,12 @@ pub fn new<'a>(
     table.set(
         "alloc_executable_memory",
         lua.create_function(|_, (buf,): (mlua::UserDataRef<Buffer>,)| unsafe {
+            let buf = buf.borrow();
+
             // We allocate the page with read/write, then set it to execute after our copy is complete. This means we comply with W^X requirements.
             let out_buf = winapi::um::memoryapi::VirtualAlloc(
                 std::ptr::null_mut(),
-                buf.as_slice().len(),
+                buf.len(),
                 winapi::um::winnt::MEM_COMMIT,
                 winapi::um::winnt::PAGE_READWRITE,
             );
@@ -73,16 +76,13 @@ pub fn new<'a>(
                 return Err(anyhow::anyhow!("VirtualAlloc returned null").into_lua_err());
             }
 
-            std::slice::from_raw_parts_mut::<'_, u8>(
-                std::mem::transmute(out_buf),
-                buf.as_slice().len(),
-            )
-            .copy_from_slice(buf.as_slice());
+            std::slice::from_raw_parts_mut::<'_, u8>(std::mem::transmute(out_buf), buf.len())
+                .copy_from_slice(&*buf);
 
             let mut dummy = 0;
             if winapi::um::memoryapi::VirtualProtect(
                 out_buf,
-                buf.as_slice().len(),
+                buf.len(),
                 winapi::um::winnt::PAGE_EXECUTE_READ,
                 &mut dummy,
             ) != winapi::shared::minwindef::TRUE

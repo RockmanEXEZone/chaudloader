@@ -224,6 +224,18 @@ Buffer:len(): integer
 
 Returns the length of the buffer, in bytes.
 
+### `Buffer:slice`
+
+```lua
+Buffer:slice(i: integer, n: integer): Buffer
+```
+
+Gets the bytes at [`i`, `n`) as a shared view into buffer.
+
+If `i + n` is greater than the length of the buffer, an error will be raised.
+
+If you need a cloned view, use `Buffer:get`.
+
 ### `Buffer:to_string`
 
 ```lua
@@ -258,9 +270,11 @@ If `i + #s` is greater than the length of the buffer, an error will be raised.
 Buffer:get(i: integer, n: integer): Buffer
 ```
 
-Gets the bytes at [`i`, `n`) as a buffer.
+Gets the bytes at [`i`, `n`) as a cloned buffer.
 
 If `i + n` is greater than the length of the buffer, an error will be raised.
+
+If you need a shared view, use `Buffer:slice`.
 
 ### `Buffer:set`
 

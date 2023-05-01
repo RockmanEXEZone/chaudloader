@@ -6,7 +6,7 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
     table.set(
         "unpack",
         lua.create_function(|_, (raw,): (mlua::UserDataRef<Buffer>,)| {
-            Ok(assets::msg::unpack(std::io::Cursor::new(raw.as_slice()))?
+            Ok(assets::msg::unpack(std::io::Cursor::new(&*raw.borrow()))?
                 .into_iter()
                 .map(|v| Buffer::new(v))
                 .collect::<Vec<_>>())
@@ -17,8 +17,11 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
         "pack",
         lua.create_function(|_, (entries,): (Vec<mlua::UserDataRef<Buffer>>,)| {
             let mut buf = vec![];
-            let entries = entries.iter().map(|v| v.as_slice()).collect::<Vec<_>>();
-            assets::msg::pack(&entries, &mut buf)?;
+            let entries = entries.iter().map(|v| v.borrow()).collect::<Vec<_>>();
+            assets::msg::pack(
+                &entries.iter().map(|v| v.as_ref()).collect::<Vec<_>>(),
+                &mut buf,
+            )?;
             Ok(Buffer::new(buf))
         })?,
     )?;

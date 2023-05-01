@@ -9,7 +9,7 @@ impl mlua::UserData for Mpak {
             |_, this, (rom_addr, contents): (u32, Option<mlua::UserDataRef<Buffer>>)| {
                 let mut this: std::cell::RefMut<assets::mpak::Mpak> = this.0.borrow_mut();
                 if let Some(contents) = contents {
-                    this.insert(rom_addr, contents.as_slice().to_vec());
+                    this.insert(rom_addr, contents.borrow().to_vec());
                 } else {
                     this.remove(rom_addr);
                 }
@@ -71,8 +71,8 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
             )| {
                 Ok(Mpak(std::rc::Rc::new(std::cell::RefCell::new(
                     assets::mpak::Mpak::read_from(
-                        std::io::Cursor::new(map_contents.as_slice()),
-                        std::io::Cursor::new(mpak_contents.as_slice()),
+                        std::io::Cursor::new(&*map_contents.borrow()),
+                        std::io::Cursor::new(&*mpak_contents.borrow()),
                     )?,
                 ))))
             }
