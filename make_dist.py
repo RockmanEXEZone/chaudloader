@@ -15,6 +15,7 @@ class Entry:
 def make_entries():
     entries = [
         Entry("README.md", "README.md"),
+        Entry("API.md", "API.md"),
         Entry("chaudloader.dll", "target/release/chaudloader.dll"),
         Entry("dxgi.dll", "target/release/dxgi.dll"),
         Entry("lua54.dll", "lua54.dll"),
@@ -41,7 +42,7 @@ def make_linux_entries():
     return [
         *make_entries(),
         Entry("install-cli", "target/x86_64-unknown-linux-musl/release/install", 0o755),
-        Entry("install.desktop", "chaudloader-installer/linux-install.desktop", 0o755)
+        Entry("install.desktop", "chaudloader-installer/linux-install.desktop", 0o755),
     ]
 
 
