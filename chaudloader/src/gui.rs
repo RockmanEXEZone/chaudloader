@@ -66,6 +66,10 @@ pub fn run(
     fltk_theme::WidgetTheme::new(fltk_theme::ThemeType::Greybird).apply();
 
     let mut wind = fltk::window::Window::new(100, 100, 800, 600, "chaudloader");
+    wind.set_label(&format!(
+        "chaudloader: {}",
+        serde_plain::to_string(&game_volume).unwrap()
+    ));
     wind.make_resizable(true);
 
     let mut console = fltk::text::SimpleTerminal::new(0, 0, wind.width(), wind.height(), "console");
