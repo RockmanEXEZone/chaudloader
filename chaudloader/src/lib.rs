@@ -3,6 +3,7 @@
 #![feature(local_key_cell_methods)]
 
 mod assets;
+mod gui;
 mod hooks;
 mod mods;
 mod path;

@@ -1,4 +1,4 @@
-use crate::{assets, mods};
+use crate::{assets, gui, mods};
 use retour::static_detour;
 use std::os::windows::io::FromRawHandle;
 
@@ -105,40 +105,6 @@ impl<T: std::hash::Hasher> std::io::Write for HashWriter<T> {
     }
 }
 
-fn gui_main(
-    gui_ready_sender: oneshot::Sender<()>,
-    mut console_reader: impl std::io::Read + Send + 'static,
-) -> Result<(), anyhow::Error> {
-    use fltk::prelude::*;
-
-    let app = fltk::app::App::default();
-    fltk_theme::WidgetTheme::new(fltk_theme::ThemeType::Greybird).apply();
-
-    let mut wind = fltk::window::Window::new(100, 100, 800, 600, "chaudloader");
-    wind.make_resizable(true);
-
-    let mut console = fltk::text::SimpleTerminal::new(0, 0, wind.width(), wind.height(), "console");
-    console.set_ansi(true);
-    console.set_stay_at_bottom(true);
-    wind.resizable(&console);
-
-    std::thread::spawn(move || {
-        let mut buf = [0u8; 4096];
-        loop {
-            let n = console_reader.read(&mut buf).unwrap();
-            console.append2(&buf[..n]);
-        }
-    });
-
-    wind.end();
-    wind.show();
-
-    gui_ready_sender.send(()).unwrap();
-
-    app.run()?;
-    std::process::exit(0);
-}
-
 fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
     let console_reader = unsafe {
         let mut read_pipe = std::ptr::null_mut();
@@ -168,7 +134,8 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
 
     let (gui_ready_sender, gui_ready_received) = oneshot::channel();
     std::thread::spawn(move || {
-        gui_main(gui_ready_sender, console_reader).unwrap();
+        gui::run(gui_ready_sender, console_reader).unwrap();
+        std::process::exit(0);
     });
     gui_ready_received.recv().unwrap();
 
