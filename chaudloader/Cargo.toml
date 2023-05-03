@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 [dependencies]
 retour = "0.1"
 anyhow = "1"
-winapi = "0.3.9"
+winapi = { version = "0.3.9", features = ["winuser", "namedpipeapi"] }
 log = "0.4"
 env_logger = "0.9.0"
 thiserror = "1"
@@ -25,3 +25,6 @@ indexmap = "1"
 semver = { version = "1", features = ["serde"] }
 serde_plain = "1"
 crc32fast = "1"
+fltk = { version = "1", features = ["fltk-bundled"] }
+fltk-theme = "0.4"
+oneshot = "0.1"

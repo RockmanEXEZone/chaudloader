@@ -1,5 +1,6 @@
 use crate::{assets, mods};
 use retour::static_detour;
+use std::os::windows::io::FromRawHandle;
 
 static_detour! {
     static CreateWindowExA: unsafe extern "system" fn(
@@ -104,11 +105,76 @@ impl<T: std::hash::Hasher> std::io::Write for HashWriter<T> {
     }
 }
 
-unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
-    winapi::um::consoleapi::AllocConsole();
+fn gui_main(
+    gui_ready_sender: oneshot::Sender<()>,
+    mut console_reader: impl std::io::Read + Send + 'static,
+) -> Result<(), anyhow::Error> {
+    use fltk::prelude::*;
+
+    let app = fltk::app::App::default();
+    fltk_theme::WidgetTheme::new(fltk_theme::ThemeType::Greybird).apply();
+
+    let mut wind = fltk::window::Window::new(100, 100, 800, 600, "chaudloader");
+    wind.make_resizable(true);
+
+    let mut console = fltk::text::SimpleTerminal::new(0, 0, wind.width(), wind.height(), "console");
+    console.set_ansi(true);
+    console.set_stay_at_bottom(true);
+    wind.resizable(&console);
+
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 4096];
+        loop {
+            let n = console_reader.read(&mut buf).unwrap();
+            console.append2(&buf[..n]);
+        }
+    });
+
+    wind.end();
+    wind.show();
+
+    gui_ready_sender.send(()).unwrap();
+
+    app.run()?;
+    std::process::exit(0);
+}
+
+fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
+    let console_reader = unsafe {
+        let mut read_pipe = std::ptr::null_mut();
+        let mut write_pipe = std::ptr::null_mut();
+        assert_eq!(
+            winapi::um::namedpipeapi::CreatePipe(
+                &mut read_pipe,
+                &mut write_pipe,
+                std::ptr::null_mut(),
+                0
+            ),
+            winapi::shared::minwindef::TRUE
+        );
+        assert_eq!(
+            winapi::um::processenv::SetStdHandle(
+                winapi::um::winbase::STD_OUTPUT_HANDLE,
+                write_pipe
+            ),
+            winapi::shared::minwindef::TRUE
+        );
+        assert_eq!(
+            winapi::um::processenv::SetStdHandle(winapi::um::winbase::STD_ERROR_HANDLE, write_pipe),
+            winapi::shared::minwindef::TRUE
+        );
+        std::fs::File::from_raw_handle(read_pipe)
+    };
+
+    let (gui_ready_sender, gui_ready_received) = oneshot::channel();
+    std::thread::spawn(move || {
+        gui_main(gui_ready_sender, console_reader).unwrap();
+    });
+    gui_ready_received.recv().unwrap();
+
     env_logger::Builder::from_default_env()
         .filter(Some("chaudloader"), log::LevelFilter::Info)
-        .write_style(env_logger::WriteStyle::Never) // Under wine, this looks super broken, so let's just never write styles.
+        .write_style(env_logger::WriteStyle::Always)
         .init();
     log::info!("{}", BANNER);
 
@@ -245,7 +311,9 @@ unsafe fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
             });
         }
     }
-    super::stage1::install()?;
+    unsafe {
+        super::stage1::install()?;
+    }
     Ok(())
 }
 
@@ -295,7 +363,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                             }
                         }
 
-                        CreateWindowExA.call(
+                        let hwnd = CreateWindowExA.call(
                             dw_ex_style,
                             lp_class_name,
                             lp_window_name,
@@ -308,7 +376,13 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                             h_menu,
                             h_instance,
                             lp_param,
-                        )
+                        );
+                        assert!(!hwnd.is_null());
+                        assert_eq!(
+                            winapi::um::winuser::SetForegroundWindow(hwnd),
+                            winapi::shared::minwindef::TRUE
+                        );
+                        hwnd
                     }
                 },
             )?
