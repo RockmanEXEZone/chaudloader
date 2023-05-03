@@ -28,3 +28,4 @@ crc32fast = "1"
 fltk = { version = "1", features = ["fltk-bundled"] }
 fltk-theme = "0.4"
 oneshot = "0.1"
+get-last-error = "0.1"

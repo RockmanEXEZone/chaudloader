@@ -125,32 +125,39 @@ impl<T: std::hash::Hasher> std::io::Write for HashWriter<T> {
     }
 }
 
-fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
-    let console_reader = unsafe {
+fn hijack_console() -> Result<impl std::io::Read + Send + 'static, get_last_error::Win32Error> {
+    unsafe {
         let mut read_pipe = std::ptr::null_mut();
         let mut write_pipe = std::ptr::null_mut();
-        assert_eq!(
-            winapi::um::namedpipeapi::CreatePipe(
-                &mut read_pipe,
-                &mut write_pipe,
-                std::ptr::null_mut(),
-                0
-            ),
-            winapi::shared::minwindef::TRUE
-        );
-        assert_eq!(
-            winapi::um::processenv::SetStdHandle(
-                winapi::um::winbase::STD_OUTPUT_HANDLE,
-                write_pipe
-            ),
-            winapi::shared::minwindef::TRUE
-        );
-        assert_eq!(
-            winapi::um::processenv::SetStdHandle(winapi::um::winbase::STD_ERROR_HANDLE, write_pipe),
-            winapi::shared::minwindef::TRUE
-        );
-        std::fs::File::from_raw_handle(read_pipe)
-    };
+
+        if winapi::um::namedpipeapi::CreatePipe(
+            &mut read_pipe,
+            &mut write_pipe,
+            std::ptr::null_mut(),
+            0,
+        ) != winapi::shared::minwindef::TRUE
+        {
+            return Err(get_last_error::Win32Error::get_last_error());
+        }
+
+        if winapi::um::processenv::SetStdHandle(winapi::um::winbase::STD_OUTPUT_HANDLE, write_pipe)
+            != winapi::shared::minwindef::TRUE
+        {
+            return Err(get_last_error::Win32Error::get_last_error());
+        }
+
+        if winapi::um::processenv::SetStdHandle(winapi::um::winbase::STD_ERROR_HANDLE, write_pipe)
+            != winapi::shared::minwindef::TRUE
+        {
+            return Err(get_last_error::Win32Error::get_last_error());
+        }
+
+        Ok(std::fs::File::from_raw_handle(read_pipe))
+    }
+}
+
+fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
+    let console_reader = hijack_console()?;
 
     let (gui_host, mut gui_client) = gui::make_host_and_client();
     std::thread::spawn(move || {

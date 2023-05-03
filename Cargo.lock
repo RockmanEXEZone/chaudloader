@@ -192,6 +192,7 @@ dependencies = [
  "env_logger",
  "fltk",
  "fltk-theme",
+ "get-last-error",
  "indexmap",
  "log",
  "mlua",
