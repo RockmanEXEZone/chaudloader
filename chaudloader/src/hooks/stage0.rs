@@ -152,12 +152,12 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
         std::fs::File::from_raw_handle(read_pipe)
     };
 
-    let (gui_ready_sender, gui_ready_receiver) = oneshot::channel();
+    let (gui_host, mut gui_client) = gui::make_host_and_client();
     std::thread::spawn(move || {
-        gui::run(gui_ready_sender, console_reader).unwrap();
+        gui::run(gui_host, console_reader).unwrap();
         std::process::exit(0);
     });
-    gui_ready_receiver.recv().unwrap();
+    gui_client.wait_for_ready();
 
     env_logger::Builder::from_default_env()
         .filter(Some("chaudloader"), log::LevelFilter::Info)

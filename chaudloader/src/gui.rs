@@ -11,8 +11,37 @@ impl<'a> std::io::Write for ConsoleWriter<'a> {
     }
 }
 
+pub struct Host {
+    ready_sender: oneshot::Sender<()>,
+}
+
+pub struct Client {
+    ready_receiver: Option<oneshot::Receiver<()>>,
+}
+
+impl Client {
+    pub fn wait_for_ready(&mut self) {
+        let r = if let Some(r) = self.ready_receiver.take() {
+            r
+        } else {
+            return;
+        };
+        r.recv().unwrap()
+    }
+}
+
+pub fn make_host_and_client() -> (Host, Client) {
+    let (ready_sender, ready_receiver) = oneshot::channel();
+    (
+        Host { ready_sender },
+        Client {
+            ready_receiver: Some(ready_receiver),
+        },
+    )
+}
+
 pub fn run(
-    gui_ready_sender: oneshot::Sender<()>,
+    host: Host,
     mut console_reader: impl std::io::Read + Send + 'static,
 ) -> Result<(), anyhow::Error> {
     use fltk::prelude::*;
@@ -35,7 +64,7 @@ pub fn run(
     wind.end();
     wind.show();
 
-    gui_ready_sender.send(()).unwrap();
+    host.ready_sender.send(()).unwrap();
 
     app.run()?;
     Ok(())
