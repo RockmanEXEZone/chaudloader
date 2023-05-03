@@ -1,3 +1,16 @@
+struct ConsoleWriter<'a>(&'a mut fltk::text::SimpleTerminal);
+
+impl<'a> std::io::Write for ConsoleWriter<'a> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.append2(buf);
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
 pub fn run(
     gui_ready_sender: oneshot::Sender<()>,
     mut console_reader: impl std::io::Read + Send + 'static,
@@ -16,11 +29,7 @@ pub fn run(
     wind.resizable(&console);
 
     std::thread::spawn(move || {
-        let mut buf = [0u8; 4096];
-        loop {
-            let n = console_reader.read(&mut buf).unwrap();
-            console.append2(&buf[..n]);
-        }
+        let _ = std::io::copy(&mut console_reader, &mut ConsoleWriter(&mut console));
     });
 
     wind.end();
