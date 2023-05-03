@@ -325,12 +325,38 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                                 std::sync::atomic::AtomicBool::new(false);
                             if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
                                 init(game_volume).unwrap();
+
+                                let hwnd = CreateWindowExA.call(
+                                    dw_ex_style,
+                                    lp_class_name,
+                                    lp_window_name,
+                                    dw_style,
+                                    x,
+                                    y,
+                                    n_width,
+                                    n_height,
+                                    h_wnd_parent,
+                                    h_menu,
+                                    h_instance,
+                                    lp_param,
+                                );
+                                if hwnd.is_null() {
+                                    // This shouldn't happen...
+                                    return hwnd;
+                                }
+
+                                assert_eq!(
+                                    winapi::um::winuser::SetForegroundWindow(hwnd),
+                                    winapi::shared::minwindef::TRUE
+                                );
+
+                                return hwnd;
                             } else {
                                 log::warn!("initialization was attempted more than once?");
                             }
                         }
 
-                        let hwnd = CreateWindowExA.call(
+                        CreateWindowExA.call(
                             dw_ex_style,
                             lp_class_name,
                             lp_window_name,
@@ -343,13 +369,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                             h_menu,
                             h_instance,
                             lp_param,
-                        );
-                        assert!(!hwnd.is_null());
-                        assert_eq!(
-                            winapi::um::winuser::SetForegroundWindow(hwnd),
-                            winapi::shared::minwindef::TRUE
-                        );
-                        hwnd
+                        )
                     }
                 },
             )?
