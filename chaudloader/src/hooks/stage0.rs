@@ -62,7 +62,13 @@ fn scan_dats_as_overlays(
     Ok(overlays)
 }
 
-fn scan_mods() -> Result<std::collections::BTreeMap<String, (mods::Info, String)>, anyhow::Error> {
+struct Mod {
+    info: mods::Info,
+    readme: String,
+    init_lua: String,
+}
+
+fn scan_mods() -> Result<std::collections::BTreeMap<String, Mod>, anyhow::Error> {
     let mut mods = std::collections::BTreeMap::new();
     for entry in std::fs::read_dir("mods")? {
         let entry = entry?;
@@ -78,8 +84,22 @@ fn scan_mods() -> Result<std::collections::BTreeMap<String, (mods::Info, String)
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
             let info =
                 toml::from_slice::<mods::Info>(&std::fs::read(entry.path().join("info.toml"))?)?;
-            let init_lua = std::fs::read_to_string(entry.path().join("init.lua"))?;
-            mods.insert(mod_name.to_string(), (info, init_lua));
+            let readme = std::fs::read_to_string(entry.path().join("README")).or_else(|e| {
+                if e.kind() == std::io::ErrorKind::NotFound {
+                    Ok("".to_string())
+                } else {
+                    Err(e)
+                }
+            })?;
+            let init_lua: String = std::fs::read_to_string(entry.path().join("init.lua"))?;
+            mods.insert(
+                mod_name.to_string(),
+                Mod {
+                    info,
+                    readme,
+                    init_lua,
+                },
+            );
             Ok(())
         })() {
             log::warn!("[mod: {}] failed to load: {}", mod_name, e);
@@ -184,23 +204,23 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
 
     let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
 
-    for (mod_name, (mod_info, init_lua)) in mods {
+    for (mod_name, r#mod) in mods {
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
-            if !mod_info.requires_loader_version.matches(&crate::VERSION) {
+            if !r#mod.info.requires_loader_version.matches(&crate::VERSION) {
                 return Err(anyhow::format_err!(
                     "version {} does not match requirement {}",
                     *crate::VERSION,
-                    mod_info.requires_loader_version
+                    r#mod.info.requires_loader_version
                 ));
             }
 
             log::info!(
                 "[mod: {}] {} v{} by {}",
                 mod_name,
-                mod_info.title,
-                mod_info.version,
-                if !mod_info.authors.is_empty() {
-                    mod_info.authors.join(", ")
+                r#mod.info.title,
+                r#mod.info.version,
+                if !r#mod.info.authors.is_empty() {
+                    r#mod.info.authors.join(", ")
                 } else {
                     "(no authors listed)".to_string()
                 }
@@ -212,11 +232,11 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
                 let lua = mods::lua::new(
                     &mod_name,
                     &mod_env,
-                    &mod_info,
+                    &r#mod.info,
                     std::rc::Rc::clone(&mod_state),
                     overlays.clone(),
                 )?;
-                lua.load(&init_lua)
+                lua.load(&r#mod.init_lua)
                     .set_name("=init.lua")
                     .set_mode(mlua::ChunkMode::Text)
                     .exec()?;
