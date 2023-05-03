@@ -1,8 +1,11 @@
+#![windows_subsystem = "windows"]
 #![feature(lazy_cell)]
 #![feature(fs_try_exists)]
 #![feature(local_key_cell_methods)]
 
 mod assets;
+mod config;
+mod console;
 mod gui;
 mod hooks;
 mod mods;
@@ -11,7 +14,7 @@ mod path;
 pub static VERSION: std::sync::LazyLock<semver::Version> =
     std::sync::LazyLock::new(|| semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap());
 
-#[derive(Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq, Hash, Eq, Debug)]
 pub enum GameVolume {
     Vol1,
     Vol2,
