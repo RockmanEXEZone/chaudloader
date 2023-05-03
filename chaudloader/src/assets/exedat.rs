@@ -83,3 +83,25 @@ impl Overlay {
         Ok(())
     }
 }
+
+pub fn scan() -> Result<std::collections::HashMap<String, Overlay>, std::io::Error> {
+    let mut overlays = std::collections::HashMap::new();
+    for entry in std::fs::read_dir("data")? {
+        let entry = entry?;
+        if entry.path().extension() != Some(&std::ffi::OsStr::new("dat")) {
+            continue;
+        }
+
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        if !file_name.starts_with("exe") && file_name != "reader.dat" && file_name != "rkb.dat" {
+            continue;
+        }
+
+        let src_f = std::fs::File::open(&entry.path())?;
+        let reader = Reader::new(src_f)?;
+
+        let overlay = Overlay::new(reader);
+        overlays.insert(file_name, overlay);
+    }
+    Ok(overlays)
+}

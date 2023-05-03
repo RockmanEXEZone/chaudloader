@@ -11,12 +11,18 @@ impl<'a> std::io::Write for ConsoleWriter<'a> {
     }
 }
 
+enum Message {
+    SetExeCrc32(u32),
+}
+
 pub struct Host {
     ready_sender: oneshot::Sender<()>,
+    message_receiver: fltk::app::Receiver<Message>,
 }
 
 pub struct Client {
     ready_receiver: Option<oneshot::Receiver<()>>,
+    message_sender: fltk::app::Sender<Message>,
 }
 
 impl Client {
@@ -28,20 +34,30 @@ impl Client {
         };
         r.recv().unwrap()
     }
+
+    pub fn set_exe_crc32(&self, exe_crc32: u32) {
+        self.message_sender.send(Message::SetExeCrc32(exe_crc32));
+    }
 }
 
 pub fn make_host_and_client() -> (Host, Client) {
     let (ready_sender, ready_receiver) = oneshot::channel();
+    let (message_sender, message_receiver) = fltk::app::channel();
     (
-        Host { ready_sender },
+        Host {
+            ready_sender,
+            message_receiver,
+        },
         Client {
             ready_receiver: Some(ready_receiver),
+            message_sender,
         },
     )
 }
 
 pub fn run(
     host: Host,
+    game_volume: crate::GameVolume,
     mut console_reader: impl std::io::Read + Send + 'static,
 ) -> Result<(), anyhow::Error> {
     use fltk::prelude::*;
@@ -66,6 +82,15 @@ pub fn run(
 
     host.ready_sender.send(()).unwrap();
 
-    app.run()?;
+    while app.wait() {
+        if let Some(message) = host.message_receiver.recv() {
+            match message {
+                Message::SetExeCrc32(exe_crc32) => {
+                    // TODO
+                }
+            }
+        }
+    }
+
     Ok(())
 }

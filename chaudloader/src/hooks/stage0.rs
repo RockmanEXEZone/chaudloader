@@ -39,75 +39,6 @@ const BANNER: &str = const_format::formatcp!(
     env!("CARGO_PKG_VERSION")
 );
 
-fn scan_dats_as_overlays(
-) -> Result<std::collections::HashMap<String, assets::exedat::Overlay>, anyhow::Error> {
-    let mut overlays = std::collections::HashMap::new();
-    for entry in std::fs::read_dir("data")? {
-        let entry = entry?;
-        if entry.path().extension() != Some(&std::ffi::OsStr::new("dat")) {
-            continue;
-        }
-
-        let file_name = entry.file_name().to_string_lossy().to_string();
-        if !file_name.starts_with("exe") && file_name != "reader.dat" && file_name != "rkb.dat" {
-            continue;
-        }
-
-        let src_f = std::fs::File::open(&entry.path())?;
-        let reader = assets::exedat::Reader::new(src_f)?;
-
-        let overlay = assets::exedat::Overlay::new(reader);
-        overlays.insert(file_name, overlay);
-    }
-    Ok(overlays)
-}
-
-struct Mod {
-    info: mods::Info,
-    readme: String,
-    init_lua: String,
-}
-
-fn scan_mods() -> Result<std::collections::BTreeMap<String, Mod>, anyhow::Error> {
-    let mut mods = std::collections::BTreeMap::new();
-    for entry in std::fs::read_dir("mods")? {
-        let entry = entry?;
-        if !entry.file_type()?.is_dir() {
-            continue;
-        }
-
-        let path = entry.path();
-        let mod_name = path.file_name().unwrap().to_str().ok_or_else(|| {
-            anyhow::anyhow!("could not decipher mod name: {}", entry.path().display())
-        })?;
-
-        if let Err(e) = (|| -> Result<(), anyhow::Error> {
-            let info =
-                toml::from_slice::<mods::Info>(&std::fs::read(entry.path().join("info.toml"))?)?;
-            let readme = std::fs::read_to_string(entry.path().join("README")).or_else(|e| {
-                if e.kind() == std::io::ErrorKind::NotFound {
-                    Ok("".to_string())
-                } else {
-                    Err(e)
-                }
-            })?;
-            let init_lua: String = std::fs::read_to_string(entry.path().join("init.lua"))?;
-            mods.insert(
-                mod_name.to_string(),
-                Mod {
-                    info,
-                    readme,
-                    init_lua,
-                },
-            );
-            Ok(())
-        })() {
-            log::warn!("[mod: {}] failed to load: {}", mod_name, e);
-        }
-    }
-    Ok(mods)
-}
-
 struct HashWriter<T: std::hash::Hasher>(T);
 
 impl<T: std::hash::Hasher> std::io::Write for HashWriter<T> {
@@ -161,7 +92,7 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
 
     let (gui_host, mut gui_client) = gui::make_host_and_client();
     std::thread::spawn(move || {
-        gui::run(gui_host, console_reader).unwrap();
+        gui::run(gui_host, game_volume, console_reader).unwrap();
         std::process::exit(0);
     });
     gui_client.wait_for_ready();
@@ -187,14 +118,15 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
         std::io::copy(&mut exe_f, &mut HashWriter(&mut hasher))?;
         hasher.finalize()
     };
+    gui_client.set_exe_crc32(exe_crc32);
 
-    let mod_env = mods::GameEnv {
+    let game_env = mods::GameEnv {
         volume: game_volume,
         exe_crc32,
     };
 
     // Load all archives as overlays.
-    let overlays = scan_dats_as_overlays()?;
+    let overlays = assets::exedat::scan()?;
     let mut dat_names = overlays.keys().collect::<Vec<_>>();
     dat_names.sort_unstable();
     log::info!("found dat archives: {:?}", dat_names);
@@ -205,7 +137,7 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
         .collect::<std::collections::HashMap<_, _>>();
 
     // Scan for mods.
-    let mods = scan_mods()?;
+    let mods = mods::scan()?;
     let mod_names = mods.keys().collect::<Vec<_>>();
     log::info!("found mods: {:?}", mod_names);
 
@@ -238,7 +170,7 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
             {
                 let lua = mods::lua::new(
                     &mod_name,
-                    &mod_env,
+                    &game_env,
                     &r#mod.info,
                     std::rc::Rc::clone(&mod_state),
                     overlays.clone(),
