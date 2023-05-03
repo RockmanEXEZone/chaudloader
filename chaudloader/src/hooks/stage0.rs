@@ -103,6 +103,14 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
         .init();
     log::info!("{}", BANNER);
 
+    let exe_crc32 = {
+        let mut exe_f = std::fs::File::open(&std::env::current_exe()?)?;
+        let mut hasher = crc32fast::Hasher::new();
+        std::io::copy(&mut exe_f, &mut HashWriter(&mut hasher))?;
+        hasher.finalize()
+    };
+    gui_client.set_exe_crc32(exe_crc32);
+
     // Make a mods directory if it doesn't exist.
     match std::fs::create_dir("mods") {
         Ok(_) => {}
@@ -111,14 +119,6 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
             return Err(e.into());
         }
     };
-
-    let exe_crc32 = {
-        let mut exe_f = std::fs::File::open(&std::env::current_exe()?)?;
-        let mut hasher = crc32fast::Hasher::new();
-        std::io::copy(&mut exe_f, &mut HashWriter(&mut hasher))?;
-        hasher.finalize()
-    };
-    gui_client.set_exe_crc32(exe_crc32);
 
     let game_env = mods::GameEnv {
         volume: game_volume,
