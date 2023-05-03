@@ -174,16 +174,16 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
         }
     };
 
-    let exe_path = std::env::current_exe()?;
-    let mut hasher = crc32fast::Hasher::new();
-    {
-        let mut exe_f = std::fs::File::open(&exe_path)?;
+    let exe_crc32 = {
+        let mut exe_f = std::fs::File::open(&std::env::current_exe()?)?;
+        let mut hasher = crc32fast::Hasher::new();
         std::io::copy(&mut exe_f, &mut HashWriter(&mut hasher))?;
-    }
+        hasher.finalize()
+    };
 
     let mod_env = mods::GameEnv {
         volume: game_volume,
-        exe_crc32: hasher.finalize(),
+        exe_crc32,
     };
 
     // Load all archives as overlays.
