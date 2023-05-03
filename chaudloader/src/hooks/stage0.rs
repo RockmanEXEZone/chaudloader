@@ -1,6 +1,5 @@
-use crate::{assets, gui, mods};
+use crate::{assets, config, gui, mods};
 use retour::static_detour;
-use std::os::windows::io::FromRawHandle;
 
 static_detour! {
     static CreateWindowExA: unsafe extern "system" fn(
@@ -19,26 +18,6 @@ static_detour! {
     ) -> winapi::shared::windef::HWND;
 }
 
-const BANNER: &str = const_format::formatcp!(
-    "
-
-        %%%%%%%%%%%%%%%%%
-     %%%%%  *********  %%%%%
-   %%%% *************     %%%%
-  %%% ***************       %%%
- %%% *************** ******* %%%
- %%% ************ ********** %%%    {}
- %%% ********** ************ %%%    v{}
- %%% ******* *************** %%%
-  %%%       *************** %%%
-   %%%%     ************* %%%%
-     %%%%%  *********  %%%%%
-        %%%%%%%%%%%%%%%%%
-",
-    env!("CARGO_PKG_NAME"),
-    env!("CARGO_PKG_VERSION")
-);
-
 struct HashWriter<T: std::hash::Hasher>(T);
 
 impl<T: std::hash::Hasher> std::io::Write for HashWriter<T> {
@@ -56,52 +35,10 @@ impl<T: std::hash::Hasher> std::io::Write for HashWriter<T> {
     }
 }
 
-fn hijack_console() -> Result<impl std::io::Read + Send + 'static, get_last_error::Win32Error> {
-    unsafe {
-        let mut read_pipe = std::ptr::null_mut();
-        let mut write_pipe = std::ptr::null_mut();
-
-        if winapi::um::namedpipeapi::CreatePipe(
-            &mut read_pipe,
-            &mut write_pipe,
-            std::ptr::null_mut(),
-            0,
-        ) != winapi::shared::minwindef::TRUE
-        {
-            return Err(get_last_error::Win32Error::get_last_error());
-        }
-
-        if winapi::um::processenv::SetStdHandle(winapi::um::winbase::STD_OUTPUT_HANDLE, write_pipe)
-            != winapi::shared::minwindef::TRUE
-        {
-            return Err(get_last_error::Win32Error::get_last_error());
-        }
-
-        if winapi::um::processenv::SetStdHandle(winapi::um::winbase::STD_ERROR_HANDLE, write_pipe)
-            != winapi::shared::minwindef::TRUE
-        {
-            return Err(get_last_error::Win32Error::get_last_error());
-        }
-
-        Ok(std::fs::File::from_raw_handle(read_pipe))
-    }
-}
-
 fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
-    let console_reader = hijack_console()?;
-
     let (gui_host, mut gui_client) = gui::make_host_and_client();
-    std::thread::spawn(move || {
-        gui::run(gui_host, game_volume, console_reader).unwrap();
-        std::process::exit(0);
-    });
-    gui_client.wait_for_ready();
 
-    env_logger::Builder::from_default_env()
-        .filter(Some("chaudloader"), log::LevelFilter::Info)
-        .write_style(env_logger::WriteStyle::Always)
-        .init();
-    log::info!("{}", BANNER);
+    let mut config = config::load()?;
 
     let exe_crc32 = {
         let mut exe_f = std::fs::File::open(&std::env::current_exe()?)?;
@@ -109,7 +46,26 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
         std::io::copy(&mut exe_f, &mut HashWriter(&mut hasher))?;
         hasher.finalize()
     };
-    gui_client.set_exe_crc32(exe_crc32);
+
+    let game_env = mods::GameEnv {
+        volume: game_volume,
+        exe_crc32,
+    };
+
+    std::thread::spawn({
+        let game_env = game_env.clone();
+        let config = config.clone();
+        move || {
+            gui::run(gui_host, game_env, config).unwrap();
+            std::process::exit(0);
+        }
+    });
+    gui_client.wait_for_ready();
+
+    env_logger::Builder::from_default_env()
+        .filter(Some("chaudloader"), log::LevelFilter::Info)
+        .write_style(env_logger::WriteStyle::Always)
+        .init();
 
     // Make a mods directory if it doesn't exist.
     match std::fs::create_dir("mods") {
@@ -120,36 +76,35 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
         }
     };
 
-    let game_env = mods::GameEnv {
-        volume: game_volume,
-        exe_crc32,
-    };
-
     // Load all archives as overlays.
     let overlays = assets::exedat::scan()?;
     let mut dat_names = overlays.keys().collect::<Vec<_>>();
     dat_names.sort_unstable();
-    log::info!("found dat archives: {:?}", dat_names);
 
     let overlays = overlays
         .into_iter()
         .map(|(k, v)| (k, std::rc::Rc::new(std::cell::RefCell::new(v))))
         .collect::<std::collections::HashMap<_, _>>();
 
-    // Scan for mods.
-    let mods = mods::scan()?;
-    let mod_names = mods.keys().collect::<Vec<_>>();
-    log::info!("found mods: {:?}", mod_names);
+    let start_request = gui_client.wait_for_start();
+    let enabled_mods = start_request
+        .enabled_mods
+        .iter()
+        .map(|(name, _)| name.to_string())
+        .collect::<std::collections::BTreeSet<_>>();
+    log::info!("enabled mods: {:?}", enabled_mods);
+    config.enabled_mods = enabled_mods;
+    config::save(&config)?;
 
     let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
 
-    for (mod_name, r#mod) in mods {
+    for (mod_name, r#mod) in start_request.enabled_mods {
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
-            if !r#mod.info.requires_loader_version.matches(&crate::VERSION) {
+            let compatibility = mods::check_compatibility(&game_env, &r#mod.info);
+            if !compatibility.is_compatible() {
                 return Err(anyhow::format_err!(
-                    "version {} does not match requirement {}",
-                    *crate::VERSION,
-                    r#mod.info.requires_loader_version
+                    "compatibility not met: {:?}",
+                    compatibility
                 ));
             }
 

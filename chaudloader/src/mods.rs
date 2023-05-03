@@ -1,19 +1,28 @@
 pub mod lua;
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct Info {
     pub title: String,
 
     pub version: semver::Version,
 
     #[serde(default)]
-    pub requires_loader_version: semver::VersionReq,
+    pub url: Option<String>,
 
     #[serde(default)]
     pub r#unsafe: bool,
 
     #[serde(default)]
     pub authors: Vec<String>,
+
+    #[serde(default)]
+    pub requires_loader_version: semver::VersionReq,
+
+    #[serde(default)]
+    pub requires_game: Option<std::collections::HashSet<crate::GameVolume>>,
+
+    #[serde(default)]
+    pub requires_exe_crc32: Option<std::collections::HashSet<u32>>,
 }
 
 #[derive(Clone)]
@@ -40,7 +49,36 @@ pub struct Mod {
     pub init_lua: String,
 }
 
-pub fn scan() -> Result<std::collections::BTreeMap<String, Mod>, std::io::Error> {
+#[derive(Debug)]
+pub struct Compatibility {
+    pub loader_version: bool,
+    pub game: bool,
+    pub exe_crc32: bool,
+}
+
+impl Compatibility {
+    pub fn is_compatible(&self) -> bool {
+        self.loader_version && self.game && self.exe_crc32
+    }
+}
+
+pub fn check_compatibility(game_env: &GameEnv, info: &Info) -> Compatibility {
+    Compatibility {
+        loader_version: info.requires_loader_version.matches(&*crate::VERSION),
+        game: info
+            .requires_game
+            .as_ref()
+            .map(|games| games.contains(&game_env.volume))
+            .unwrap_or(true),
+        exe_crc32: info
+            .requires_exe_crc32
+            .as_ref()
+            .map(|exe_crc32s| exe_crc32s.contains(&game_env.exe_crc32))
+            .unwrap_or(true),
+    }
+}
+
+pub fn scan() -> Result<std::collections::BTreeMap<String, std::sync::Arc<Mod>>, std::io::Error> {
     let mut mods = std::collections::BTreeMap::new();
     for entry in std::fs::read_dir("mods")? {
         let entry = entry?;
@@ -84,11 +122,11 @@ pub fn scan() -> Result<std::collections::BTreeMap<String, Mod>, std::io::Error>
                 })?;
             mods.insert(
                 mod_name.to_string(),
-                Mod {
+                std::sync::Arc::new(Mod {
                     info,
                     readme,
                     init_lua,
-                },
+                }),
             );
             Ok(())
         })() {
