@@ -57,15 +57,31 @@ pub fn scan() -> Result<std::collections::BTreeMap<String, Mod>, std::io::Error>
         };
 
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
-            let info = toml::from_slice::<Info>(&std::fs::read(entry.path().join("info.toml"))?)?;
-            let readme = std::fs::read_to_string(entry.path().join("README")).or_else(|e| {
+            let info = toml::from_slice::<Info>(
+                &std::fs::read(entry.path().join("info.toml")).map_err(|e| {
+                    std::io::Error::new(
+                        e.kind(),
+                        anyhow::format_err!("error reading info.toml: {}", e),
+                    )
+                })?,
+            )?;
+            let readme = std::fs::read_to_string(entry.path().join("README.md")).or_else(|e| {
                 if e.kind() == std::io::ErrorKind::NotFound {
                     Ok("".to_string())
                 } else {
-                    Err(e)
+                    Err(std::io::Error::new(
+                        e.kind(),
+                        anyhow::format_err!("error reading README.md: {}", e),
+                    ))
                 }
             })?;
-            let init_lua: String = std::fs::read_to_string(entry.path().join("init.lua"))?;
+            let init_lua: String =
+                std::fs::read_to_string(entry.path().join("init.lua")).map_err(|e| {
+                    std::io::Error::new(
+                        e.kind(),
+                        anyhow::format_err!("error reading init.lua: {}", e),
+                    )
+                })?;
             mods.insert(
                 mod_name.to_string(),
                 Mod {
