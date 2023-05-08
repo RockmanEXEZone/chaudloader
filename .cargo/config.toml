@@ -1,2 +1,7 @@
 [target.x86_64-unknown-linux-musl]
 linker = "rust-lld"
+
+[env]
+LUA_INC = { value = "build/lua54/include", force = true, relative = true }
+LUA_LIB = { value = "build/lua54", force = true, relative = true }
+LUA_LIB_NAME = { value = "lua54", force = true }
