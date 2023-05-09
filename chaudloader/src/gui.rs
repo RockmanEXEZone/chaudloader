@@ -275,6 +275,20 @@ fn make_main_tile(
                             th { "Version"}
                             td { (binding.r#mod.info.version) }
                         }
+                        tr {
+                            th { "Authors"}
+                            td { (binding.r#mod.info.authors.join(", ")) }
+                        }
+                        (if let Some(url) = binding.r#mod.info.url.as_ref() {
+                            maud::html! {
+                                tr {
+                                    th { "Link"}
+                                    td { a href=(url) { (url) } }
+                                }
+                            }
+                        } else {
+                            maud::html! { }
+                        })
                     }
                     hr { }
                     (maud::PreEscaped(readme))

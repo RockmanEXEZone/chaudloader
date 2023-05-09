@@ -23,7 +23,10 @@ Mods consists of the following files in a directory inside the `mods` folder:
     version = "0.0.1"
     authors = ["my cool name"]
     unsafe = false  # set to true if you want to use scary unsafe functions
+    url = "https://mycoolmod.com"
     requires_loader_version = "*"  # or any semver requirement string
+    requires_game_crc32 = [0x11111111, 0x22222222]  # list of CRC32s to match against, can be unset if not required
+    requires_game = ["Vol1", "Vol2"]  # list of game volumes this mod applies to
     ```
 
 -   `init.lua`: The Lua script to run on mod load. Please consult [API.md](API.md) for the API documentation.
