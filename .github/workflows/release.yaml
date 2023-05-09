@@ -26,11 +26,7 @@ jobs:
               with:
                   python-version: "3.11"
             - run: ./download_and_build_lua.ps1
-            - run: |
-                  $Env:LUA_INC="build/lua54/include"
-                  $Env:LUA_LIB="build/lua54"
-                  $Env:LUA_LIB_NAME="lua54"
-                  cargo build --release
+            - run: cargo build --release
             - run: cargo build --release --target x86_64-unknown-linux-musl --bin install
             - run: Move-Item build/lua54/lua54.dll ./lua54.dll
             - run: python make_dist.py
