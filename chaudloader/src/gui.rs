@@ -258,10 +258,10 @@ fn make_main_tile(
                                                 maud::html! { }
                                             })
                                         }
-                                        hr { }
                                     }
                                 }
                             }
+                            hr { }
                         }
                     } else {
                         maud::html! {}
