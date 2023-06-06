@@ -517,7 +517,7 @@ fn make_window(
 
             main_tile.hide();
 
-            let mut console_reader = console::hijack().unwrap();
+            let mut console_reader = console::Console::hijack().unwrap();
             std::thread::spawn({
                 let mut console = console.clone();
                 move || {
