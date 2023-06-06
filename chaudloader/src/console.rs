@@ -22,7 +22,9 @@ impl Drop for HandleRestorer {
         unsafe {
             assert!(
                 winapi::um::processenv::SetStdHandle(self.std_handle, self.handle)
-                    == winapi::shared::minwindef::TRUE
+                    == winapi::shared::minwindef::TRUE,
+                "{}",
+                get_last_error::Win32Error::get_last_error()
             );
         }
     }
