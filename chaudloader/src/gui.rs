@@ -62,8 +62,24 @@ pub fn make_host_and_client() -> (Host, Client) {
     )
 }
 
+struct FltkAppLockGuard;
+
+impl FltkAppLockGuard {
+    pub fn lock() -> Result<Self, fltk::prelude::FltkError> {
+        fltk::app::lock()?;
+        Ok(Self)
+    }
+}
+
+impl Drop for FltkAppLockGuard {
+    fn drop(&mut self) {
+        fltk::app::unlock();
+    }
+}
+
 pub struct StartRequest {
     pub enabled_mods: Vec<(String, std::sync::Arc<mods::Mod>)>,
+    pub disable_autostart: bool,
 }
 
 struct ModBinding {
@@ -74,7 +90,7 @@ struct ModBinding {
 fn make_main_tile(
     game_env: &mods::GameEnv,
     config: &config::Config,
-    mut on_start: impl FnMut(&mut fltk::group::Tile, StartRequest) + 'static,
+    mut on_start: impl FnMut(&mut fltk::group::Tile, StartRequest) + 'static + Send + Clone,
 ) -> impl WidgetBase {
     let tile = fltk::group::Tile::default_fill();
 
@@ -99,7 +115,7 @@ fn make_main_tile(
         .with_pos(0, toolbar_group.height());
     left_group.resizable(&browser);
 
-    let mod_bindings = std::rc::Rc::new(std::cell::RefCell::new(std::collections::BTreeMap::<
+    let mod_bindings = std::sync::Arc::new(std::sync::Mutex::new(std::collections::BTreeMap::<
         String,
         ModBinding,
     >::new()));
@@ -119,6 +135,11 @@ fn make_main_tile(
         .with_size(right_group.width(), 25)
         .with_pos(right_group.x(), right_group.y())
         .with_label("Enable");
+
+    let mut autostart_checkbox = fltk::button::CheckButton::default()
+        .with_size(right_group.width(), 25)
+        .with_pos(right_group.x(), right_group.height() - 25)
+        .with_label(&format!("Autostart after {} seconds", AUTOSTART_SECONDS));
 
     let mut help_view = fltk::misc::HelpView::default()
         .with_size(right_group.width(), right_group.height() - 25 - 25)
@@ -333,11 +354,11 @@ fn make_main_tile(
     };
 
     let refresh_browser = {
-        let mod_bindings = std::rc::Rc::clone(&mod_bindings);
+        let mod_bindings = std::sync::Arc::clone(&mod_bindings);
         let game_env = game_env.clone();
         let mut update_browser_items = update_browser_items.clone();
         move || {
-            let mut mod_bindings = mod_bindings.borrow_mut();
+            let mut mod_bindings = mod_bindings.lock().unwrap();
 
             let currently_enabled = mod_bindings
                 .iter()
@@ -369,11 +390,11 @@ fn make_main_tile(
     };
 
     browser.set_callback({
-        let mod_bindings = std::rc::Rc::clone(&mod_bindings);
+        let mod_bindings = std::sync::Arc::clone(&mod_bindings);
         let browser = browser.clone();
         let mut set_selection = set_selection.clone();
         move |_| {
-            let mod_bindings = mod_bindings.borrow();
+            let mod_bindings = mod_bindings.lock().unwrap();
 
             set_selection(
                 browser
@@ -390,10 +411,10 @@ fn make_main_tile(
     });
 
     open_folder_button.set_callback({
-        let mod_bindings = std::rc::Rc::clone(&mod_bindings);
+        let mod_bindings = std::sync::Arc::clone(&mod_bindings);
         let browser = browser.clone();
         move |_| {
-            let mod_bindings = mod_bindings.borrow();
+            let mod_bindings = mod_bindings.lock().unwrap();
 
             let base_path = std::path::Path::new("mods");
             let path = if let Some(current_selection) = browser
@@ -411,7 +432,7 @@ fn make_main_tile(
     });
 
     {
-        let mut mod_bindings = mod_bindings.borrow_mut();
+        let mut mod_bindings = mod_bindings.lock().unwrap();
         *mod_bindings = match mods::scan() {
             Ok(mod_bindings) => mod_bindings
                 .into_iter()
@@ -440,12 +461,12 @@ fn make_main_tile(
     });
 
     enabled_checkbox.set_callback({
-        let mod_bindings = std::rc::Rc::clone(&mod_bindings);
+        let mod_bindings = std::sync::Arc::clone(&mod_bindings);
         let browser = browser.clone();
         let mut update_browser_items = update_browser_items.clone();
 
         move |cbox| {
-            let mut mod_bindings = mod_bindings.borrow_mut();
+            let mut mod_bindings = mod_bindings.lock().unwrap();
 
             let binding = if let Some(binding) = browser
                 .selected_items()
@@ -462,11 +483,12 @@ fn make_main_tile(
         }
     });
 
-    play_button.set_callback({
+    let play_fn = {
         let mut tile = tile.clone();
-        let mod_bindings = std::rc::Rc::clone(&mod_bindings);
-        move |_| {
-            let mod_bindings = mod_bindings.borrow();
+        let mod_bindings = std::sync::Arc::clone(&mod_bindings);
+        let autostart_checkbox = autostart_checkbox.clone();
+        move || {
+            let mod_bindings = mod_bindings.lock().unwrap();
             on_start(
                 &mut tile,
                 StartRequest {
@@ -477,8 +499,66 @@ fn make_main_tile(
                             (name.to_string(), std::sync::Arc::clone(&binding.r#mod))
                         })
                         .collect(),
+                    disable_autostart: !autostart_checkbox.value(),
                 },
             );
+        }
+    };
+
+    const AUTOSTART_SECONDS: usize = 5;
+    let autostart_seconds_left = std::sync::Arc::new(std::sync::atomic::AtomicIsize::new(
+        if !config.disable_autostart {
+            AUTOSTART_SECONDS as isize
+        } else {
+            -1
+        },
+    ));
+
+    std::thread::spawn({
+        let autostart_seconds_left = autostart_seconds_left.clone();
+        let mut autostart_checkbox = autostart_checkbox.clone();
+        let mut play_fn = play_fn.clone();
+        move || loop {
+            if autostart_seconds_left.load(std::sync::atomic::Ordering::SeqCst) == 0 {
+                play_fn();
+                return;
+            }
+            let seconds_left = autostart_seconds_left
+                .fetch_update(
+                    std::sync::atomic::Ordering::SeqCst,
+                    std::sync::atomic::Ordering::SeqCst,
+                    |v| Some(if v <= 0 { v } else { v - 1 }),
+                )
+                .unwrap();
+            if seconds_left >= 0 {
+                let _guard = FltkAppLockGuard::lock().unwrap();
+                autostart_checkbox.set_label(&format!("Autostart after {} seconds", seconds_left));
+                fltk::app::awake();
+            }
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+    });
+
+    autostart_checkbox.set_value(!config.disable_autostart);
+    autostart_checkbox.set_callback({
+        let autostart_seconds_left = autostart_seconds_left.clone();
+        move |cbox| {
+            if cbox.is_set() {
+                autostart_seconds_left.store(
+                    AUTOSTART_SECONDS as isize,
+                    std::sync::atomic::Ordering::SeqCst,
+                );
+            } else {
+                autostart_seconds_left.store(-1, std::sync::atomic::Ordering::SeqCst);
+                cbox.set_label(&format!("Autostart after {} seconds", AUTOSTART_SECONDS));
+            }
+        }
+    });
+
+    play_button.set_callback({
+        let mut play_fn = play_fn.clone();
+        move |_| {
+            play_fn();
         }
     });
 
@@ -506,10 +586,12 @@ fn make_window(
     console.set_stay_at_bottom(true);
     console.hide();
 
+    let start_sender = std::sync::Arc::new(std::sync::Mutex::new(Some(start_sender)));
+
     let main_tile = make_main_tile(game_env, config, {
-        let mut start_sender = Some(start_sender);
+        let start_sender = start_sender.clone();
         move |main_tile, start_request| {
-            let start_sender = if let Some(start_sender) = start_sender.take() {
+            let start_sender = if let Some(start_sender) = start_sender.lock().unwrap().take() {
                 start_sender
             } else {
                 return;

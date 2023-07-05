@@ -2,6 +2,7 @@ use std::io::Write;
 
 #[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
 pub struct Config {
+    pub disable_autostart: bool,
     pub enabled_mods: std::collections::BTreeSet<String>,
 }
 

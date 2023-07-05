@@ -94,6 +94,7 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
         .collect::<std::collections::BTreeSet<_>>();
     log::info!("enabled mods: {:?}", enabled_mods);
     config.enabled_mods = enabled_mods;
+    config.disable_autostart = start_request.disable_autostart;
     config::save(&config)?;
 
     let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
