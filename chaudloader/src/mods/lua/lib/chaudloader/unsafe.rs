@@ -26,9 +26,7 @@ pub fn new<'a>(
                     &mut number_of_bytes_read as *mut winapi::shared::basetsd::SIZE_T,
                 ) != winapi::shared::minwindef::TRUE
                 {
-                    return Err(
-                        anyhow::format_err!("ReadProcessMemory returned false").into_lua_err()
-                    );
+                    return Err(get_last_error::Win32Error::get_last_error().into_lua_err());
                 }
             }
             buf.drain(number_of_bytes_read as usize..);
@@ -51,9 +49,7 @@ pub fn new<'a>(
                     &mut number_of_bytes_written as *mut winapi::shared::basetsd::SIZE_T,
                 ) != winapi::shared::minwindef::TRUE
                 {
-                    return Err(
-                        anyhow::format_err!("ReadProcessMemory returned false").into_lua_err()
-                    );
+                    return Err(get_last_error::Win32Error::get_last_error().into_lua_err());
                 }
             }
             Ok(number_of_bytes_written)
@@ -73,7 +69,7 @@ pub fn new<'a>(
                 winapi::um::winnt::PAGE_READWRITE,
             );
             if out_buf.is_null() {
-                return Err(anyhow::anyhow!("VirtualAlloc returned null").into_lua_err());
+                return Err(get_last_error::Win32Error::get_last_error().into_lua_err());
             }
 
             std::slice::from_raw_parts_mut::<'_, u8>(std::mem::transmute(out_buf), buf.len())
@@ -92,7 +88,7 @@ pub fn new<'a>(
                     winapi::um::memoryapi::VirtualFree(out_buf, 0, winapi::um::winnt::MEM_FREE),
                     winapi::shared::minwindef::TRUE
                 );
-                return Err(anyhow::anyhow!("VirtualProtect returned false").into_lua_err());
+                return Err(get_last_error::Win32Error::get_last_error().into_lua_err());
             }
             Ok(std::mem::transmute::<_, usize>(out_buf))
         })?,
@@ -107,7 +103,7 @@ pub fn new<'a>(
                 winapi::um::winnt::MEM_FREE,
             ) != winapi::shared::minwindef::TRUE
             {
-                return Err(anyhow::anyhow!("VirtualFree returned false").into_lua_err());
+                return Err(get_last_error::Win32Error::get_last_error().into_lua_err());
             }
             Ok(())
         })?,
