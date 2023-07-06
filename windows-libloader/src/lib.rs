@@ -52,13 +52,12 @@ impl ModuleHandle {
             .collect::<Vec<_>>();
         let hmodule = winapi::um::libloaderapi::LoadLibraryW(path_w.as_ptr());
         if hmodule.is_null() {
-            Err(get_last_error::Win32Error::get_last_error())
-        } else {
-            Ok(ModuleHandle {
-                hmodule,
-                free_on_drop: true,
-            })
+            return Err(get_last_error::Win32Error::get_last_error());
         }
+        Ok(ModuleHandle {
+            hmodule,
+            free_on_drop: true,
+        })
     }
 
     /// Gets a symbol address as a farproc, if it exists in the module.
@@ -69,14 +68,9 @@ impl ModuleHandle {
         let symbol_cstr = std::ffi::CString::new(symbol).unwrap();
         let farproc = winapi::um::libloaderapi::GetProcAddress(self.hmodule, symbol_cstr.as_ptr());
         if farproc.is_null() {
-            Err(get_last_error::Win32Error::get_last_error())
-        } else {
-            Ok(farproc)
+            return Err(get_last_error::Win32Error::get_last_error());
         }
-    }
-
-    pub fn set_free_on_drop(&mut self, free_on_drop: bool) {
-        self.free_on_drop = free_on_drop;
+        Ok(farproc)
     }
 }
 
