@@ -113,40 +113,5 @@ pub fn new<'a>(
         })?,
     )?;
 
-    table.set(
-        "init_mod_dll",
-        lua.create_function({
-            let mod_path = mod_path.to_path_buf();
-            let state = std::rc::Rc::clone(&state);
-            move |_, (path, buf): (String, mlua::String)| {
-                let path = path::ensure_safe(std::path::Path::new(&path))
-                    .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                    .map_err(|e| e.into_lua_err())?;
-                let mut state = state.borrow_mut();
-                type ChaudloaderInitFn =
-                    unsafe extern "system" fn(userdata: *const u8, n: usize) -> bool;
-                let dll = unsafe {
-                    let dll = windows_libloader::ModuleHandle::load(&mod_path.join(&path))
-                        .map_err(|e| e.into_lua_err())?;
-                    let init_fn = std::mem::transmute::<_, ChaudloaderInitFn>(
-                        dll.get_symbol_address("chaudloader_init")
-                            .map_err(|e| e.into_lua_err())?,
-                    );
-                    let buf = buf.as_bytes();
-                    if !init_fn(buf.as_ptr(), buf.len()) {
-                        return Err(anyhow::anyhow!(
-                            "ChaudLoaderInit for DLL {} returned false",
-                            path.display()
-                        )
-                        .into_lua_err());
-                    }
-                    dll
-                };
-                state.dlls.insert(path, dll);
-                Ok(())
-            }
-        })?,
-    )?;
-
     Ok(mlua::Value::Table(table))
 }
