@@ -118,9 +118,9 @@ unsafe fn on_create_file(
 
 /// Install hooks into the process.
 pub unsafe fn install() -> Result<(), anyhow::Error> {
-    static KERNEL32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+    static KERNELBASE: std::sync::LazyLock<windows_libloader::ModuleHandle> =
         std::sync::LazyLock::new(|| unsafe {
-            windows_libloader::ModuleHandle::get("kernel32.dll").unwrap()
+            windows_libloader::ModuleHandle::get("kernelbase.dll").unwrap()
         });
 
     // BNLC actually uses both CreateFileA and CreateFileW... It seems like the third-party code uses CreateFileW but the BNLC code itself uses CreateFileA...
@@ -129,7 +129,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
     unsafe {
         CreateFileWHook
             .initialize(
-                std::mem::transmute(KERNEL32.get_symbol_address("CreateFileW").unwrap()),
+                std::mem::transmute(KERNELBASE.get_symbol_address("CreateFileW").unwrap()),
                 {
                     move |lp_file_name,
                           dw_desired_access,
@@ -159,7 +159,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
 
         CreateFileAHook
             .initialize(
-                std::mem::transmute(KERNEL32.get_symbol_address("CreateFileA").unwrap()),
+                std::mem::transmute(KERNELBASE.get_symbol_address("CreateFileA").unwrap()),
                 {
                     move |lp_file_name,
                           dw_desired_access,
