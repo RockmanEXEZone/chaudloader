@@ -11,6 +11,9 @@ pub struct Config {
     pub disable_autostart: bool,
     #[serde(default = "empty_btreeset::<String>")]
     pub enabled_mods: std::collections::BTreeSet<String>,
+    
+    // Secret options
+    pub developer_mode: Option<bool>,
 }
 
 const CONFIG_FILE_NAME: &str = "chaudloader.toml";

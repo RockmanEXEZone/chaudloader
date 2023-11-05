@@ -42,10 +42,8 @@ impl<T: std::hash::Hasher> std::io::Write for HashWriter<T> {
     }
 }
 
-fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
+fn init(game_volume: crate::GameVolume, mut config: crate::config::Config) -> Result<(), anyhow::Error> {
     let (gui_host, mut gui_client) = gui::make_host_and_client();
-
-    let mut config = config::load()?;
 
     let exe_crc32 = {
         let mut exe_f = std::fs::File::open(&std::env::current_exe()?)?;
@@ -207,6 +205,10 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
 }
 
 pub unsafe fn install() -> Result<(), anyhow::Error> {
+    static KERNEL32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+        std::sync::LazyLock::new(|| unsafe {
+            windows_libloader::ModuleHandle::get("kernel32.dll").unwrap()
+        });
     static KERNELBASE: std::sync::LazyLock<windows_libloader::ModuleHandle> =
         std::sync::LazyLock::new(|| unsafe {
             windows_libloader::ModuleHandle::get("kernelbase.dll").unwrap()
@@ -220,6 +222,8 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
             windows_libloader::ModuleHandle::get("user32.dll").unwrap()
         });
 
+    let config = config::load()?;
+
     unsafe {
         // Hook GetProcAddress to avoid ntdll.dll hooks being installed
         GetProcAddressForCaller
@@ -229,20 +233,53 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                     move |h_module,
                           lp_proc_name,
                           lp_caller| {
+                        #[derive(PartialEq)]
+                        enum HideState { INACTIVE, ACTIVE }
+                        static mut TRIGGER_COUNT: u64 = 0;
+                        static mut HIDE_STATE: HideState = HideState::INACTIVE;
+                        static mut PREV_PROC_NAME: String = String::new();
+
                         let mut proc_address: usize = GetProcAddressForCaller.call(h_module, lp_proc_name, lp_caller) as usize;
 
-                        // If we always do this, we crash for some reason, so just do it for ntdll
-                        let proc_name = if h_module == NTDLL.get_base_address() {
+                        // If we always do this, we crash for some reason, so just do it for relevant modules
+                        let proc_name = if h_module == KERNEL32.get_base_address() || h_module == NTDLL.get_base_address() {
                             std::ffi::CStr::from_ptr(lp_proc_name).to_str().unwrap_or("")
                         } else { "" };
 
+                        if config.developer_mode == Some(true) {
+                            // disclaimer: ultra mega jank, likely will break in the future
+                            match &HIDE_STATE {
+                                HideState::INACTIVE => {
+                                    // Trigger on this call pattern:
+                                    // GetProcAddress(kernel32, "GetProcAddress")
+                                    // GetProcAddress(ntdll, ...)
+                                    if h_module == NTDLL.get_base_address() && PREV_PROC_NAME == "GetProcAddress" {
+                                        HIDE_STATE = HideState::ACTIVE;
+                                        TRIGGER_COUNT += 1;
+                                    }
+                                },
+                                HideState::ACTIVE => {
+                                    if h_module != NTDLL.get_base_address() {
+                                        HIDE_STATE = HideState::INACTIVE;
+                                    }
+                                },
+                                _ => {}
+                            }
+                            // If we return 0 on the first set of calls, we crash
+                            // Only do it on the second set of calls
+                            if HIDE_STATE == HideState::ACTIVE && TRIGGER_COUNT == 2 {
+                                // For some reason using std::ptr::null_mut() causes a crash when resuming from break?
+                                // So instead we directly mutate the pointer as an integer
+                                proc_address = 0;
+                            }
+                        }
+
                         // Avoid NtProtectVirtualMemory from being disabled
                         if proc_name == "ZwProtectVirtualMemory" || proc_name == "NtProtectVirtualMemory" {
-                            // For some reason using std::ptr::null_mut() causes a crash when resuming from break?
-                            // So instead we directly mutate the pointer as an integer
                             proc_address = 0;
                         }
 
+                        PREV_PROC_NAME = proc_name.to_string();
                         proc_address as winapi::shared::minwindef::FARPROC
                     }
                 },
@@ -282,7 +319,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                             static INITIALIZED: std::sync::atomic::AtomicBool =
                                 std::sync::atomic::AtomicBool::new(false);
                             if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
-                                init(game_volume).unwrap();
+                                init(game_volume, config.clone()).unwrap();
 
                                 let hwnd = CreateWindowExA.call(
                                     dw_ex_style,
