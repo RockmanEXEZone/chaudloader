@@ -17,6 +17,13 @@ static_detour! {
         /* lp_param: */ winapi::shared::minwindef::LPVOID
     ) -> winapi::shared::windef::HWND;
 }
+static_detour! {
+    static GetProcAddressForCaller: unsafe extern "system" fn(
+        /* h_module: */ winapi::shared::minwindef::HMODULE,
+        /* lp_proc_name: */ winapi::shared::ntdef::LPCSTR,
+        /* lp_caller */ winapi::shared::minwindef::LPVOID
+    ) -> winapi::shared::minwindef::FARPROC;
+}
 
 struct HashWriter<T: std::hash::Hasher>(T);
 
@@ -200,12 +207,48 @@ fn init(game_volume: crate::GameVolume) -> Result<(), anyhow::Error> {
 }
 
 pub unsafe fn install() -> Result<(), anyhow::Error> {
+    static KERNELBASE: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+        std::sync::LazyLock::new(|| unsafe {
+            windows_libloader::ModuleHandle::get("kernelbase.dll").unwrap()
+        });
+    static NTDLL: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+        std::sync::LazyLock::new(|| unsafe {
+            windows_libloader::ModuleHandle::get("ntdll.dll").unwrap()
+        });
     static USER32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
         std::sync::LazyLock::new(|| unsafe {
             windows_libloader::ModuleHandle::get("user32.dll").unwrap()
         });
 
     unsafe {
+        // Hook GetProcAddress to avoid ntdll.dll hooks being installed
+        GetProcAddressForCaller
+            .initialize(
+                std::mem::transmute(KERNELBASE.get_symbol_address("GetProcAddressForCaller").unwrap()),
+                {
+                    move |h_module,
+                          lp_proc_name,
+                          lp_caller| {
+                        let mut proc_address: usize = GetProcAddressForCaller.call(h_module, lp_proc_name, lp_caller) as usize;
+
+                        // If we always do this, we crash for some reason, so just do it for ntdll
+                        let proc_name = if h_module == NTDLL.get_base_address() {
+                            std::ffi::CStr::from_ptr(lp_proc_name).to_str().unwrap_or("")
+                        } else { "" };
+
+                        // Avoid NtProtectVirtualMemory from being disabled
+                        if proc_name == "ZwProtectVirtualMemory" || proc_name == "NtProtectVirtualMemory" {
+                            // For some reason using std::ptr::null_mut() causes a crash when resuming from break?
+                            // So instead we directly mutate the pointer as an integer
+                            proc_address = 0;
+                        }
+
+                        proc_address as winapi::shared::minwindef::FARPROC
+                    }
+                },
+            )?
+            .enable()?;
+
         // We hook CreateWindowExA specifically because BNLC may re-execute itself if not running under Steam. We don't want to go to all the trouble of repacking .dat files if we're just going to get re-executed.
         CreateWindowExA
             .initialize(

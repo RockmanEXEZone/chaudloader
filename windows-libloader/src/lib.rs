@@ -60,6 +60,11 @@ impl ModuleHandle {
         })
     }
 
+    /// Gets the base address of the module as an hmodule.
+    pub fn get_base_address(&self) -> winapi::shared::minwindef::HMODULE {
+        self.hmodule
+    }
+
     /// Gets a symbol address as a farproc, if it exists in the module.
     pub unsafe fn get_symbol_address(
         &self,
