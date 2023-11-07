@@ -14,6 +14,7 @@ pub struct Config {
     
     // Secret options
     pub developer_mode: Option<bool>,
+    pub enable_hook_guards: Option<bool>, // requires developer_mode
 }
 
 const CONFIG_FILE_NAME: &str = "chaudloader.toml";

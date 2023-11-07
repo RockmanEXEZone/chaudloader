@@ -21,7 +21,7 @@ static_detour! {
     static GetProcAddressForCaller: unsafe extern "system" fn(
         /* h_module: */ winapi::shared::minwindef::HMODULE,
         /* lp_proc_name: */ winapi::shared::ntdef::LPCSTR,
-        /* lp_caller */ winapi::shared::minwindef::LPVOID
+        /* lp_caller: */ winapi::shared::minwindef::LPVOID
     ) -> winapi::shared::minwindef::FARPROC;
 }
 
@@ -246,7 +246,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                             std::ffi::CStr::from_ptr(lp_proc_name).to_str().unwrap_or("")
                         } else { "" };
 
-                        if config.developer_mode == Some(true) {
+                        if config.developer_mode == Some(true) && config.enable_hook_guards == Some(true) {
                             // disclaimer: ultra mega jank, likely will break in the future
                             match &HIDE_STATE {
                                 HideState::INACTIVE => {

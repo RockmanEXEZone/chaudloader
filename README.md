@@ -31,6 +31,15 @@ Mods consists of the following files in a directory inside the `mods` folder:
 
 -   `init.lua`: The Lua script to run on mod load. Please consult [API.md](API.md) for the API documentation.
 
+### Developer mode
+
+chaudloader has some development options which can be enabled to aid with mod development. These options have to be manually set in `chaudloader.toml`.
+
+**These options are purely for development purposes. For users it is strongly recommended not to enable them.**
+
+-   `developer_mode` (type: boolean, default: `false`): Enables developer mode. Required to be `true` in order to use any of the other development options.
+-   `enable_hook_guards` (type: boolean, default: `false`): Enables hook guards.
+
 ## For developers
 
 ### First time
