@@ -224,6 +224,18 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
 
     let config = config::load()?;
 
+    if config.developer_mode == Some(true) {
+        for cmd in config.stage0_commands.iter().flatten() {
+            let (code, _, _) = run_script::run_script!(
+                cmd
+                    .replace("%PID%", &std::process::id().to_string())
+                )?;
+            if code != 0 {
+                log::error!("Command {cmd} exited with code {code}");
+            }
+        }
+    }
+
     unsafe {
         // Hook GetProcAddress to avoid ntdll.dll hooks being installed
         GetProcAddressForCaller

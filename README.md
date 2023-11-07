@@ -39,6 +39,8 @@ chaudloader has some development options which can be enabled to aid with mod de
 
 -   `developer_mode` (type: boolean, default: `false`): Enables developer mode. Required to be `true` in order to use any of the other development options.
 -   `enable_hook_guards` (type: boolean, default: `false`): Enables hook guards.
+-   `stage0_commands` (type: string array, default: `[]`): List of shell commands to run during stage0 before the game's entry point. If any of the commands returns a nonzero exit code, loading is aborted. The following variables can be used in commands:
+    -   `%PID%`: Replaced by the game's process ID.
 
 ## For developers
 

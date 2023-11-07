@@ -1,6 +1,6 @@
 [package]
 name = "chaudloader"
-version = "0.9.2"
+version = "0.10.0"
 edition = "2021"
 
 [lib]
@@ -33,3 +33,4 @@ maud = "0.25"
 url = "2"
 opener = "0.6"
 proc-macro2 = "^1.0.60"
+run_script = "0.10.1"
