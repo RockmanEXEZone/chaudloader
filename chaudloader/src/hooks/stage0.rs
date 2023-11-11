@@ -42,7 +42,10 @@ impl<T: std::hash::Hasher> std::io::Write for HashWriter<T> {
     }
 }
 
-fn init(game_volume: crate::GameVolume, mut config: crate::config::Config) -> Result<(), anyhow::Error> {
+fn init(
+    game_volume: crate::GameVolume,
+    mut config: crate::config::Config,
+) -> Result<(), anyhow::Error> {
     let (gui_host, mut gui_client) = gui::make_host_and_client();
 
     let exe_crc32 = {
@@ -54,7 +57,7 @@ fn init(game_volume: crate::GameVolume, mut config: crate::config::Config) -> Re
 
     let game_env = mods::GameEnv {
         volume: game_volume,
-        exe_crc32,
+        exe_crc32: exe_crc32,
     };
 
     std::thread::spawn({
@@ -226,10 +229,8 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
 
     if config.developer_mode == Some(true) {
         for cmd in config.stage0_commands.iter().flatten() {
-            let (code, _, _) = run_script::run_script!(
-                cmd
-                    .replace("%PID%", &std::process::id().to_string())
-                )?;
+            let (code, _, _) =
+                run_script::run_script!(cmd.replace("%PID%", &std::process::id().to_string()))?;
             if code != 0 {
                 log::error!("Command {cmd} exited with code {code}");
             }
@@ -240,42 +241,58 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
         // Hook GetProcAddress to avoid ntdll.dll hooks being installed
         GetProcAddressForCaller
             .initialize(
-                std::mem::transmute(KERNELBASE.get_symbol_address("GetProcAddressForCaller").unwrap()),
+                std::mem::transmute(
+                    KERNELBASE
+                        .get_symbol_address("GetProcAddressForCaller")
+                        .unwrap(),
+                ),
                 {
-                    move |h_module,
-                          lp_proc_name,
-                          lp_caller| {
+                    move |h_module, lp_proc_name, lp_caller| {
                         #[derive(PartialEq)]
-                        enum HideState { INACTIVE, ACTIVE }
+                        enum HideState {
+                            INACTIVE,
+                            ACTIVE,
+                        }
                         static mut TRIGGER_COUNT: u64 = 0;
                         static mut HIDE_STATE: HideState = HideState::INACTIVE;
                         static mut PREV_PROC_NAME: String = String::new();
 
-                        let mut proc_address: usize = GetProcAddressForCaller.call(h_module, lp_proc_name, lp_caller) as usize;
+                        let mut proc_address: usize =
+                            GetProcAddressForCaller.call(h_module, lp_proc_name, lp_caller)
+                                as usize;
 
                         // If we always do this, we crash for some reason, so just do it for relevant modules
-                        let proc_name = if h_module == KERNEL32.get_base_address() || h_module == NTDLL.get_base_address() {
-                            std::ffi::CStr::from_ptr(lp_proc_name).to_str().unwrap_or("")
-                        } else { "" };
+                        let proc_name = if h_module == KERNEL32.get_base_address()
+                            || h_module == NTDLL.get_base_address()
+                        {
+                            std::ffi::CStr::from_ptr(lp_proc_name)
+                                .to_str()
+                                .unwrap_or("")
+                        } else {
+                            ""
+                        };
 
-                        if config.developer_mode == Some(true) && config.enable_hook_guards == Some(true) {
+                        if config.developer_mode == Some(true)
+                            && config.enable_hook_guards == Some(true)
+                        {
                             // disclaimer: ultra mega jank, likely will break in the future
                             match &HIDE_STATE {
                                 HideState::INACTIVE => {
                                     // Trigger on this call pattern:
                                     // GetProcAddress(kernel32, "GetProcAddress")
                                     // GetProcAddress(ntdll, ...)
-                                    if h_module == NTDLL.get_base_address() && PREV_PROC_NAME == "GetProcAddress" {
+                                    if h_module == NTDLL.get_base_address()
+                                        && PREV_PROC_NAME == "GetProcAddress"
+                                    {
                                         HIDE_STATE = HideState::ACTIVE;
                                         TRIGGER_COUNT += 1;
                                     }
-                                },
+                                }
                                 HideState::ACTIVE => {
                                     if h_module != NTDLL.get_base_address() {
                                         HIDE_STATE = HideState::INACTIVE;
                                     }
-                                },
-                                _ => {}
+                                }
                             }
                             // If we return 0 on the first set of calls, we crash
                             // Only do it on the second set of calls
@@ -287,7 +304,9 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                         }
 
                         // Avoid NtProtectVirtualMemory from being disabled
-                        if proc_name == "ZwProtectVirtualMemory" || proc_name == "NtProtectVirtualMemory" {
+                        if proc_name == "ZwProtectVirtualMemory"
+                            || proc_name == "NtProtectVirtualMemory"
+                        {
                             proc_address = 0;
                         }
 
