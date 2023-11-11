@@ -58,8 +58,8 @@ fn init(
     let game_env = mods::GameEnv {
         volume: game_volume,
         exe_crc32: exe_crc32,
-        sections: get_game_sections()
-            .inspect_err(|e| log::warn!("failed to get game sections: {e}"))
+        sections: process_game_sections()
+            .inspect_err(|e| log::warn!("error while processing game sections: {e}"))
             .unwrap_or_default(),
     };
 
@@ -407,7 +407,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-fn get_game_sections() -> Result<mods::Sections, anyhow::Error> {
+fn process_game_sections() -> Result<mods::Sections, anyhow::Error> {
     // Get sections of game executable
     let module = unsafe {
         windows_libloader::ModuleHandle::get(&std::env::current_exe()?.to_string_lossy())?
@@ -419,6 +419,20 @@ fn get_game_sections() -> Result<mods::Sections, anyhow::Error> {
         )
     })?
     .section_table();
+
+    // Make all sections read/write
+    unsafe {
+        for section in sections.iter() {
+            let address = module.add(section.virtual_address.get(object::LittleEndian) as usize);
+            if let Err(e) = region::protect(
+                address,
+                section.virtual_size.get(object::LittleEndian) as usize,
+                region::Protection::READ_WRITE_EXECUTE,
+            ) {
+                log::warn!("Cannot unprotect section @ {:#?}: {e}", address);
+            }
+        }
+    }
 
     // Return all recognized sections
     Ok(mods::Sections {
