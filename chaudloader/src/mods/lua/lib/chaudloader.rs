@@ -12,10 +12,22 @@ fn new_game_env<'a>(
     lua: &'a mlua::Lua,
     env: &'a mods::GameEnv,
 ) -> Result<mlua::Value<'a>, mlua::Error> {
-    let table = lua.create_table()?;
-    table.set("name", serde_plain::to_string(&env.volume).unwrap())?;
-    table.set("exe_crc32", env.exe_crc32)?;
-    Ok(mlua::Value::Table(table))
+    let sections_table = lua.create_table()?;
+
+    if let Some(text_section) = env.sections.text {
+        let text_section_table = lua.create_table()?;
+        text_section_table.set("address", text_section.as_ptr() as usize)?;
+        text_section_table.set("size", text_section.len())?;
+        sections_table.set("text", text_section_table)?;
+    } else {
+        sections_table.set("text", mlua::Value::Nil)?;
+    }
+
+    let game_env_table = lua.create_table()?;
+    game_env_table.set("name", serde_plain::to_string(&env.volume).unwrap())?;
+    game_env_table.set("exe_crc32", env.exe_crc32)?;
+    game_env_table.set("sections", sections_table)?;
+    Ok(mlua::Value::Table(game_env_table))
 }
 
 fn new_mod_env<'a>(lua: &'a mlua::Lua, name: &'a str) -> Result<mlua::Value<'a>, mlua::Error> {

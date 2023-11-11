@@ -58,6 +58,9 @@ fn init(
     let game_env = mods::GameEnv {
         volume: game_volume,
         exe_crc32: exe_crc32,
+        sections: get_game_sections()
+            .inspect_err(|e| log::warn!("failed to get game sections: {e}"))
+            .unwrap_or_default(),
     };
 
     std::thread::spawn({
@@ -402,4 +405,43 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
             .enable()?;
     }
     Ok(())
+}
+
+fn get_game_sections() -> Result<mods::Sections, anyhow::Error> {
+    // Get sections of game executable
+    let module = unsafe {
+        windows_libloader::ModuleHandle::get(&std::env::current_exe()?.to_string_lossy())?
+            .get_base_address() as *const u8
+    };
+    let sections = object::read::pe::PeFile64::parse(unsafe {
+        std::slice::from_raw_parts(
+            module, 0x1000, // probably enough
+        )
+    })?
+    .section_table();
+
+    // Return all recognized sections
+    Ok(mods::Sections {
+        // For text section, get the first section and check that it has the correct flags
+        text: sections
+            .section(1)
+            .map_err(Into::into)
+            .and_then(|s| {
+                if (s.characteristics.get(object::LittleEndian)
+                    & (object::pe::IMAGE_SCN_CNT_CODE
+                        | object::pe::IMAGE_SCN_MEM_EXECUTE
+                        | object::pe::IMAGE_SCN_MEM_READ))
+                    != 0
+                {
+                    let (start, size) = s.pe_address_range();
+                    Ok(unsafe {
+                        std::slice::from_raw_parts(module.add(start as usize), size as usize)
+                    })
+                } else {
+                    Err(anyhow::anyhow!("segment does not have correct flags"))
+                }
+            })
+            .inspect_err(|e| log::error!("cannot find .text segment: {e}"))
+            .ok(),
+    })
 }

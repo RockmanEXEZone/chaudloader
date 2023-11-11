@@ -25,10 +25,16 @@ pub struct Info {
     pub requires_exe_crc32: Option<std::collections::HashSet<u32>>,
 }
 
+#[derive(Clone, Default)]
+pub struct Sections {
+    pub text: Option<&'static [u8]>,
+}
+
 #[derive(Clone)]
 pub struct GameEnv {
     pub volume: crate::GameVolume,
     pub exe_crc32: u32,
+    pub sections: Sections,
 }
 
 pub struct State {

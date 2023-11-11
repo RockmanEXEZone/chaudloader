@@ -62,6 +62,16 @@ CRC32 of the EXE.
 
 This may be useful to ensure your mod is loaded for the correct version of the binary if you are hooking hard-coded addresses in the binary.
 
+### `chaudloader.GAME_ENV.sections`
+
+```lua
+chaudloader.GAME_ENV.sections.text: table | nil
+chaudloader.GAME_ENV.sections.text.address: integer
+chaudloader.GAME_ENV.sections.text.size: integer
+```
+
+Current virtual memory address and size of the game's `.text` section. If chaudloader could not determine the location and size of the `.text` section, then `chaudloader.GAME_ENV.text` returns `nil`.
+
 ### `chaudloader.MOD_ENV.name`
 
 ```lua
