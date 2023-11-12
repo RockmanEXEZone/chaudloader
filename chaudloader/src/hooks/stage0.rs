@@ -18,10 +18,15 @@ static_detour! {
     ) -> winapi::shared::windef::HWND;
 }
 static_detour! {
-    static GetProcAddressForCaller: unsafe extern "system" fn(
+    static kernelbase_GetProcAddress: unsafe extern "system" fn(
         /* h_module: */ winapi::shared::minwindef::HMODULE,
-        /* lp_proc_name: */ winapi::shared::ntdef::LPCSTR,
-        /* lp_caller: */ winapi::shared::minwindef::LPVOID
+        /* lp_proc_name: */ winapi::shared::ntdef::LPCSTR
+    ) -> winapi::shared::minwindef::FARPROC;
+}
+static_detour! {
+    static kernel32_GetProcAddress: unsafe extern "system" fn(
+        /* h_module: */ winapi::shared::minwindef::HMODULE,
+        /* lp_proc_name: */ winapi::shared::ntdef::LPCSTR
     ) -> winapi::shared::minwindef::FARPROC;
 }
 
@@ -210,28 +215,93 @@ fn init(
     Ok(())
 }
 
+static KERNEL32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+    std::sync::LazyLock::new(|| unsafe {
+        windows_libloader::ModuleHandle::get("kernel32.dll").unwrap()
+    });
+static KERNELBASE: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+    std::sync::LazyLock::new(|| unsafe {
+        windows_libloader::ModuleHandle::get("kernelbase.dll").unwrap()
+    });
+static NTDLL: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+    std::sync::LazyLock::new(|| unsafe {
+        windows_libloader::ModuleHandle::get("ntdll.dll").unwrap()
+    });
+static USER32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
+    std::sync::LazyLock::new(|| unsafe {
+        windows_libloader::ModuleHandle::get("user32.dll").unwrap()
+    });
+
+unsafe fn get_proc_address_hook(
+    h_module: winapi::shared::minwindef::HMODULE,
+    lp_proc_name: winapi::shared::ntdef::LPCSTR,
+    config: &config::Config,
+) -> winapi::shared::minwindef::FARPROC {
+    #[derive(PartialEq)]
+    enum HideState {
+        INACTIVE,
+        ACTIVE,
+    }
+    static mut TRIGGER_COUNT: u64 = 0;
+    static mut HIDE_STATE: HideState = HideState::INACTIVE;
+    static mut PREV_PROC_NAME: String = String::new();
+
+    let mut proc_address: usize = kernelbase_GetProcAddress.call(h_module, lp_proc_name) as usize;
+
+    // If we always do this, we crash for some reason, so just do it for relevant modules
+    let proc_name = if h_module == KERNEL32.get_base_address()
+        || h_module == KERNELBASE.get_base_address()
+        || h_module == NTDLL.get_base_address()
+    {
+        std::ffi::CStr::from_ptr(lp_proc_name)
+            .to_str()
+            .unwrap_or("")
+    } else {
+        ""
+    };
+
+    if config.developer_mode == Some(true) && config.enable_hook_guards == Some(true) {
+        // disclaimer: ultra mega jank, likely will break in the future
+        match &HIDE_STATE {
+            HideState::INACTIVE => {
+                // Trigger on this call pattern:
+                // GetProcAddress(kernel32, "GetProcAddress")
+                // GetProcAddress(ntdll, ...)
+                if h_module == NTDLL.get_base_address() && PREV_PROC_NAME == "GetProcAddress" {
+                    HIDE_STATE = HideState::ACTIVE;
+                    TRIGGER_COUNT += 1;
+                }
+            }
+            HideState::ACTIVE => {
+                if h_module != NTDLL.get_base_address() {
+                    HIDE_STATE = HideState::INACTIVE;
+                }
+            }
+        }
+        // If we return 0 on the first set of calls, we crash
+        // Only do it on the second set of calls
+        if HIDE_STATE == HideState::ACTIVE && TRIGGER_COUNT == 2 {
+            // For some reason using std::ptr::null_mut() causes a crash when resuming from break?
+            // So instead we directly mutate the pointer as an integer
+            proc_address = 0;
+        }
+    }
+
+    // Avoid NtProtectVirtualMemory from being disabled
+    if proc_name == "ZwProtectVirtualMemory" || proc_name == "NtProtectVirtualMemory" {
+        proc_address = 0;
+    }
+
+    PREV_PROC_NAME = proc_name.to_string();
+    proc_address as winapi::shared::minwindef::FARPROC
+}
+
 pub unsafe fn install() -> Result<(), anyhow::Error> {
-    static KERNEL32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
-        std::sync::LazyLock::new(|| unsafe {
-            windows_libloader::ModuleHandle::get("kernel32.dll").unwrap()
-        });
-    static KERNELBASE: std::sync::LazyLock<windows_libloader::ModuleHandle> =
-        std::sync::LazyLock::new(|| unsafe {
-            windows_libloader::ModuleHandle::get("kernelbase.dll").unwrap()
-        });
-    static NTDLL: std::sync::LazyLock<windows_libloader::ModuleHandle> =
-        std::sync::LazyLock::new(|| unsafe {
-            windows_libloader::ModuleHandle::get("ntdll.dll").unwrap()
-        });
-    static USER32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
-        std::sync::LazyLock::new(|| unsafe {
-            windows_libloader::ModuleHandle::get("user32.dll").unwrap()
-        });
+    static CONFIG: std::sync::LazyLock<config::Config> =
+        std::sync::LazyLock::new(|| config::load().unwrap());
 
-    let config = config::load()?;
-
-    if config.developer_mode == Some(true) {
-        for cmd in config.stage0_commands.iter().flatten() {
+    if CONFIG.developer_mode == Some(true) {
+        for cmd in CONFIG.stage0_commands.iter().flatten() {
             let (code, _, _) =
                 run_script::run_script!(cmd.replace("%PID%", &std::process::id().to_string()))?;
             if code != 0 {
@@ -241,80 +311,31 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
     }
 
     unsafe {
-        // Hook GetProcAddress to avoid ntdll.dll hooks being installed
-        GetProcAddressForCaller
+        // Hook GetProcAddress to avoid ntdll.dll hooks being installed.
+        //
+        // The function exists in both kernel32 and kernelbase; the one in kernel32 will call
+        // kernelbase.GetProcAddressForCaller rather than kernelbase.GetProcAddress.
+        // So we have to hook both of them to ensure our hook gets hit.
+        // kernelbase.GetProcAddressForCaller doesn't exist in Wine/Proton, so we can't use that one.
+        //
+        // Hook the kernelbase variant first, because that's the one we call in our hook function.
+        // Otherwise we will get infinite recursion!
+        kernelbase_GetProcAddress
             .initialize(
-                std::mem::transmute(
-                    KERNELBASE
-                        .get_symbol_address("GetProcAddressForCaller")
-                        .unwrap(),
-                ),
+                std::mem::transmute(KERNELBASE.get_symbol_address("GetProcAddress").unwrap()),
                 {
-                    move |h_module, lp_proc_name, lp_caller| {
-                        #[derive(PartialEq)]
-                        enum HideState {
-                            INACTIVE,
-                            ACTIVE,
-                        }
-                        static mut TRIGGER_COUNT: u64 = 0;
-                        static mut HIDE_STATE: HideState = HideState::INACTIVE;
-                        static mut PREV_PROC_NAME: String = String::new();
-
-                        let mut proc_address: usize =
-                            GetProcAddressForCaller.call(h_module, lp_proc_name, lp_caller)
-                                as usize;
-
-                        // If we always do this, we crash for some reason, so just do it for relevant modules
-                        let proc_name = if h_module == KERNEL32.get_base_address()
-                            || h_module == NTDLL.get_base_address()
-                        {
-                            std::ffi::CStr::from_ptr(lp_proc_name)
-                                .to_str()
-                                .unwrap_or("")
-                        } else {
-                            ""
-                        };
-
-                        if config.developer_mode == Some(true)
-                            && config.enable_hook_guards == Some(true)
-                        {
-                            // disclaimer: ultra mega jank, likely will break in the future
-                            match &HIDE_STATE {
-                                HideState::INACTIVE => {
-                                    // Trigger on this call pattern:
-                                    // GetProcAddress(kernel32, "GetProcAddress")
-                                    // GetProcAddress(ntdll, ...)
-                                    if h_module == NTDLL.get_base_address()
-                                        && PREV_PROC_NAME == "GetProcAddress"
-                                    {
-                                        HIDE_STATE = HideState::ACTIVE;
-                                        TRIGGER_COUNT += 1;
-                                    }
-                                }
-                                HideState::ACTIVE => {
-                                    if h_module != NTDLL.get_base_address() {
-                                        HIDE_STATE = HideState::INACTIVE;
-                                    }
-                                }
-                            }
-                            // If we return 0 on the first set of calls, we crash
-                            // Only do it on the second set of calls
-                            if HIDE_STATE == HideState::ACTIVE && TRIGGER_COUNT == 2 {
-                                // For some reason using std::ptr::null_mut() causes a crash when resuming from break?
-                                // So instead we directly mutate the pointer as an integer
-                                proc_address = 0;
-                            }
-                        }
-
-                        // Avoid NtProtectVirtualMemory from being disabled
-                        if proc_name == "ZwProtectVirtualMemory"
-                            || proc_name == "NtProtectVirtualMemory"
-                        {
-                            proc_address = 0;
-                        }
-
-                        PREV_PROC_NAME = proc_name.to_string();
-                        proc_address as winapi::shared::minwindef::FARPROC
+                    move |h_module, lp_proc_name| {
+                        get_proc_address_hook(h_module, lp_proc_name, &CONFIG)
+                    }
+                },
+            )?
+            .enable()?;
+        kernel32_GetProcAddress
+            .initialize(
+                std::mem::transmute(KERNEL32.get_symbol_address("GetProcAddress").unwrap()),
+                {
+                    move |h_module, lp_proc_name| {
+                        get_proc_address_hook(h_module, lp_proc_name, &CONFIG)
                     }
                 },
             )?
@@ -353,7 +374,7 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                             static INITIALIZED: std::sync::atomic::AtomicBool =
                                 std::sync::atomic::AtomicBool::new(false);
                             if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
-                                init(game_volume, config.clone()).unwrap();
+                                init(game_volume, CONFIG.clone()).unwrap();
 
                                 let hwnd = CreateWindowExA.call(
                                     dw_ex_style,
