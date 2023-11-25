@@ -127,9 +127,10 @@ fn make_main_tile(
     left_group.end();
 
     // Right browser.
-    let right_group = fltk::group::Group::default()
+    let mut right_group = fltk::group::Group::default()
         .with_size(tile.width() - left_group.width(), tile.height())
         .with_pos(left_group.width(), 0);
+    right_group.set_frame(fltk::enums::FrameType::FlatBox);
 
     let mut enabled_checkbox = fltk::button::CheckButton::default()
         .with_size(right_group.width(), 25)
