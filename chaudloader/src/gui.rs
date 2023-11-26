@@ -95,7 +95,7 @@ fn make_main_tile(
     let tile = fltk::group::Tile::default_fill();
 
     // Left browser.
-    let left_group = fltk::group::Group::default().with_size(230, tile.height());
+    let left_group = fltk::group::Group::default().with_size((0.3 * tile.width() as f32) as i32, tile.height());
 
     let toolbar_group = fltk::group::Group::default().with_size(left_group.width(), 25);
 
@@ -572,14 +572,24 @@ fn make_window(
     config: &config::Config,
 ) -> fltk::window::Window {
     let mut wind = fltk::window::Window::default()
-        .with_size(800, 600)
+        .with_size(960, 540)
         .with_label(&format!(
             "chaudloader v{}: {} (crc32: {:08x})",
             *crate::VERSION,
             serde_plain::to_string(&game_env.volume).unwrap(),
             game_env.exe_crc32
         ));
-    wind.make_resizable(true);
+    if config.use_game_display_settings == Some(true) {
+        let launcher_config = config::load_launcher_config();
+        wind.set_size(launcher_config.window_size.width, launcher_config.window_size.height);
+        match launcher_config.screen_mode {
+            config::ScreenMode::Windowed => wind.make_resizable(true),
+            config::ScreenMode::FullScreen => wind.fullscreen(true),
+            config::ScreenMode::Borderless => wind.fullscreen(true), // TODO: Figure out how to actually do this lol
+        }
+    } else {
+        wind.make_resizable(true);
+    }
 
     let mut console = fltk::text::SimpleTerminal::default_fill();
     wind.resizable(&console);
