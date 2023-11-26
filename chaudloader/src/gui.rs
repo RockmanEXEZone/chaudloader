@@ -2,6 +2,9 @@ use fltk::prelude::*;
 
 use crate::{config, console, mods, path};
 
+mod mod_table;
+mod mod_widget;
+
 struct ConsoleWriter<'a>(&'a mut fltk::text::SimpleTerminal);
 
 impl<'a> std::io::Write for ConsoleWriter<'a> {
@@ -145,12 +148,29 @@ fn make_main_tile(
     let mut help_view = fltk::misc::HelpView::default()
         .with_size(right_group.width(), right_group.height() - 25 - 25)
         .with_pos(right_group.x(), right_group.y() + 25);
+    help_view.hide();
     help_view.set_text_font(fltk::enums::Font::Helvetica);
     help_view.set_text_size(16);
 
     help_view.set_value("No mod selected."); // TODO: Localize.
 
-    right_group.resizable(&help_view);
+    let mut mod_table = mod_table::ModTable::default()
+        .with_size(right_group.width(), right_group.height() - 25 - 25)
+        .with_pos(right_group.x(), right_group.y() + 25)
+        .with_padding(10, 10, 10, 10)
+        .with_spacing(10, 10);
+    {
+        let mut _but = fltk::button::Button::default().with_label("Mod");
+        _but.set_size(100, 100);
+        let mut _but = fltk::button::Button::default().with_label("Mod");
+        _but.set_size(100, 100);
+        let mut _but = fltk::button::Button::default().with_label("Mod");
+        _but.set_size(100, 100);
+        
+        mod_table.end();
+    }
+
+    right_group.resizable(&*mod_table);
 
     right_group.end();
 
