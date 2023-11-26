@@ -98,7 +98,8 @@ fn make_main_tile(
     let tile = fltk::group::Tile::default_fill();
 
     // Left browser.
-    let left_group = fltk::group::Group::default().with_size((0.3 * tile.width() as f32) as i32, tile.height());
+    let left_group =
+        fltk::group::Group::default().with_size((0.3 * tile.width() as f32) as i32, tile.height());
 
     let toolbar_group = fltk::group::Group::default().with_size(left_group.width(), 25);
 
@@ -158,17 +159,14 @@ fn make_main_tile(
         .with_size(right_group.width(), right_group.height() - 25 - 25)
         .with_pos(right_group.x(), right_group.y() + 25)
         .with_padding(10, 10, 10, 10)
-        .with_spacing(10, 10);
+        .with_spacing(10, 10)
+        .with_min_column_width(300); // or a large value for list view
     {
-        let mut _but = fltk::button::Button::default().with_label("Mod");
-        _but.set_size(100, 100);
-        let mut _but = fltk::button::Button::default().with_label("Mod");
-        _but.set_size(100, 100);
-        let mut _but = fltk::button::Button::default().with_label("Mod");
-        _but.set_size(100, 100);
-        
-        mod_table.end();
+        for (mod_name, mod_arc) in mods::scan().ok().unwrap_or_default() {
+            mod_widget::ModWidget::new(&mod_arc.info);
+        }
     }
+    mod_table.end();
 
     right_group.resizable(&*mod_table);
 
@@ -601,7 +599,10 @@ fn make_window(
         ));
     if config.use_game_display_settings == Some(true) {
         let launcher_config = config::load_launcher_config();
-        wind.set_size(launcher_config.window_size.width, launcher_config.window_size.height);
+        wind.set_size(
+            launcher_config.window_size.width,
+            launcher_config.window_size.height,
+        );
         match launcher_config.screen_mode {
             config::ScreenMode::Windowed => wind.make_resizable(true),
             config::ScreenMode::FullScreen => wind.fullscreen(true),
