@@ -1,7 +1,7 @@
 use fltk::prelude::*;
 
 #[derive(Debug, Copy, Clone, Default)]
-struct ModTableData {
+struct FlowTableData {
     padding_top: i32,
     padding_right: i32,
     padding_bottom: i32,
@@ -11,22 +11,20 @@ struct ModTableData {
     min_column_width: i32,
 }
 #[derive(Debug, Clone)]
-pub struct ModTable {
-    inner: fltk::group::Scroll,
-    data: std::rc::Rc<std::cell::RefCell<ModTableData>>,
+pub struct FlowTable {
+    inner: fltk::group::Group,
+    data: std::rc::Rc<std::cell::RefCell<FlowTableData>>,
 }
 
-impl Default for ModTable {
+impl Default for FlowTable {
     fn default() -> Self {
         Self::new(0, 0, 0, 0, None)
     }
 }
-impl ModTable {
+impl FlowTable {
     pub fn new<T: Into<Option<&'static str>>>(x: i32, y: i32, w: i32, h: i32, label: T) -> Self {
-        let mut inner = fltk::group::Scroll::new(x, y, w, h, label);
-        inner.set_scrollbar_size(15);
-        inner.set_type(fltk::group::ScrollType::VerticalAlways);
-        let data = ModTableData::default();
+        let mut inner = fltk::group::Group::new(x, y, w, h, label);
+        let data = FlowTableData::default();
         let data = std::rc::Rc::from(std::cell::RefCell::from(data));
         let data_ref = data.clone();
 
@@ -34,11 +32,11 @@ impl ModTable {
         // This keeps the scrollbars stable when using padding
         let mut dummy = fltk::frame::Frame::default();
 
-        // Scroll creates a bunch of built-in children that we want to exclude later
+        // Exclude any built-in children of the inner widget
         // Also want to exclude the dummy, so we do this after creating it
-        let mut scroll_children = Vec::new();
+        let mut ignore_children = Vec::new();
         for i in 0..inner.children() {
-            scroll_children.push(inner.child(i).unwrap());
+            ignore_children.push(inner.child(i).unwrap());
         }
 
         inner.resize_callback(move |inner, x, y, w, h| {
@@ -48,15 +46,8 @@ impl ModTable {
             let mut ch_max = 0;
             let x = x + data.padding_left;
             let y = y + data.padding_top;
-            let w = w
-                - data.padding_left
-                - data.padding_right
-                - if inner.scrollbar().visible() {
-                    inner.scrollbar_size()
-                } else {
-                    0
-                };
-            let h = h - data.padding_top - data.padding_bottom - inner.scrollbar_size();
+            let w = w - data.padding_left - data.padding_right;
+            let h = h - data.padding_top - data.padding_bottom;
 
             // Determine number of columns
             // Avoid divide by zero
@@ -77,7 +68,7 @@ impl ModTable {
 
             for i in 0..inner.children() {
                 let mut c = inner.child(i).unwrap();
-                if scroll_children.contains(&c) {
+                if ignore_children.contains(&c) {
                     // Ignore built-in children
                     continue;
                 }
@@ -108,11 +99,21 @@ impl ModTable {
 
             dummy.set_frame(fltk::enums::FrameType::FlatBox);
             dummy.set_color(fltk::enums::Color::from_hex(0x7FFF7F));
-            dummy.set_pos(x - data.padding_left, y - data.padding_top);
-            dummy.set_size(
+            dummy.resize(
+                x - data.padding_left,
+                y - data.padding_top,
                 w + data.padding_left + data.padding_right,
                 cy + ch_max + data.padding_top + data.padding_bottom,
             );
+
+            let cur_w = inner.w();
+            let cur_h = inner.h();
+            let dum_w = dummy.w();
+            let dum_h = dummy.h();
+            if (cur_w, cur_h) != (dum_w, dum_h) {
+                // Wow I can't believe this works
+                inner.set_size(dum_w, dum_h);
+            }
         });
         Self { inner, data }
     }
@@ -147,4 +148,4 @@ impl ModTable {
     }
 }
 
-fltk::widget_extends!(ModTable, fltk::group::Scroll, inner);
+fltk::widget_extends!(FlowTable, fltk::group::Group, inner);

@@ -2,7 +2,8 @@ use fltk::prelude::*;
 
 use crate::{config, console, mods, path};
 
-mod mod_table;
+mod flow_scroll;
+mod flow_table;
 mod mod_widget;
 
 struct ConsoleWriter<'a>(&'a mut fltk::text::SimpleTerminal);
@@ -155,9 +156,10 @@ fn make_main_tile(
 
     help_view.set_value("No mod selected."); // TODO: Localize.
 
-    let mut mod_table = mod_table::ModTable::default()
+    let mut mod_scroll = flow_scroll::FlowScroll::default()
         .with_size(right_group.width(), right_group.height() - 25 - 25)
-        .with_pos(right_group.x(), right_group.y() + 25)
+        .with_pos(right_group.x(), right_group.y() + 25);
+    let mut mod_table = flow_table::FlowTable::default()
         .with_padding(10, 10, 10, 10)
         .with_spacing(10, 10)
         .with_min_column_width(300); // or a large value for list view
@@ -167,8 +169,9 @@ fn make_main_tile(
         }
     }
     mod_table.end();
+    mod_scroll.end();
 
-    right_group.resizable(&*mod_table);
+    right_group.resizable(&*mod_scroll);
 
     right_group.end();
 
