@@ -3,15 +3,17 @@ use fltk::prelude::*;
 
 #[derive(Debug, Clone, Default)]
 pub struct ModWidget {
-    flex: fltk::group::Flex,
+    group: fltk::group::Group,
 }
 
-fltk::widget_extends!(ModWidget, fltk::group::Flex, flex);
+fltk::widget_extends!(ModWidget, fltk::group::Group, group);
 
 impl ModWidget {
     pub fn new(mod_info: &mods::Info) -> Self {
+        let mut group = fltk::group::Group::default().with_size(100, 80);
+
         // Note: width is percentual but height is actual pixels!
-        let mut flex = fltk::group::Flex::default().with_size(100, 80).row();
+        let mut flex = fltk::group::Flex::default_fill().row();
         flex.set_frame(fltk::enums::FrameType::FlatBox);
         flex.set_type(fltk::group::FlexType::Row);
         flex.set_color(fltk::enums::Color::from_hex(0xFF7F7F));
@@ -32,19 +34,34 @@ impl ModWidget {
         let spacer = fltk::widget::Widget::default();
         flex.fixed(&spacer, 10);
 
-        /*let mut enable_button = fltk::button::CheckButton::default()
-            .with_label("Enabled")
-            .with_size(15, 15)
-            .with_pos(100 - 15, 100 - 15)
-            .with_align(fltk::enums::Align::Left);
-        enable_button.set_frame(fltk::enums::FrameType::FlatBox);
-        enable_button.set_color(fltk::enums::Color::from_hex(0x7F7FFF));*/
-        let mut mod_name_buffer = fltk::text::TextBuffer::default();
-        mod_name_buffer.set_text(&mod_info.title);
-        let mut mod_name = fltk::text::TextDisplay::default();
-        mod_name.set_buffer(mod_name_buffer);
-        mod_name.wrap_mode(fltk::text::WrapMode::AtBounds, 0);
+        let mut mod_name = fltk::frame::Frame::default().with_label(&mod_info.title);
+        mod_name.set_label_font(fltk::enums::Font::HelveticaBold);
+        mod_name.set_align(
+            fltk::enums::Align::TopLeft | fltk::enums::Align::Inside | fltk::enums::Align::Wrap,
+        );
+
+        let spacer = fltk::widget::Widget::default();
+        flex.fixed(&spacer, 30);
+
         flex.end();
-        Self { flex }
+
+        let mut enable_button = fltk::button::CheckButton::default().with_size(20, 20);
+        enable_button.set_frame(fltk::enums::FrameType::FlatBox);
+        enable_button.set_color(fltk::enums::Color::from_hex(0x7F7FFF));
+        let enable_button_w = enable_button.w();
+        let enable_button_h = enable_button.h();
+
+        // Anchor enable button
+        group.resize_callback(move |group, x, y, w, h| {
+            enable_button.resize(
+                x + w - enable_button_w,
+                y,
+                enable_button_w,
+                enable_button_h,
+            );
+        });
+
+        group.end();
+        Self { group }
     }
 }
