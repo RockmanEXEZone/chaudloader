@@ -10,7 +10,10 @@ struct ConsoleWriter<'a>(&'a mut fltk::text::SimpleTerminal);
 
 impl<'a> std::io::Write for ConsoleWriter<'a> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.append2(buf);
+        // Workaround for Fl_Simple_Terminal::append(s, len) ignoring len
+        if let Ok(s) = std::ffi::CString::new(buf) {
+            self.0.append(&s.to_string_lossy());
+        }
         Ok(buf.len())
     }
 
