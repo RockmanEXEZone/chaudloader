@@ -1,4 +1,4 @@
-use crate::{assets, hooks};
+use crate::{assets, hooks, mods};
 use retour::static_detour;
 
 use std::os::windows::ffi::OsStrExt;
@@ -44,6 +44,12 @@ static_detour! {
         /* dw_flags_and_attributes: */ winapi::shared::minwindef::DWORD,
         /* handle: */ winapi::shared::ntdef::HANDLE
     ) -> winapi::shared::ntdef::HANDLE;
+}
+
+static_detour! {
+    static mmblc_OnGameLoad: unsafe extern "system" fn(
+        u32
+    );
 }
 
 struct HooksDisableGuard {
@@ -116,6 +122,17 @@ unsafe fn on_create_file(
     )
 }
 
+unsafe fn on_game_load(
+    game_version: u32,
+    gba_state:  * mut u8,
+) {
+    mmblc_OnGameLoad.call(game_version);
+    let mod_funcs = mods::MODFUNCTIONS.get().unwrap().lock().unwrap();
+    for on_game_load_functions in &mod_funcs.on_game_load_functions{
+        on_game_load_functions(game_version, gba_state);
+    }
+}
+
 /// Install hooks into the process.
 pub unsafe fn install() -> Result<(), anyhow::Error> {
     static KERNELBASE: std::sync::LazyLock<windows_libloader::ModuleHandle> =
@@ -185,6 +202,52 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                 },
             )?
             .enable()?;
+    }
+
+    Ok(())
+}
+
+/// Install optional on_game_laod hook into the process.
+pub unsafe fn install_on_game_load() -> Result<(), anyhow::Error> {
+    unsafe {
+        let module =  windows_libloader::ModuleHandle::get(&std::env::current_exe()?.to_string_lossy())?
+                .get_base_address() as *const u8;
+
+        let section = object::read::pe::PeFile64::parse(
+            std::slice::from_raw_parts(
+                module, 0x1000,
+            ))?.section_table().section(1)?;
+        
+        let (start, size) = section.pe_address_range();
+
+        let data: &[u8] = std::slice::from_raw_parts(module.add(start as usize), size as usize);
+        // This pattern is enough to find the function in all releases of both collections (at 0x141dde120 Vol1 / 143147c10 Vol2 for latest releases)
+        let on_game_load_pattern: [u8; 12] = [0x48, 0x89, 0x5c, 0x24, 0x10, 0x56, 0x48, 0x83, 0xec, 0x20, 0x8b, 0xd9];
+        if let Some(offset) = data.windows(on_game_load_pattern.len()).position(|window| window == on_game_load_pattern) {
+            let on_game_load_offset = module.add((start as usize) + offset);
+            // Get the offset to the GBAStruct from a struction referenced in the function
+            let mov_instr_offset = (start as usize) + offset + 0x18;
+            let struct_rel_offset = std::ptr::read_unaligned(module.add(mov_instr_offset + 3) as * const u32) as usize;
+            let struct_offset = module.add(mov_instr_offset + 7 + struct_rel_offset) as u64;
+
+            mmblc_OnGameLoad
+            .initialize(
+                std::mem::transmute(on_game_load_offset),
+                {
+                    move |game_version|
+                          {
+                            // let gba_state = std::mem::transmute::<u64, * mut u8>(0x80200040);
+                            // Get the gba state offset every time in case this struct moves
+                            let struct_with_gba_state = std::ptr::read_unaligned(struct_offset as * const * const u8);
+                            let gba_state = std::ptr::read_unaligned(struct_with_gba_state.add(0x3F8) as  * const * mut u8);
+                        on_game_load(game_version,
+                            gba_state,
+                        )
+                    }
+                },
+            )?
+            .enable()?;
+        }
     }
 
     Ok(())

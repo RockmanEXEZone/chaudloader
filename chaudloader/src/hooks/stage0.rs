@@ -1,4 +1,4 @@
-use crate::{assets, config, gui, mods};
+use crate::{assets, config, gui, mods::{self, ModFunctions, MODFUNCTIONS}};
 use retour::static_detour;
 
 static_detour! {
@@ -167,6 +167,23 @@ fn init(
             log::error!("[mod: {}] failed to init: {}", mod_name, e);
         }
     }
+    let mut on_game_load_hook_needed = false;
+    {
+        assert!(MODFUNCTIONS
+            .set(std::sync::Mutex::new(ModFunctions::new()))
+            .is_ok());
+        let mut mod_funcs = MODFUNCTIONS.get().unwrap().lock().unwrap();
+        for mod_state in loaded_mods.values() {
+            for dll in mod_state.dlls.values() {
+                unsafe{
+                    if let Ok(on_game_load_symbol_address) = dll.get_symbol_address("on_game_load") {
+                        mod_funcs.on_game_load_functions.push(std::mem::transmute::<winapi::shared::minwindef::FARPROC, fn(u32, *const u8)>(on_game_load_symbol_address));
+                        on_game_load_hook_needed = true;
+                    }
+                }
+            }
+        }
+    }
 
     // We just need somewhere to keep LOADED_MODS so the DLLs don't get cleaned up, so we'll just put them here.
     std::thread_local! {
@@ -211,6 +228,9 @@ fn init(
     }
     unsafe {
         super::stage1::install()?;
+        if on_game_load_hook_needed {
+            super::stage1::install_on_game_load()?;
+        }
     }
     Ok(())
 }
@@ -405,7 +425,6 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                                 log::warn!("initialization was attempted more than once?");
                             }
                         }
-
                         CreateWindowExA.call(
                             dw_ex_style,
                             lp_class_name,
