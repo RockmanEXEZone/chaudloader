@@ -229,7 +229,7 @@ fn init(
     unsafe {
         super::stage1::install()?;
         if on_game_load_hook_needed {
-            super::stage1::install_on_game_load()?;
+            super::stage1::install_on_game_load(&game_env)?;
         }
     }
     Ok(())
