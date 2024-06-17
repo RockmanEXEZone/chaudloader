@@ -477,6 +477,74 @@ chaudloader.util: {
 
 See [chaudloader/src/mods/lua/lib/chaudloader/util.lua](chaudloader/src/mods/lua/lib/chaudloader/util.lua) for functions available in this namespace.
 
+## DLL mod functions
+
+### `on_game_load`
+
+This function is called when a Battle Network game is loaded. It is called after the ROM is loaded and memory is initialized, but before the game has been run.
+
+The function should have the following signature:
+
+```c
+__declspec(dllexport) void on_game_load(int game, GBAState* gba_state) {
+    // Do all your logic here.
+}
+```
+`game`: This is the BN game being loaded.  It can contain the values:
+* Battle Network 1 = 0
+* Battle Network 2 = 2
+* Battle Network 3 White = 3
+* Battle Network 3 Blue = 4
+* Battle Network 4 Red Sun = 5
+* Battle Network 4 Blue Moon = 6
+* Battle Network 5 Team ProtoMan = 7
+* Battle Network 5 Team Colonel = 8
+* Battle Network 6 Cybeast Gregar = 9
+* Battle Network 6 Cybeast Falzar = 10
+
+A basic enum for this is:
+
+```c
+enum class MMBNGame : int {
+    BN1 = 0,
+    Unused,
+    BN2,
+    BN3_White,
+    BN3_Blue,
+    BN4_RedSun,
+    BN4_BlueMoon,
+    BN5_ProtoMan,
+    BN5_Colonel,
+    BN6_Gregar,
+    BN6_Falzar,
+};
+```
+`gba_state`: Pointer to the GBA state struct. A basic definition is:
+```c
+struct GBAState {
+    uint32_t r0;
+    uint32_t r1;
+    uint32_t r2;
+    uint32_t r3;
+    uint32_t r4;
+    uint32_t r5;
+    uint32_t r6;
+    uint32_t r7;
+    uint32_t r8;
+    uint32_t r9;
+    uint32_t r10;
+    uint32_t r11;
+    uint32_t r12;
+    uint32_t r13;
+    uint32_t r14;
+    uint32_t r15;
+    uint32_t cpuFlags;
+    uint32_t flagsImplicitUpdate;
+    uint8_t* memory;
+}
+```
+
+
 ## Deprecated API
 
 ### Compatibility shims
