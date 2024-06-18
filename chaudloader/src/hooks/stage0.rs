@@ -378,51 +378,53 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                           h_menu,
                           h_instance,
                           lp_param| {
-                        let window_name =
-                            std::ffi::CStr::from_ptr(lp_window_name).to_string_lossy();
+                        if !lp_window_name.is_null() {
+                            let window_name =
+                                std::ffi::CStr::from_ptr(lp_window_name).to_string_lossy();
 
-                        if let Some(game_volume) = match window_name.as_ref() {
-                            "MegaMan_BattleNetwork_LegacyCollection_Vol1" => {
-                                Some(crate::GameVolume::Vol1)
-                            }
-                            "MegaMan_BattleNetwork_LegacyCollection_Vol2" => {
-                                Some(crate::GameVolume::Vol2)
-                            }
-                            _ => None,
-                        } {
-                            // Only initialize this once. It should be initialized on the main window being created.
-                            static INITIALIZED: std::sync::atomic::AtomicBool =
-                                std::sync::atomic::AtomicBool::new(false);
-                            if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
-                                init(game_volume, CONFIG.clone()).unwrap();
-
-                                let hwnd = CreateWindowExA.call(
-                                    dw_ex_style,
-                                    lp_class_name,
-                                    lp_window_name,
-                                    dw_style,
-                                    x,
-                                    y,
-                                    n_width,
-                                    n_height,
-                                    h_wnd_parent,
-                                    h_menu,
-                                    h_instance,
-                                    lp_param,
-                                );
-                                if hwnd.is_null() {
-                                    // This shouldn't happen...
-                                    return hwnd;
+                            if let Some(game_volume) = match window_name.as_ref() {
+                                "MegaMan_BattleNetwork_LegacyCollection_Vol1" => {
+                                    Some(crate::GameVolume::Vol1)
                                 }
+                                "MegaMan_BattleNetwork_LegacyCollection_Vol2" => {
+                                    Some(crate::GameVolume::Vol2)
+                                }
+                                _ => None,
+                            } {
+                                // Only initialize this once. It should be initialized on the main window being created.
+                                static INITIALIZED: std::sync::atomic::AtomicBool =
+                                    std::sync::atomic::AtomicBool::new(false);
+                                if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
+                                    init(game_volume, CONFIG.clone()).unwrap();
 
-                                assert_eq!(
-                                    winapi::um::winuser::SetForegroundWindow(hwnd),
-                                    winapi::shared::minwindef::TRUE
-                                );
+                                    let hwnd = CreateWindowExA.call(
+                                        dw_ex_style,
+                                        lp_class_name,
+                                        lp_window_name,
+                                        dw_style,
+                                        x,
+                                        y,
+                                        n_width,
+                                        n_height,
+                                        h_wnd_parent,
+                                        h_menu,
+                                        h_instance,
+                                        lp_param,
+                                    );
+                                    if hwnd.is_null() {
+                                        // This shouldn't happen...
+                                        return hwnd;
+                                    }
 
-                                return hwnd;
-                            } else {
-                                log::warn!("initialization was attempted more than once?");
+                                    assert_eq!(
+                                        winapi::um::winuser::SetForegroundWindow(hwnd),
+                                        winapi::shared::minwindef::TRUE
+                                    );
+
+                                    return hwnd;
+                                } else {
+                                    log::warn!("initialization was attempted more than once?");
+                                }
                             }
                         }
                         CreateWindowExA.call(
