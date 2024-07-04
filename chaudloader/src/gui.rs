@@ -1,4 +1,4 @@
-use fltk::prelude::*;
+use fltk::{enums::Color, prelude::*};
 
 use crate::{config, console, mods, path};
 
@@ -111,7 +111,7 @@ fn make_main_tile(
     toolbar_group.end();
 
     let mut browser = fltk::browser::HoldBrowser::default()
-        .with_size(left_group.width(), left_group.height() - 50)
+        .with_size(left_group.width(), left_group.height() - 55)
         .with_pos(0, toolbar_group.height());
     left_group.resizable(&browser);
 
@@ -121,9 +121,13 @@ fn make_main_tile(
     >::new()));
 
     let mut play_button = fltk::button::Button::default()
-        .with_label("Play")
-        .with_size(left_group.width(), 25)
+        .with_label("►Play")
+        .with_size(left_group.width(), 30)
         .with_pos(0, toolbar_group.height() + browser.height());
+    play_button.set_frame(fltk::enums::FrameType::FlatBox);
+    play_button.set_color(fltk::enums::Color::from_hex(0x18B04E));
+    play_button.set_label_color(fltk::enums::Color::White);
+    play_button.set_label_size(22);
     left_group.end();
 
     // Right browser.
@@ -290,21 +294,21 @@ fn make_main_tile(
                     })
                     table {
                         tr {
-                            th { "Title"}
+                            th align="right" { "Title:"}
                             td { (binding.r#mod.info.title) }
                         }
                         tr {
-                            th { "Version"}
+                            th align="right" { "Version:"}
                             td { (binding.r#mod.info.version) }
                         }
                         tr {
-                            th { "Authors"}
+                            th align="right" { "Authors:"}
                             td { (binding.r#mod.info.authors.join(", ")) }
                         }
                         (if let Some(url) = binding.r#mod.info.url.as_ref() {
                             maud::html! {
                                 tr {
-                                    th { "Link"}
+                                    th align="right" { "Link:"}
                                     td { a href=(url) { (url) } }
                                 }
                             }
@@ -389,13 +393,27 @@ fn make_main_tile(
             update_browser_items(&*mod_bindings);
         }
     };
-
+    let browser_previous_selection = std::sync::Arc::new(std::sync::atomic::AtomicI32::new(-1));
     browser.set_callback({
         let mod_bindings = std::sync::Arc::clone(&mod_bindings);
+        let browser_previous_selection = std::sync::Arc::clone(&browser_previous_selection);
         let browser = browser.clone();
         let mut set_selection = set_selection.clone();
+        let mut update_browser_items = update_browser_items.clone();
         move |_| {
-            let mod_bindings = mod_bindings.lock().unwrap();
+            let mut mod_bindings = mod_bindings.lock().unwrap();
+            let mut update_items = false;
+
+                if let Some(&selected_index) = browser.selected_items().first() {
+                    if selected_index == browser_previous_selection.swap(selected_index, std::sync::atomic::Ordering::SeqCst) {
+                        if let Some(binding) = mod_bindings.values_mut().nth((selected_index - 1) as usize) {
+                            binding.enabled = !binding.enabled;
+                            update_items = true;
+                        }
+                    }
+                } else {
+                    browser_previous_selection.store(-1, std::sync::atomic::Ordering::SeqCst);
+                }
 
             set_selection(
                 browser
@@ -408,6 +426,9 @@ fn make_main_tile(
                             .map(|binding| (mod_name, binding))
                     }),
             );
+            if update_items {
+                update_browser_items(&*mod_bindings);
+            }
         }
     });
 
