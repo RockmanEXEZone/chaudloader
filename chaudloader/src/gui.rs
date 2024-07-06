@@ -1,4 +1,4 @@
-use fltk::{enums::Color, prelude::*};
+use fltk::{prelude::*};
 
 use crate::{config, console, mods, path};
 
@@ -393,27 +393,28 @@ fn make_main_tile(
             update_browser_items(&*mod_bindings);
         }
     };
-    let browser_previous_selection = std::sync::Arc::new(std::sync::atomic::AtomicI32::new(-1));
+    let browser_previous_selection = std::cell::Cell::new(None);
     browser.set_callback({
         let mod_bindings = std::sync::Arc::clone(&mod_bindings);
-        let browser_previous_selection = std::sync::Arc::clone(&browser_previous_selection);
         let browser = browser.clone();
         let mut set_selection = set_selection.clone();
         let mut update_browser_items = update_browser_items.clone();
         move |_| {
             let mut mod_bindings = mod_bindings.lock().unwrap();
-            let mut update_items = false;
+            let selected_index = browser.selected_items().first().cloned();
 
-                if let Some(&selected_index) = browser.selected_items().first() {
-                    if selected_index == browser_previous_selection.swap(selected_index, std::sync::atomic::Ordering::SeqCst) {
-                        if let Some(binding) = mod_bindings.values_mut().nth((selected_index - 1) as usize) {
-                            binding.enabled = !binding.enabled;
-                            update_items = true;
-                        }
-                    }
-                } else {
-                    browser_previous_selection.store(-1, std::sync::atomic::Ordering::SeqCst);
+            // Toggle mod enabled when you double click on it in the mod list
+            if browser_previous_selection.replace(selected_index) == selected_index
+                && selected_index.is_some()
+            {
+                if let Some(binding) = mod_bindings
+                    .values_mut()
+                    .nth((selected_index.unwrap() - 1) as usize)
+                {
+                    binding.enabled = !binding.enabled;
+                    update_browser_items(&*mod_bindings);
                 }
+            }
 
             set_selection(
                 browser
@@ -426,9 +427,6 @@ fn make_main_tile(
                             .map(|binding| (mod_name, binding))
                     }),
             );
-            if update_items {
-                update_browser_items(&*mod_bindings);
-            }
         }
     });
 
