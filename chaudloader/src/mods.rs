@@ -61,6 +61,20 @@ impl ModFunctions {
     }
 }
 
+pub struct ModAudioFiles {
+    pub pcks: Vec<std::ffi::OsString>,
+    pub wems: std::collections::HashMap<u32, std::path::PathBuf>,
+}
+
+impl ModAudioFiles {
+    pub fn new() -> Self {
+        Self {
+            pcks: Vec::new(),
+            wems: std::collections::HashMap::new(),
+        }
+    }
+}
+
 pub struct Mod {
     pub info: Info,
     pub readme: String,
@@ -154,3 +168,4 @@ pub fn scan() -> Result<std::collections::BTreeMap<String, std::sync::Arc<Mod>>,
     Ok(mods)
 }
 pub static MODFUNCTIONS: std::sync::OnceLock<std::sync::Mutex<ModFunctions>> = std::sync::OnceLock::new();
+pub static MODAUDIOFILES: std::sync::OnceLock<std::sync::Mutex<ModAudioFiles>> = std::sync::OnceLock::new();

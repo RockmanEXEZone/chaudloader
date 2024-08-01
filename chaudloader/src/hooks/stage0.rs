@@ -1,4 +1,7 @@
-use crate::{assets, config, gui, mods::{self, ModFunctions, MODFUNCTIONS}};
+use std::io::{Read, Write};
+
+use crate::{assets, config, gui, mods::{self, ModAudioFiles, ModFunctions, MODFUNCTIONS, MODAUDIOFILES}};
+use byteorder::WriteBytesExt;
 use retour::static_detour;
 
 static_detour! {
@@ -115,6 +118,10 @@ fn init(
 
     let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
 
+    assert!(MODAUDIOFILES
+        .set(std::sync::Mutex::new(ModAudioFiles::new()))
+        .is_ok());
+
     for (mod_name, r#mod) in start_request.enabled_mods {
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
             let compatibility = mods::check_compatibility(&game_env, &r#mod.info);
@@ -184,7 +191,59 @@ fn init(
             }
         }
     }
+    let mut pck_load_hook_needed = false;
+    {
+        let mut mod_audio = MODAUDIOFILES.get().unwrap().lock().unwrap();
+        pck_load_hook_needed = (mod_audio.pcks.len() > 0) | (mod_audio.wems.len() > 0);
+        if mod_audio.wems.len() != 0 {
+            // Generate chaudloader.pck from replacement wems
+            let mut mod_pck_file = std::fs::File::create("audio/chaudloader.pck")?;
+            let num_wem = mod_audio.wems.len() as u32;
+            let mut wem_offset = 0x8C + num_wem * 20; 
+            // Write AKPK
+            mod_pck_file.write(&[0x41, 0x4B, 0x50, 0x4B])?;
+            // Write Pck header length?
+            mod_pck_file.write_u32::<byteorder::LittleEndian>(wem_offset)?;
+            // Write next part of header
+            mod_pck_file.write( &[0x01, 0x00, 0x00, 0x00, 0x68, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00])?;
+            // Write length of entries
+            mod_pck_file.write_u32::<byteorder::LittleEndian>(num_wem * 20)?;
+            // Write next part of header
+            mod_pck_file.write(&[
+                0x04, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
+                0x34, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x4C, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+                0x5E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x63, 0x00, 0x68, 0x00, 0x69, 0x00, 0x6E, 0x00,
+                0x65, 0x00, 0x73, 0x00, 0x65, 0x00, 0x00, 0x00, 0x65, 0x00, 0x6E, 0x00, 0x67, 0x00, 0x6C, 0x00,
+                0x69, 0x00, 0x73, 0x00, 0x68, 0x00, 0x28, 0x00, 0x75, 0x00, 0x73, 0x00, 0x29, 0x00, 0x00, 0x00,
+                0x6A, 0x00, 0x61, 0x00, 0x70, 0x00, 0x61, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65, 0x00,
+                0x00, 0x00, 0x73, 0x00, 0x66, 0x00, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])?;
+            // Write number of entries
+            mod_pck_file.write_u32::<byteorder::LittleEndian>(num_wem)?;
+            let mut wem_files:Vec<Vec<u8>> = Vec::new();
+            let mut hashes: Vec<_> = mod_audio.wems.keys().collect();
+            hashes.sort();
+            // Write the actual entries
+            for (hash) in hashes {
+                let path = mod_audio.wems.get(hash).unwrap();
+                let mut wem_file = std::fs::File::open(path)?;
+                let mut wem_contents : Vec<u8> = Vec::new();
+                wem_file.read_to_end(&mut wem_contents)?;
 
+                mod_pck_file.write_u32::<byteorder::LittleEndian>(*hash)?;
+                mod_pck_file.write_u32::<byteorder::LittleEndian>(0x01)?;
+                mod_pck_file.write_u32::<byteorder::LittleEndian>(wem_contents.len() as u32)?;
+                mod_pck_file.write_u32::<byteorder::LittleEndian>(wem_offset)?;
+                mod_pck_file.write_u32::<byteorder::LittleEndian>(0x00)?;
+                wem_offset += wem_contents.len() as u32;
+                wem_files.push(wem_contents);
+            }
+            // Write the actual wems
+            for wem_contents in wem_files {
+                mod_pck_file.write(&wem_contents.as_slice())?;
+            }
+            mod_audio.pcks.push(std::ffi::OsString::from("chaudloader.pck"));
+        }
+    }
     // We just need somewhere to keep LOADED_MODS so the DLLs don't get cleaned up, so we'll just put them here.
     std::thread_local! {
         static LOADED_MODS: std::cell::RefCell<
@@ -230,6 +289,9 @@ fn init(
         super::stage1::install()?;
         if on_game_load_hook_needed {
             super::stage1::install_on_game_load(&game_env)?;
+        }
+        if pck_load_hook_needed {
+            super::stage1::install_pck_load(&game_env)?;
         }
     }
     Ok(())

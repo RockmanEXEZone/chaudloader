@@ -50,6 +50,11 @@ static_detour! {
     static mmbnlc_OnGameLoad: unsafe extern "system" fn(
         u32
     );
+    static mmbnlc_PckLoad: unsafe extern "system" fn(
+        *mut u8,
+        *const u16,
+        *mut u8
+    ) -> i32;
 }
 
 struct HooksDisableGuard {
@@ -131,6 +136,37 @@ unsafe fn on_game_load(
     for on_game_load_functions in &mod_funcs.on_game_load_functions{
         on_game_load_functions(game_version, gba_state);
     }
+}
+
+unsafe fn on_pck_load(
+    sound_engine_class: *mut u8,
+    pck_file_name: *const u16,
+    unk_pck_ptr: *mut u8
+) -> i32 {
+    let pck_wstr = std::ffi::OsString::from_wide(
+        std::slice::from_raw_parts(pck_file_name,
+            winapi::um::winbase::lstrlenW(pck_file_name) as usize
+        )
+    );
+    // Called first but actually called last?
+    let return_val = mmbnlc_PckLoad.call(sound_engine_class, pck_file_name, unk_pck_ptr);
+    let mod_audio = mods::MODAUDIOFILES.get().unwrap().lock().unwrap();
+    if let Some(pck_str) = pck_wstr.to_str() {
+        match pck_str {
+            "Vol1.pck" | "Vol2.pck" => {
+                for pck in &mod_audio.pcks {
+                    let mod_pck_wstr = pck
+                    .encode_wide()
+                    .chain(std::iter::once(0))
+                    .collect::<Vec<_>>();
+                    let mod_pck_wstr_ptr = mod_pck_wstr[..].as_ptr();
+                    mmbnlc_PckLoad.call(sound_engine_class, mod_pck_wstr_ptr, unk_pck_ptr);
+                }
+            }
+            _ => (),
+        };
+    }
+    return return_val;
 }
 
 /// Install hooks into the process.
@@ -215,7 +251,7 @@ pub unsafe fn install_on_game_load(game_env: &mods::GameEnv) -> Result<(), anyho
             let on_game_load_pattern: [u8; 12] = [0x48, 0x89, 0x5c, 0x24, 0x10, 0x56, 0x48, 0x83, 0xec, 0x20, 0x8b, 0xd9];
             if let Some(offset) = data.windows(on_game_load_pattern.len()).position(|window| window == on_game_load_pattern) {
                 let on_game_load_ptr = data.as_ptr().add(offset);
-                // Get the offset to the GBAStruct from a struction referenced in the function
+                // Get the offset to the GBAStruct from a structure referenced in the function
                 let mov_instr_offset = 0x18;
                 let struct_rel_offset = std::ptr::read_unaligned(on_game_load_ptr.add(mov_instr_offset + 3) as * const u32) as usize;
                 let struct_offset = on_game_load_ptr.add(mov_instr_offset + 7 + struct_rel_offset) as u64;
@@ -234,6 +270,33 @@ pub unsafe fn install_on_game_load(game_env: &mods::GameEnv) -> Result<(), anyho
                                 gba_state,
                             )
                         }
+                    },
+                )?
+                .enable()?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Install optional PCK File load hook into the process.
+pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::Error> {
+    unsafe {
+        if let Some(data) = game_env.sections.text {
+            // This pattern is enough to find the function in all releases of both collections (at 0x14000A5C0 Vol1 / 0x14000BD20 Vol2 for latest releases)
+            let pck_load_pattern: [u8; 24] = [0x40, 0x53, 0x55, 0x56, 0x57, 0x41, 0x56, 0x48, 0x81, 0xEC, 0x80, 0x00, 0x00, 0x00, 0x48, 0xC7, 0x44, 0x24, 0x38, 0xFE, 0xFF, 0xFF, 0xFF, 0x48];
+            if let Some(offset) = data.windows(pck_load_pattern.len()).position(|window| window == pck_load_pattern) {
+                let pck_load_ptr = data.as_ptr().add(offset);
+                mmbnlc_PckLoad
+                .initialize(
+                    std::mem::transmute(pck_load_ptr),
+                    {
+                        move |sound_engine_class,
+                              pck_file_name,
+                              unk_pck_ptr|
+                            {
+                                return on_pck_load(sound_engine_class, pck_file_name, unk_pck_ptr);
+                            }
                     },
                 )?
                 .enable()?;
