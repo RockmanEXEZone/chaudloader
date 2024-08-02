@@ -258,8 +258,8 @@ pub unsafe fn install_on_game_load(game_env: &mods::GameEnv) -> Result<(), anyho
 
                 mmbnlc_OnGameLoad
                     .initialize(
-                std::mem::transmute(on_game_load_ptr),
-                {
+                        std::mem::transmute(on_game_load_ptr),
+                        {
                             move |game_version| {
                                 // let gba_state = std::mem::transmute::<u64, * mut u8>(0x80200040);
                                 // Get the gba state offset every time in case this struct moves
@@ -289,11 +289,11 @@ pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::E
                 let pck_load_ptr = data.as_ptr().add(offset);
                 mmbnlc_PckLoad
                     .initialize(
-                std::mem::transmute(pck_load_ptr),
-                {
+                        std::mem::transmute(pck_load_ptr),
+                        {
                             move |sound_engine_class,
-                            pck_file_name,
-                            unk_pck_ptr| {
+                                  pck_file_name,
+                                  unk_pck_ptr| {
                                 on_pck_load(
                                     sound_engine_class,
                                     pck_file_name,
