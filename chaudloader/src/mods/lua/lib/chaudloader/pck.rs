@@ -13,27 +13,31 @@ pub fn new<'a>(
             let mod_path = mod_path.to_path_buf();
             move |_, (path,): (String,)| {
                 match path.as_str() {
-                    "Vol1.pck" | "Vol2.pck" | "DLC1.pck" | "DLC2.pck" => {
-                        return Err(anyhow::anyhow!("cannot use the names Vol1.pck, Vol2.pck, DLC1.pck, or DLC2.pck").into_lua_err());
+                    "Vol1.pck" | "Vol2.pck" | "DLC1.pck" | "DLC2.pck" | "chaudloader.pck" => {
+                        return Err(anyhow::anyhow!("cannot use the names: Vol1.pck, Vol2.pck, DLC1.pck, DLC2.pck, or chaudloader.pck").into_lua_err());
                     },
                     _ => {
                         let path = path::ensure_safe(std::path::Path::new(&path))
-                        .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                        .map_err(|e| e.into_lua_err())?;
+                            .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
+                            .map_err(|e| e.into_lua_err())?;
 
                         let pck_path = mod_path.join(&path);
                         if !pck_path.exists() {
-                            return Err(anyhow::anyhow!("{} does not exist", pck_path.to_str().unwrap()).into_lua_err())
+                            return Err(anyhow::anyhow!("{} does not exist", pck_path.display()).into_lua_err());
                         }
-                        // Copy this pck to the audio folder so it can be loaded
-                        let base_filename = pck_path.file_name().unwrap();
-                        let dst_pck_path = std::path::PathBuf::from("audio").join(base_filename);
-                        std::fs::copy(&pck_path, &dst_pck_path)
-                        .map_err(|e| e.into_lua_err())?;
-
                         let mut mod_audio = mods::MODAUDIOFILES.get().unwrap().lock().unwrap();
-                        mod_audio.pcks.push(base_filename.to_os_string());
-                        return Ok(());
+                        // Check if a pck with this file name is already being loaded because the pck load function only takes the base file name.
+                        let base_filename = pck_path.file_name().unwrap().to_os_string();
+                        if mod_audio.pcks.contains(&base_filename) {
+                            return Err(anyhow::anyhow!("a pck file named {} is already being loaded", base_filename.to_str().unwrap()).into_lua_err());
+                        } else {
+                            // Copy this pck to the audio folder so it can be loaded
+                            let dst_pck_path = std::path::PathBuf::from("audio").join(&base_filename);
+                            std::fs::copy(&pck_path, &dst_pck_path)
+                                .map_err(|e| e.into_lua_err())?;
+                            mod_audio.pcks.push(base_filename);
+                            return Ok(());
+                        }
                     }
                 }
             }
@@ -46,16 +50,16 @@ pub fn new<'a>(
             let mod_path = mod_path.to_path_buf();
             move |_, (hash, path, ): (u32, String,)| {
                 let path = path::ensure_safe(std::path::Path::new(&path))
-                .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                .map_err(|e| e.into_lua_err())?;
+                    .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
+                    .map_err(|e| e.into_lua_err())?;
 
                 let wem_path = mod_path.join(&path);
                 if !wem_path.exists() {
-                    return Err(anyhow::anyhow!("{} does not exist", wem_path.to_str().unwrap()).into_lua_err())
+                    return Err(anyhow::anyhow!("{} does not exist", wem_path.display()).into_lua_err());
                 }
                 let mut mod_audio = mods::MODAUDIOFILES.get().unwrap().lock().unwrap();
-                if mod_audio.wems.insert(hash, wem_path).is_some() {
-                    log::warn!("{} is already replaced. Replacing again.", &hash);
+                if let Some(old_replacement) = mod_audio.wems.insert(hash, wem_path) {
+                    log::warn!("{} is already replaced with {}. Replacing again with {}.", &hash, old_replacement.display(), mod_audio.wems[&hash].display());
                 }
                 return Ok(());
             }

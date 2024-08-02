@@ -156,9 +156,9 @@ unsafe fn on_pck_load(
             "Vol1.pck" | "Vol2.pck" => {
                 for pck in &mod_audio.pcks {
                     let mod_pck_wstr = pck
-                    .encode_wide()
-                    .chain(std::iter::once(0))
-                    .collect::<Vec<_>>();
+                        .encode_wide()
+                        .chain(std::iter::once(0))
+                        .collect::<Vec<_>>();
                     let mod_pck_wstr_ptr = mod_pck_wstr[..].as_ptr();
                     mmbnlc_PckLoad.call(sound_engine_class, mod_pck_wstr_ptr, unk_pck_ptr);
                 }
@@ -257,22 +257,22 @@ pub unsafe fn install_on_game_load(game_env: &mods::GameEnv) -> Result<(), anyho
                 let struct_offset = on_game_load_ptr.add(mov_instr_offset + 7 + struct_rel_offset) as u64;
 
                 mmbnlc_OnGameLoad
-                .initialize(
-                    std::mem::transmute(on_game_load_ptr),
-                    {
-                        move |game_version|
-                            {
+                    .initialize(
+                std::mem::transmute(on_game_load_ptr),
+                {
+                            move |game_version| {
                                 // let gba_state = std::mem::transmute::<u64, * mut u8>(0x80200040);
                                 // Get the gba state offset every time in case this struct moves
                                 let struct_with_gba_state = std::ptr::read_unaligned(struct_offset as * const * const u8);
                                 let gba_state = std::ptr::read_unaligned(struct_with_gba_state.add(0x3F8) as  * const * mut u8);
-                            on_game_load(game_version,
-                                gba_state,
-                            )
-                        }
-                    },
-                )?
-                .enable()?;
+                                on_game_load(
+                                    game_version,
+                                    gba_state,
+                                )
+                            }
+                        },
+                    )?
+                    .enable()?;
             }
         }
     }
@@ -288,18 +288,21 @@ pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::E
             if let Some(offset) = data.windows(pck_load_pattern.len()).position(|window| window == pck_load_pattern) {
                 let pck_load_ptr = data.as_ptr().add(offset);
                 mmbnlc_PckLoad
-                .initialize(
-                    std::mem::transmute(pck_load_ptr),
-                    {
-                        move |sound_engine_class,
-                              pck_file_name,
-                              unk_pck_ptr|
-                            {
-                                return on_pck_load(sound_engine_class, pck_file_name, unk_pck_ptr);
+                    .initialize(
+                std::mem::transmute(pck_load_ptr),
+                {
+                            move |sound_engine_class,
+                            pck_file_name,
+                            unk_pck_ptr| {
+                                on_pck_load(
+                                    sound_engine_class,
+                                    pck_file_name,
+                                    unk_pck_ptr
+                                )
                             }
-                    },
-                )?
-                .enable()?;
+                        },
+                    )?
+                    .enable()?;
             }
         }
     }
