@@ -50,10 +50,10 @@ static_detour! {
     static mmbnlc_OnGameLoad: unsafe extern "system" fn(
         u32
     );
-    static mmbnlc_PckLoad: unsafe extern "system" fn(
-        *mut u8,
-        *const u16,
-        *mut u8
+    static LoadFilePackage: unsafe extern "system" fn(
+        /* this: */ *mut std::ffi::c_void,
+        /* in_pszFilePackageName: */ *const winapi::shared::ntdef::WCHAR,
+        /* out_uPackageID: */ *mut u32
     ) -> i32;
 }
 
@@ -139,28 +139,31 @@ unsafe fn on_game_load(
 }
 
 unsafe fn on_pck_load(
-    sound_engine_class: *mut u8,
-    pck_file_name: *const u16,
-    unk_pck_ptr: *mut u8
+    sound_engine_class: *mut std::ffi::c_void,
+    pck_file_name: *const winapi::shared::ntdef::WCHAR,
+    out_pck_id: *mut u32
 ) -> i32 {
     let pck_wstr = std::ffi::OsString::from_wide(
         std::slice::from_raw_parts(pck_file_name,
             winapi::um::winbase::lstrlenW(pck_file_name) as usize
         )
     );
-    // Called first but actually called last?
-    let return_val = mmbnlc_PckLoad.call(sound_engine_class, pck_file_name, unk_pck_ptr);
-    let mod_audio = mods::MODAUDIOFILES.get().unwrap().lock().unwrap();
+
+    let return_val = LoadFilePackage.call(sound_engine_class, pck_file_name, out_pck_id);
+    let mod_pcks;
+    {
+        mod_pcks = mods::MODAUDIOFILES.get().unwrap().lock().unwrap().pcks.clone();
+    }
     if let Some(pck_str) = pck_wstr.to_str() {
         match pck_str {
             "Vol1.pck" | "Vol2.pck" => {
-                for pck in &mod_audio.pcks {
+                for pck in &mod_pcks {
                     let mod_pck_wstr = pck
                         .encode_wide()
                         .chain(std::iter::once(0))
                         .collect::<Vec<_>>();
-                    let mod_pck_wstr_ptr = mod_pck_wstr[..].as_ptr();
-                    mmbnlc_PckLoad.call(sound_engine_class, mod_pck_wstr_ptr, unk_pck_ptr);
+                    let mod_pck_wstr_ptr = mod_pck_wstr.as_ptr();
+                    LoadFilePackage.call(sound_engine_class, mod_pck_wstr_ptr, out_pck_id);
                 }
             }
             _ => (),
@@ -287,7 +290,7 @@ pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::E
             let pck_load_pattern: [u8; 24] = [0x40, 0x53, 0x55, 0x56, 0x57, 0x41, 0x56, 0x48, 0x81, 0xEC, 0x80, 0x00, 0x00, 0x00, 0x48, 0xC7, 0x44, 0x24, 0x38, 0xFE, 0xFF, 0xFF, 0xFF, 0x48];
             if let Some(offset) = data.windows(pck_load_pattern.len()).position(|window| window == pck_load_pattern) {
                 let pck_load_ptr = data.as_ptr().add(offset);
-                mmbnlc_PckLoad
+                LoadFilePackage
                     .initialize(
                         std::mem::transmute(pck_load_ptr),
                         {
