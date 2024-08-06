@@ -61,9 +61,14 @@ impl ModFunctions {
     }
 }
 
+pub struct WemFile {
+    pub path: std::path::PathBuf,
+    pub language_id: u32,
+}
+
 pub struct ModAudioFiles {
     pub pcks: Vec<std::ffi::OsString>,
-    pub wems: std::collections::HashMap<u32, std::path::PathBuf>,
+    pub wems: std::collections::HashMap<u32, WemFile>,
 }
 
 impl ModAudioFiles {

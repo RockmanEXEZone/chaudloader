@@ -560,7 +560,7 @@ fn generate_chaudloader_pck(mod_pck_file: &mut dyn assets::WriteSeek) -> Result<
         0x63, 0x00, 0x68, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65, 0x00, 0x00, 0x00, // "chinese" string
         0x65, 0x00, 0x6E, 0x00, 0x67, 0x00, 0x6C, 0x00, 0x69, 0x00, 0x73, 0x00, 0x68, 0x00, 0x28, 0x00, 0x75, 0x00, 0x73, 0x00, 0x29, 0x00, 0x00, 0x00, // "english" string
         0x6A, 0x00, 0x61, 0x00, 0x70, 0x00, 0x61, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65, 0x00, 0x00, 0x00, // "japanese" string
-        0x73, 0x00, 0x66, 0x00, 0x78, 0x00, 0x00, 0x00, //sfx
+        0x73, 0x00, 0x66, 0x00, 0x78, 0x00, 0x00, 0x00, // "sfx" string
         0x00, 0x00, // padding
         // Banks table
         0x00, 0x00, 0x00, 0x00 // Number of files
@@ -572,12 +572,11 @@ fn generate_chaudloader_pck(mod_pck_file: &mut dyn assets::WriteSeek) -> Result<
     let mut hashes: Vec<_> = mod_audio.wems.keys().cloned().collect();
     hashes.sort();
     // Skip entries and write wem files first
-    //mod_pck_file.seek(wem_file_offset as u64)?;
     mod_pck_file.seek(std::io::SeekFrom::Start(wem_file_offset as u64))?;
     // Write the actual wems and keep track and offsets and lengths
     let mut wem_offset_lens : Vec<(u32, u32)> = Vec::with_capacity(hashes.len());
     for hash in &hashes {
-        let path = mod_audio.wems.get(hash).unwrap();
+        let path = &mod_audio.wems.get(hash).unwrap().path;
         let wem_contents : Vec<u8> = std::fs::read(path)?;
         mod_pck_file.write_all(wem_contents.as_slice())?;
         wem_offset_lens.push((wem_file_offset, wem_contents.len() as u32));
@@ -586,11 +585,12 @@ fn generate_chaudloader_pck(mod_pck_file: &mut dyn assets::WriteSeek) -> Result<
     // Go back to write the actual entries
     mod_pck_file.seek(std::io::SeekFrom::Start(0x8C as u64))?;
     for (&hash, &(wem_offset, wem_size)) in hashes.iter().zip(wem_offset_lens.iter()) {
+        let lanugage_id = mod_audio.wems.get(&hash).unwrap().language_id;
         mod_pck_file.write_u32::<byteorder::LittleEndian>(hash)?; // Hash / ID
         mod_pck_file.write_u32::<byteorder::LittleEndian>(0x01)?; // Block Size / required alignment
         mod_pck_file.write_u32::<byteorder::LittleEndian>(wem_size)?;
         mod_pck_file.write_u32::<byteorder::LittleEndian>(wem_offset)?;
-        mod_pck_file.write_u32::<byteorder::LittleEndian>(0x00)?; // Language ID
+        mod_pck_file.write_u32::<byteorder::LittleEndian>(lanugage_id)?; // Language ID
     }
     return Ok(());
 }

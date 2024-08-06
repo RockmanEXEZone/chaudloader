@@ -173,6 +173,20 @@ function chaudloader.pck.replace_wem(id: integer, path: string)
 ```
 Replaces attempts to play the wem file with `id` in the game's original pck files with the wem from `path`.
 
+```lua
+function chaudloader.pck.replace_wem_language(id: integer, path: string, language_id: integer)
+```
+Replaces attempts to play the wem file with `id` in the game's original pck files with the wem from `path` for the specific `language_id`.
+
+The `language_id`s are:
+```
+SFX = 0
+Japanese = 1
+Chinese = 2
+English = 3
+```
+
+
 ### `chaudloader.pck.load_pck`
 
 ```lua
@@ -508,7 +522,7 @@ __declspec(dllexport) void on_game_load(int game, GBAState* gba_state) {
     // Do all your logic here.
 }
 ```
-`game`: This is the BN game being loaded.  It can contain the values:
+`game`: This is the BN game being loaded. It can contain the values:
 * Battle Network 1 = 0
 * Battle Network 2 = 2
 * Battle Network 3 White = 3
