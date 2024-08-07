@@ -120,7 +120,7 @@ Note that this does not mutate the original .dat file on disk, but for all inten
 
 ## `chaudloader.mpak`
 
-### `chaudloader.exedat.unpack`
+### `chaudloader.mpak.unpack`
 
 ```lua
 function chaudloader.mpak.unpack(map_contents: Buffer, mpak_contents: Buffer): Mpak
@@ -161,6 +161,65 @@ function Mpak:pack(): Buffer, Buffer
 ```
 
 Marshals an mpak back into .map + .mpak format.
+
+## `chaudloader.pck`
+
+Functions for replacing playback of music/voices from pck files and loading new pck files.
+
+### `chaudloader.pck.replace_wem`
+
+```lua
+function chaudloader.pck.replace_wem(id: integer, path: string, language_id: integer)
+```
+Replaces attempts to play the wem file with `id` in the game's original pck files with the wem from `path` for the specific `language_id`.
+
+The `language_id`s are:
+```
+SFX = 0
+Japanese = 1
+Chinese = 2
+English = 3
+```
+
+### `chaudloader.pck.replace_wem_sfx`
+
+```lua
+function chaudloader.pck.replace_wem_sfx(id: integer, path: string)
+```
+
+Replaces attempts to play the sfx wem file with `id` in the game's original pck files with the wem from `path`.
+
+### `chaudloader.pck.replace_wem_japanese`
+
+```lua
+function chaudloader.pck.replace_wem_japanese(id: integer, path: string)
+```
+
+Replaces attempts to play the Japanese wem file with `id` in the game's original pck files with the wem from `path`.
+
+### `chaudloader.pck.replace_wem_chinese`
+
+```lua
+function chaudloader.pck.replace_wem_chinese(id: integer, path: string)
+```
+
+Replaces attempts to play the Chinese wem file with `id` in the game's original pck files with the wem from `path`.
+
+### `chaudloader.pck.replace_wem_english`
+
+```lua
+function chaudloader.pck.replace_wem_english(id: integer, path: string)
+```
+
+Replaces attempts to play the English wem file with `id` in the game's original pck files with the wem from `path`.
+
+### `chaudloader.pck.load_pck`
+
+```lua
+function chaudloader.pck.replace_wem(path: string)
+```
+
+Copies the pck files from `path` to the audio folder and loads it before the game's pck files. Any wems with IDs that match the original pck play in place of the original.
 
 ## `chaudloader.buffer`
 
@@ -490,7 +549,7 @@ __declspec(dllexport) void on_game_load(int game, GBAState* gba_state) {
     // Do all your logic here.
 }
 ```
-`game`: This is the BN game being loaded.  It can contain the values:
+`game`: This is the BN game being loaded. It can contain the values:
 * Battle Network 1 = 0
 * Battle Network 2 = 2
 * Battle Network 3 White = 3

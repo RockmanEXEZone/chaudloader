@@ -242,5 +242,10 @@ pub fn set_globals(
         .set_mode(mlua::ChunkMode::Text)
         .exec()?;
 
+    lua.load(include_str!("lib/chaudloader/pck.lua"))
+        .set_name("=<builtin>\\pck.lua")
+        .set_mode(mlua::ChunkMode::Text)
+        .exec()?;
+
     Ok(())
 }
