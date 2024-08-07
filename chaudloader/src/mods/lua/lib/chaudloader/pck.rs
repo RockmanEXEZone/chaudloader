@@ -1,20 +1,6 @@
 use crate::{mods, path, assets};
 use mlua::ExternalError;
 
-fn replace_wem(hash: u32, wem_path: std::path::PathBuf, language_id: u32) -> Result<(), mlua::Error> {
-    if !wem_path.exists() {
-        return Err(anyhow::anyhow!("{} does not exist", wem_path.display()).into_lua_err());
-    }
-    let mut mod_audio = mods::MODAUDIOFILES.get().unwrap().lock().unwrap();
-    if let Some(old_replacement) = mod_audio.wems.insert(hash, mods::WemFile{
-        path: wem_path,
-        language_id: language_id,
-    }) {
-        log::warn!("{} is already replaced with {}. Replacing again with {}.", &hash, old_replacement.path.display(), mod_audio.wems[&hash].path.display());
-    }
-    return Ok(());
-}
-
 pub fn new<'a>(
     lua: &'a mlua::Lua,
     mod_path: &std::path::Path,
@@ -66,28 +52,23 @@ pub fn new<'a>(
         "replace_wem",
         lua.create_function({
             let mod_path = mod_path.to_path_buf();
-            move |_, (hash, path, ): (u32, String,)| {
+            move |_, (hash, path, language_id): (u32, String, u32,)| {
                 let path = path::ensure_safe(std::path::Path::new(&path))
-                .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                .map_err(|e| e.into_lua_err())?;
-        
-            let wem_path = mod_path.join(&path);
-                replace_wem(hash, wem_path, 0)
-            }
-        })?,
-    )?;
+                    .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
+                    .map_err(|e| e.into_lua_err())?;
 
-    table.set(
-        "replace_wem_language",
-        lua.create_function({
-            let mod_path = mod_path.to_path_buf();
-            move |_, (hash, path, language_id): (u32, String, u32)| {
-                let path = path::ensure_safe(std::path::Path::new(&path))
-                .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
-                .map_err(|e| e.into_lua_err())?;
-        
-            let wem_path = mod_path.join(&path);
-                replace_wem(hash, wem_path, language_id)
+                let wem_path = mod_path.join(&path);
+                if !wem_path.exists() {
+                    return Err(anyhow::anyhow!("{} does not exist", wem_path.display()).into_lua_err());
+                }
+                let mut mod_audio = mods::MODAUDIOFILES.get().unwrap().lock().unwrap();
+                if let Some(old_replacement) = mod_audio.wems.insert(hash, mods::WemFile{
+                    path: wem_path,
+                    language_id: language_id,
+                }) {
+                    log::warn!("{} is already replaced with {}. Replacing again with {}.", &hash, old_replacement.path.display(), mod_audio.wems[&hash].path.display());
+                }
+                return Ok(());
             }
         })?,
     )?;

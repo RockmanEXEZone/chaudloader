@@ -178,9 +178,11 @@ fn init(
             log::error!("[mod: {}] failed to init: {}", mod_name, e);
         }
     }
-    let on_game_load_hook_needed = init_mod_functions(&loaded_mods);
+
+    let on_game_load_hook_needed = init_mod_functions(&loaded_mods)?;
 
     let pck_load_hook_needed = init_mod_audio()?;
+
     // We just need somewhere to keep LOADED_MODS so the DLLs don't get cleaned up, so we'll just put them here.
     std::thread_local! {
         static LOADED_MODS: std::cell::RefCell<
@@ -496,7 +498,7 @@ fn process_game_sections() -> Result<mods::Sections, anyhow::Error> {
     })
 }
 
-fn init_mod_functions(loaded_mods: &std::collections::HashMap<String, mods::State>) -> bool {
+fn init_mod_functions(loaded_mods: &std::collections::HashMap<String, mods::State>) -> Result<bool, anyhow::Error> {
     assert!(MODFUNCTIONS
         .set(std::sync::Mutex::new(ModFunctions::new()))
         .is_ok());
@@ -512,7 +514,7 @@ fn init_mod_functions(loaded_mods: &std::collections::HashMap<String, mods::Stat
             }
         }
     }
-    return on_game_load_hook_needed;
+    return Ok(on_game_load_hook_needed);
 }
 
 fn init_mod_audio() -> Result<bool, anyhow::Error> {
@@ -558,7 +560,7 @@ fn generate_chaudloader_pck(mod_pck_file: &mut dyn assets::WriteSeek) -> Result<
         0x4C, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, // Japanese offset + language ID
         0x5E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // SFX offset + language ID
         0x63, 0x00, 0x68, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65, 0x00, 0x00, 0x00, // "chinese" string
-        0x65, 0x00, 0x6E, 0x00, 0x67, 0x00, 0x6C, 0x00, 0x69, 0x00, 0x73, 0x00, 0x68, 0x00, 0x28, 0x00, 0x75, 0x00, 0x73, 0x00, 0x29, 0x00, 0x00, 0x00, // "english" string
+        0x65, 0x00, 0x6E, 0x00, 0x67, 0x00, 0x6C, 0x00, 0x69, 0x00, 0x73, 0x00, 0x68, 0x00, 0x28, 0x00, 0x75, 0x00, 0x73, 0x00, 0x29, 0x00, 0x00, 0x00, // "english(us)" string
         0x6A, 0x00, 0x61, 0x00, 0x70, 0x00, 0x61, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65, 0x00, 0x00, 0x00, // "japanese" string
         0x73, 0x00, 0x66, 0x00, 0x78, 0x00, 0x00, 0x00, // "sfx" string
         0x00, 0x00, // padding

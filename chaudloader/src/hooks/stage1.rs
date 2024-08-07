@@ -150,24 +150,29 @@ unsafe fn on_pck_load(
     );
 
     let return_val = LoadFilePackage.call(sound_engine_class, pck_file_name, out_pck_id);
-    let mod_pcks;
-    {
-        mod_pcks = mods::MODAUDIOFILES.get().unwrap().lock().unwrap().pcks.clone();
-    }
-    if let Some(pck_str) = pck_wstr.to_str() {
-        match pck_str {
-            "Vol1.pck" | "Vol2.pck" => {
-                for pck in &mod_pcks {
-                    let mod_pck_wstr = pck
-                        .encode_wide()
-                        .chain(std::iter::once(0))
-                        .collect::<Vec<_>>();
-                    let mod_pck_wstr_ptr = mod_pck_wstr.as_ptr();
-                    LoadFilePackage.call(sound_engine_class, mod_pck_wstr_ptr, out_pck_id);
+    // Only initialize this once in case both Vol1.pck and Vol2.pck are loaded
+    static INITIALIZED: std::sync::atomic::AtomicBool =
+        std::sync::atomic::AtomicBool::new(false);
+    if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst){
+        if let Some(pck_str) = pck_wstr.to_str() {
+            match pck_str {
+                "Vol1.pck" | "Vol2.pck" => {
+                    let mod_pcks;
+                    {
+                        mod_pcks = mods::MODAUDIOFILES.get().unwrap().lock().unwrap().pcks.clone();
+                    }
+                    for pck in &mod_pcks {
+                        let mod_pck_wstr = pck
+                            .encode_wide()
+                            .chain(std::iter::once(0))
+                            .collect::<Vec<_>>();
+                        let mod_pck_wstr_ptr = mod_pck_wstr.as_ptr();
+                        LoadFilePackage.call(sound_engine_class, mod_pck_wstr_ptr, out_pck_id);
+                    }
                 }
-            }
-            _ => (),
-        };
+                _ => (),
+            };
+        }
     }
     return return_val;
 }

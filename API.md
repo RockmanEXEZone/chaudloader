@@ -169,12 +169,7 @@ Functions for replacing playback of music/voices from pck files and loading new 
 ### `chaudloader.pck.replace_wem`
 
 ```lua
-function chaudloader.pck.replace_wem(id: integer, path: string)
-```
-Replaces attempts to play the wem file with `id` in the game's original pck files with the wem from `path`.
-
-```lua
-function chaudloader.pck.replace_wem_language(id: integer, path: string, language_id: integer)
+function chaudloader.pck.replace_wem(id: integer, path: string, language_id: integer)
 ```
 Replaces attempts to play the wem file with `id` in the game's original pck files with the wem from `path` for the specific `language_id`.
 
@@ -186,12 +181,44 @@ Chinese = 2
 English = 3
 ```
 
+### `chaudloader.pck.replace_wem_sfx`
+
+```lua
+function chaudloader.pck.replace_wem_sfx(id: integer, path: string)
+```
+
+Replaces attempts to play the sfx wem file with `id` in the game's original pck files with the wem from `path`.
+
+### `chaudloader.pck.replace_wem_japanese`
+
+```lua
+function chaudloader.pck.replace_wem_japanese(id: integer, path: string)
+```
+
+Replaces attempts to play the Japanese wem file with `id` in the game's original pck files with the wem from `path`.
+
+### `chaudloader.pck.replace_wem_chinese`
+
+```lua
+function chaudloader.pck.replace_wem_chinese(id: integer, path: string)
+```
+
+Replaces attempts to play the Chinese wem file with `id` in the game's original pck files with the wem from `path`.
+
+### `chaudloader.pck.replace_wem_english`
+
+```lua
+function chaudloader.pck.replace_wem_english(id: integer, path: string)
+```
+
+Replaces attempts to play the English wem file with `id` in the game's original pck files with the wem from `path`.
 
 ### `chaudloader.pck.load_pck`
 
 ```lua
 function chaudloader.pck.replace_wem(path: string)
 ```
+
 Copies the pck files from `path` to the audio folder and loads it before the game's pck files. Any wems with IDs that match the original pck play in place of the original.
 
 ## `chaudloader.buffer`
