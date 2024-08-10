@@ -182,7 +182,7 @@ fn init(
 
     let on_game_load_hook_needed = init_mod_functions(&loaded_mods)?;
 
-    let pck_load_hook_needed = init_mod_audio()?;
+    let audio_hooks_needed = init_mod_audio()?;
 
     // We just need somewhere to keep LOADED_MODS so the DLLs don't get cleaned up, so we'll just put them here.
     std::thread_local! {
@@ -225,8 +225,9 @@ fn init(
         if on_game_load_hook_needed {
             super::stage1::install_on_game_load(&game_env)?;
         }
-        if pck_load_hook_needed {
+        if audio_hooks_needed {
             super::stage1::install_pck_load(&game_env)?;
+            super::stage1::install_bnk_load(&game_env)?;
         }
     }
     Ok(())
@@ -555,7 +556,7 @@ fn init_mod_audio() -> Result<bool, anyhow::Error> {
             .push(std::ffi::OsString::from("chaudloader.pck"));
     }
     // pcks.is_empty is checked here because pcks could either be added in the lua script or here if any wems were replaced in the lua script
-    return Ok(!mod_audio.pcks.is_empty());
+    return Ok(!mod_audio.pcks.is_empty() || !mod_audio.bnks.is_empty());
 }
 
 fn generate_chaudloader_pck(

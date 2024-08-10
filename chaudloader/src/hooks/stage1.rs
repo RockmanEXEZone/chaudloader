@@ -55,6 +55,10 @@ static_detour! {
         /* in_pszFilePackageName: */ *const winapi::shared::ntdef::WCHAR,
         /* out_uPackageID: */ *mut u32
     ) -> i32;
+    static LoadBank: unsafe extern "system" fn(
+        /* in_pszString: */ *const winapi::shared::ntdef::CHAR,
+        /* out_bankID: */ *mut u32
+    ) -> i32;
 }
 
 struct HooksDisableGuard {
@@ -146,9 +150,9 @@ unsafe fn on_pck_load(
     ));
 
     let return_val = LoadFilePackage.call(sound_engine_class, pck_file_name, out_pck_id);
-    // Only initialize this once in case Vol1.pck or Vol2.pck is loaded
     match pck_wstr.to_str() {
         Some("Vol1.pck") | Some("Vol2.pck") => {
+            // Only initialize this once in case both Vol1.pck and Vol2.pck is loaded
             static INITIALIZED: std::sync::atomic::AtomicBool =
                 std::sync::atomic::AtomicBool::new(false);
             if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
@@ -165,7 +169,53 @@ unsafe fn on_pck_load(
                         .chain(std::iter::once(0))
                         .collect::<Vec<_>>();
                     let mod_pck_wstr_ptr = mod_pck_wstr.as_ptr();
-                    LoadFilePackage.call(sound_engine_class, mod_pck_wstr_ptr, out_pck_id);
+                    let load_mod_pck_res =
+                        LoadFilePackage.call(sound_engine_class, mod_pck_wstr_ptr, out_pck_id);
+                    log::info!(
+                        "{} LoadFilePackage Result: {}",
+                        pck.to_str().unwrap(),
+                        load_mod_pck_res
+                    );
+                }
+            }
+        }
+        _ => (),
+    }
+    return return_val;
+}
+
+unsafe fn on_bnk_load(
+    bnk_file_name: *const winapi::shared::ntdef::CHAR,
+    out_bnk_id: *mut u32,
+) -> i32 {
+    let bnk_str = std::ffi::CStr::from_ptr(bnk_file_name)
+        .to_string_lossy()
+        .to_string();
+
+    let return_val = LoadBank.call(bnk_file_name, out_bnk_id);
+    match bnk_str.as_str() {
+        "Vol1Global.bnk" | "Vol2Global.bnk" => {
+            // Only initialize this once in case both Vol1Global.bnk and Vol2Global.bnk is loaded
+            static INITIALIZED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
+                let mod_bnks = mods::MODAUDIOFILES
+                    .get()
+                    .unwrap()
+                    .lock()
+                    .unwrap()
+                    .bnks
+                    .clone();
+                for bnk in &mod_bnks {
+                    let mod_bnk_cstr = std::ffi::CString::new(bnk.as_encoded_bytes());
+                    if let Ok(mod_bnk_cstr) = mod_bnk_cstr {
+                        let load_mod_bnk_res = LoadBank.call(mod_bnk_cstr.as_ptr(), out_bnk_id);
+                        log::info!(
+                            "{} BankLoad Result: {}",
+                            bnk.to_str().unwrap(),
+                            load_mod_bnk_res
+                        );
+                    }
                 }
             }
         }
@@ -305,9 +355,35 @@ pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::E
                 let pck_load_ptr = data.as_ptr().add(offset);
                 LoadFilePackage
                     .initialize(std::mem::transmute(pck_load_ptr), {
-                        move |sound_engine_class, pck_file_name, unk_pck_ptr| {
-                            on_pck_load(sound_engine_class, pck_file_name, unk_pck_ptr)
+                        move |sound_engine_class, pck_file_name, out_pck_id| {
+                            on_pck_load(sound_engine_class, pck_file_name, out_pck_id)
                         }
+                    })?
+                    .enable()?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Install optional BNK File load hook into the process.
+pub unsafe fn install_bnk_load(game_env: &mods::GameEnv) -> Result<(), anyhow::Error> {
+    unsafe {
+        if let Some(data) = game_env.sections.text {
+            // This pattern is enough to find the function in all releases of both collections (at 0x141CC27E0 Vol1 / 0x14302C310 Vol2 for latest releases)
+            let bnk_load_pattern: [u8; 32] = [
+                0x48, 0x89, 0x5C, 0x24, 0x08, 0x48, 0x89, 0x74, 0x24, 0x10, 0x48, 0x89, 0x7C, 0x24,
+                0x18, 0x55, 0x48, 0x8D, 0x6C, 0x24, 0xA9, 0x48, 0x81, 0xEC, 0xE0, 0x00, 0x00, 0x00,
+                0x48, 0x8B, 0xFA, 0x4C,
+            ];
+            if let Some(offset) = data
+                .windows(bnk_load_pattern.len())
+                .position(|window| window == bnk_load_pattern)
+            {
+                let bnk_load_ptr = data.as_ptr().add(offset);
+                LoadBank
+                    .initialize(std::mem::transmute(bnk_load_ptr), {
+                        move |bnk_file_name, out_bnk_id| on_bnk_load(bnk_file_name, out_bnk_id)
                     })?
                     .enable()?;
             }

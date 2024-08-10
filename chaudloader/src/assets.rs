@@ -53,6 +53,11 @@ impl Replacer {
         self.replacers.insert(path.to_path_buf(), Box::new(pack_cb));
     }
 
+    pub fn add_path(&mut self, path: &std::path::Path, dest_path: &std::path::Path) {
+        self.replacement_paths
+            .insert(path.to_path_buf(), dest_path.to_path_buf());
+    }
+
     pub fn get<'a>(
         &'a mut self,
         path: &std::path::Path,

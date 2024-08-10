@@ -68,6 +68,7 @@ pub struct WemFile {
 
 pub struct ModAudioFiles {
     pub pcks: Vec<std::ffi::OsString>,
+    pub bnks: Vec<std::ffi::OsString>,
     pub wems: std::collections::HashMap<u32, WemFile>,
 }
 
@@ -75,6 +76,7 @@ impl ModAudioFiles {
     pub fn new() -> Self {
         Self {
             pcks: Vec::new(),
+            bnks: Vec::new(),
             wems: std::collections::HashMap::new(),
         }
     }
