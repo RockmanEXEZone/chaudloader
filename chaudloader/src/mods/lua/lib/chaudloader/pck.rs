@@ -31,7 +31,8 @@ pub fn new<'a>(
                         if mod_audio.pcks.contains(&base_filename) {
                             return Err(anyhow::anyhow!("a pck file named {} is already being loaded", base_filename.to_str().unwrap()).into_lua_err());
                         } else {
-                            // Copy this pck to the audio folder so it can be loaded
+                            // The game will only try to load pck files from the audio folder.
+                            // Use the asset replacer to reroute it to the mod's folder.
                             let dst_pck_path = std::path::PathBuf::from("..\\exe\\audio").join(&base_filename);
                             let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
                             assets_replacer.add(
