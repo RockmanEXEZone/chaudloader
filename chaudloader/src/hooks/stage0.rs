@@ -1,4 +1,7 @@
-use crate::{assets, config, gui, mods::{self, ModFunctions, MODFUNCTIONS}};
+use std::io::{Read, Seek, Write};
+
+use crate::{assets, config, gui, mods::{self, ModAudioFiles, ModFunctions, MODFUNCTIONS, MODAUDIOFILES}};
+use byteorder::WriteBytesExt;
 use retour::static_detour;
 
 static_detour! {
@@ -114,6 +117,14 @@ fn init(
     config::save(&config)?;
 
     let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
+    assert!(assets::REPLACER
+        .set(std::sync::Mutex::new(assets::Replacer::new(
+            &serde_plain::to_string(&game_volume).unwrap()
+        )?))
+        .is_ok());
+    assert!(MODAUDIOFILES
+        .set(std::sync::Mutex::new(ModAudioFiles::new()))
+        .is_ok());
 
     for (mod_name, r#mod) in start_request.enabled_mods {
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
@@ -167,23 +178,10 @@ fn init(
             log::error!("[mod: {}] failed to init: {}", mod_name, e);
         }
     }
-    let mut on_game_load_hook_needed = false;
-    {
-        assert!(MODFUNCTIONS
-            .set(std::sync::Mutex::new(ModFunctions::new()))
-            .is_ok());
-        let mut mod_funcs = MODFUNCTIONS.get().unwrap().lock().unwrap();
-        for mod_state in loaded_mods.values() {
-            for dll in mod_state.dlls.values() {
-                unsafe{
-                    if let Ok(on_game_load_symbol_address) = dll.get_symbol_address("on_game_load") {
-                        mod_funcs.on_game_load_functions.push(std::mem::transmute::<winapi::shared::minwindef::FARPROC, fn(u32, *const u8)>(on_game_load_symbol_address));
-                        on_game_load_hook_needed = true;
-                    }
-                }
-            }
-        }
-    }
+
+    let on_game_load_hook_needed = init_mod_functions(&loaded_mods)?;
+
+    let pck_load_hook_needed = init_mod_audio()?;
 
     // We just need somewhere to keep LOADED_MODS so the DLLs don't get cleaned up, so we'll just put them here.
     std::thread_local! {
@@ -197,11 +195,6 @@ fn init(
 
     // We are done with mod initialization! We can now go repack everything from our overlays.
     {
-        assert!(assets::REPLACER
-            .set(std::sync::Mutex::new(assets::Replacer::new(
-                &serde_plain::to_string(&game_volume).unwrap()
-            )?))
-            .is_ok());
         let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
 
         let mut overlays = overlays;
@@ -230,6 +223,9 @@ fn init(
         super::stage1::install()?;
         if on_game_load_hook_needed {
             super::stage1::install_on_game_load(&game_env)?;
+        }
+        if pck_load_hook_needed {
+            super::stage1::install_pck_load(&game_env)?;
         }
     }
     Ok(())
@@ -500,4 +496,103 @@ fn process_game_sections() -> Result<mods::Sections, anyhow::Error> {
             .inspect_err(|e| log::error!("cannot find .text segment: {e}"))
             .ok(),
     })
+}
+
+fn init_mod_functions(loaded_mods: &std::collections::HashMap<String, mods::State>) -> Result<bool, anyhow::Error> {
+    assert!(MODFUNCTIONS
+        .set(std::sync::Mutex::new(ModFunctions::new()))
+        .is_ok());
+    let mut on_game_load_hook_needed = false;
+    let mut mod_funcs = MODFUNCTIONS.get().unwrap().lock().unwrap();
+    for mod_state in loaded_mods.values() {
+        for dll in mod_state.dlls.values() {
+            unsafe{
+                if let Ok(on_game_load_symbol_address) = dll.get_symbol_address("on_game_load") {
+                    mod_funcs.on_game_load_functions.push(std::mem::transmute::<winapi::shared::minwindef::FARPROC, fn(u32, *const u8)>(on_game_load_symbol_address));
+                    on_game_load_hook_needed = true;
+                }
+            }
+        }
+    }
+    return Ok(on_game_load_hook_needed);
+}
+
+fn init_mod_audio() -> Result<bool, anyhow::Error> {
+    let mut mod_audio = MODAUDIOFILES.get().unwrap().lock().unwrap();
+    let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
+    if !mod_audio.wems.is_empty() {
+        let audio_path = std::path::Path::new("..\\exe\\audio\\chaudloader.pck");
+        assets_replacer.add(
+            &audio_path,
+            move |writer| {
+                generate_chaudloader_pck(writer)
+            });
+        mod_audio.pcks.push(std::ffi::OsString::from("chaudloader.pck"));
+    }
+    // pcks.is_empty is checked here because pcks could either be added in the lua script or here if any wems were replaced in the lua script
+    return Ok(!mod_audio.pcks.is_empty());
+}
+
+fn generate_chaudloader_pck(mod_pck_file: &mut dyn assets::WriteSeek) -> Result<(), std::io::Error>{
+    let mod_audio = MODAUDIOFILES.get().unwrap().lock().unwrap();
+    // Generate chaudloader.pck from replacement wems
+    let num_wem = mod_audio.wems.len() as u32;
+    let mut wem_file_offset = 0x8C + num_wem * 20;
+    // Write AKPK
+    mod_pck_file.write_all(b"AKPK")?;
+    // Write Pck header length
+    mod_pck_file.write_u32::<byteorder::LittleEndian>(wem_file_offset)?;
+    // Write next part of header
+    mod_pck_file.write_all( &[
+        0x01, 0x00, 0x00, 0x00, // PCK version
+        0x68, 0x00, 0x00, 0x00, // Language Map Length
+        0x04, 0x00, 0x00, 0x00, // Banks table Length
+    ])?;
+    // Write length of entries
+    mod_pck_file.write_u32::<byteorder::LittleEndian>(num_wem * 20)?; // Stream table Length
+    // Write next part of header
+    mod_pck_file.write_all(&[
+        0x04, 0x00, 0x00, 0x00, // "externalLUT" Length
+        // Language Map
+        0x04, 0x00, 0x00, 0x00, //Number of languages
+        0x24, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, // Chinese offset + language ID
+        0x34, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, // English offset + language ID
+        0x4C, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, // Japanese offset + language ID
+        0x5E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // SFX offset + language ID
+        0x63, 0x00, 0x68, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65, 0x00, 0x00, 0x00, // "chinese" string
+        0x65, 0x00, 0x6E, 0x00, 0x67, 0x00, 0x6C, 0x00, 0x69, 0x00, 0x73, 0x00, 0x68, 0x00, 0x28, 0x00, 0x75, 0x00, 0x73, 0x00, 0x29, 0x00, 0x00, 0x00, // "english(us)" string
+        0x6A, 0x00, 0x61, 0x00, 0x70, 0x00, 0x61, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65, 0x00, 0x00, 0x00, // "japanese" string
+        0x73, 0x00, 0x66, 0x00, 0x78, 0x00, 0x00, 0x00, // "sfx" string
+        0x00, 0x00, // padding
+        // Banks table
+        0x00, 0x00, 0x00, 0x00 // Number of files
+    ])?;
+    // Stream table
+    // Write number of entries
+    mod_pck_file.write_u32::<byteorder::LittleEndian>(num_wem)?;
+    // IDs / Hashes need to be sorted in ascending order or the lookup fails
+    let mut hashes: Vec<_> = mod_audio.wems.keys().cloned().collect();
+    hashes.sort();
+    // Skip entries and write wem files first
+    mod_pck_file.seek(std::io::SeekFrom::Start(wem_file_offset as u64))?;
+    // Write the actual wems and keep track and offsets and lengths
+    let mut wem_offset_lens : Vec<(u32, u32)> = Vec::with_capacity(hashes.len());
+    for hash in &hashes {
+        let path = &mod_audio.wems.get(hash).unwrap().path;
+        let wem_contents : Vec<u8> = std::fs::read(path)?;
+        mod_pck_file.write_all(wem_contents.as_slice())?;
+        wem_offset_lens.push((wem_file_offset, wem_contents.len() as u32));
+        wem_file_offset += wem_contents.len() as u32;
+    }
+    // Go back to write the actual entries
+    mod_pck_file.seek(std::io::SeekFrom::Start(0x8C as u64))?;
+    for (&hash, &(wem_offset, wem_size)) in hashes.iter().zip(wem_offset_lens.iter()) {
+        let lanugage_id = mod_audio.wems.get(&hash).unwrap().language_id;
+        mod_pck_file.write_u32::<byteorder::LittleEndian>(hash)?; // Hash / ID
+        mod_pck_file.write_u32::<byteorder::LittleEndian>(0x01)?; // Block Size / required alignment
+        mod_pck_file.write_u32::<byteorder::LittleEndian>(wem_size)?;
+        mod_pck_file.write_u32::<byteorder::LittleEndian>(wem_offset)?;
+        mod_pck_file.write_u32::<byteorder::LittleEndian>(lanugage_id)?; // Language ID
+    }
+    return Ok(());
 }

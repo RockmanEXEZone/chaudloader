@@ -3,6 +3,7 @@ mod exedat;
 mod modfiles;
 mod mpak;
 mod msg;
+mod pck;
 mod r#unsafe;
 
 use crate::{assets, mods};
@@ -66,6 +67,7 @@ pub fn new<'a>(
     table.set("buffer", buffer::new(lua)?)?;
     table.set("msg", msg::new(lua)?)?;
     table.set("modfiles", modfiles::new(lua, &mod_path)?)?;
+    table.set("pck", pck::new(lua, &mod_path)?)?;
 
     if info.r#unsafe {
         table.set(
