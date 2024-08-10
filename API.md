@@ -162,6 +162,19 @@ function Mpak:pack(): Buffer, Buffer
 
 Marshals an mpak back into .map + .mpak format.
 
+## `chaudloader.bnk`
+
+Functions for loading new bnk files.
+
+### `chaudloader.bnk.load_bnk`
+
+```lua
+function chaudloader.bnk.load_bnk(path: string)
+```
+
+Loads the bnk file from `path` after Vol1Global.bnk or Vol2Global.bnk.
+
+
 ## `chaudloader.pck`
 
 Functions for replacing playback of music/voices from pck files and loading new pck files.
@@ -216,10 +229,10 @@ Replaces attempts to play the English wem file with `id` in the game's original 
 ### `chaudloader.pck.load_pck`
 
 ```lua
-function chaudloader.pck.replace_wem(path: string)
+function chaudloader.pck.load_pck(path: string)
 ```
 
-Copies the pck files from `path` to the audio folder and loads it before the game's pck files. Any wems with IDs that match the original pck play in place of the original.
+Loads the pck file from `path` after Vol1 or Vol2.pck. Any wems with IDs that match the original pck play in place of the original.
 
 ## `chaudloader.buffer`
 

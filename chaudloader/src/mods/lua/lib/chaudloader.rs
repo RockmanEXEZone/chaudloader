@@ -1,3 +1,4 @@
+mod bnk;
 mod buffer;
 mod exedat;
 mod modfiles;
@@ -67,6 +68,7 @@ pub fn new<'a>(
     table.set("msg", msg::new(lua)?)?;
     table.set("modfiles", modfiles::new(lua, &mod_path)?)?;
     table.set("pck", pck::new(lua, &mod_path)?)?;
+    table.set("bnk", bnk::new(lua, &mod_path)?)?;
 
     if info.r#unsafe {
         table.set("unsafe", r#unsafe::new(lua)?)?;
