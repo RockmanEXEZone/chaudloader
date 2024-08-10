@@ -1,14 +1,7 @@
-use crate::{
-    mods::{self, lua::lib::chaudloader::buffer::Buffer},
-    path,
-};
+use crate::mods::lua::lib::chaudloader::buffer::Buffer;
 use mlua::ExternalError;
 
-pub fn new<'a>(
-    lua: &'a mlua::Lua,
-    mod_path: &std::path::Path,
-    state: std::rc::Rc<std::cell::RefCell<mods::State>>,
-) -> Result<mlua::Value<'a>, mlua::Error> {
+pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
     let table = lua.create_table()?;
 
     table.set(

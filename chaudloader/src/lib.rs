@@ -1,8 +1,6 @@
 #![windows_subsystem = "windows"]
 #![feature(lazy_cell)]
 #![feature(fs_try_exists)]
-#![feature(local_key_cell_methods)]
-#![feature(result_option_inspect)]
 
 mod assets;
 mod config;

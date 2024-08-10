@@ -234,7 +234,7 @@ pub fn set_globals(
 
     globals.set(
         "chaudloader",
-        chaudloader::new(&lua, game_env, name, info, state, overlays)?,
+        chaudloader::new(&lua, game_env, name, info, overlays)?,
     )?;
 
     lua.load(include_str!("compat.lua"))

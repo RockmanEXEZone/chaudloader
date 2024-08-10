@@ -1,5 +1,4 @@
 -- Compatibility shims.
-
 -- 0.1 -> 0.8
 bnlc_mod_loader = {}
 

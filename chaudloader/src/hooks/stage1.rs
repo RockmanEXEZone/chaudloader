@@ -127,13 +127,10 @@ unsafe fn on_create_file(
     )
 }
 
-unsafe fn on_game_load(
-    game_version: u32,
-    gba_state:  * mut u8,
-) {
+unsafe fn on_game_load(game_version: u32, gba_state: *mut u8) {
     mmbnlc_OnGameLoad.call(game_version);
     let mod_funcs = mods::MODFUNCTIONS.get().unwrap().lock().unwrap();
-    for on_game_load_functions in &mod_funcs.on_game_load_functions{
+    for on_game_load_functions in &mod_funcs.on_game_load_functions {
         on_game_load_functions(game_version, gba_state);
     }
 }
@@ -141,22 +138,27 @@ unsafe fn on_game_load(
 unsafe fn on_pck_load(
     sound_engine_class: *mut std::ffi::c_void,
     pck_file_name: *const winapi::shared::ntdef::WCHAR,
-    out_pck_id: *mut u32
+    out_pck_id: *mut u32,
 ) -> i32 {
-    let pck_wstr = std::ffi::OsString::from_wide(
-        std::slice::from_raw_parts(pck_file_name,
-            winapi::um::winbase::lstrlenW(pck_file_name) as usize
-        )
-    );
+    let pck_wstr = std::ffi::OsString::from_wide(std::slice::from_raw_parts(
+        pck_file_name,
+        winapi::um::winbase::lstrlenW(pck_file_name) as usize,
+    ));
 
     let return_val = LoadFilePackage.call(sound_engine_class, pck_file_name, out_pck_id);
     // Only initialize this once in case Vol1.pck or Vol2.pck is loaded
     match pck_wstr.to_str() {
         Some("Vol1.pck") | Some("Vol2.pck") => {
             static INITIALIZED: std::sync::atomic::AtomicBool =
-            std::sync::atomic::AtomicBool::new(false);
+                std::sync::atomic::AtomicBool::new(false);
             if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
-                let mod_pcks = mods::MODAUDIOFILES.get().unwrap().lock().unwrap().pcks.clone();
+                let mod_pcks = mods::MODAUDIOFILES
+                    .get()
+                    .unwrap()
+                    .lock()
+                    .unwrap()
+                    .pcks
+                    .clone();
                 for pck in &mod_pcks {
                     let mod_pck_wstr = pck
                         .encode_wide()
@@ -251,30 +253,35 @@ pub unsafe fn install_on_game_load(game_env: &mods::GameEnv) -> Result<(), anyho
     unsafe {
         if let Some(data) = game_env.sections.text {
             // This pattern is enough to find the function in all releases of both collections (at 0x141dde120 Vol1 / 0x143147c10 Vol2 for latest releases)
-            let on_game_load_pattern: [u8; 12] = [0x48, 0x89, 0x5c, 0x24, 0x10, 0x56, 0x48, 0x83, 0xec, 0x20, 0x8b, 0xd9];
-            if let Some(offset) = data.windows(on_game_load_pattern.len()).position(|window| window == on_game_load_pattern) {
+            let on_game_load_pattern: [u8; 12] = [
+                0x48, 0x89, 0x5c, 0x24, 0x10, 0x56, 0x48, 0x83, 0xec, 0x20, 0x8b, 0xd9,
+            ];
+            if let Some(offset) = data
+                .windows(on_game_load_pattern.len())
+                .position(|window| window == on_game_load_pattern)
+            {
                 let on_game_load_ptr = data.as_ptr().add(offset);
                 // Get the offset to the GBAStruct from a structure referenced in the function
                 let mov_instr_offset = 0x18;
-                let struct_rel_offset = std::ptr::read_unaligned(on_game_load_ptr.add(mov_instr_offset + 3) as * const u32) as usize;
-                let struct_offset = on_game_load_ptr.add(mov_instr_offset + 7 + struct_rel_offset) as u64;
+                let struct_rel_offset = std::ptr::read_unaligned(
+                    on_game_load_ptr.add(mov_instr_offset + 3) as *const u32,
+                ) as usize;
+                let struct_offset =
+                    on_game_load_ptr.add(mov_instr_offset + 7 + struct_rel_offset) as u64;
 
                 mmbnlc_OnGameLoad
-                    .initialize(
-                        std::mem::transmute(on_game_load_ptr),
-                        {
-                            move |game_version| {
-                                // let gba_state = std::mem::transmute::<u64, * mut u8>(0x80200040);
-                                // Get the gba state offset every time in case this struct moves
-                                let struct_with_gba_state = std::ptr::read_unaligned(struct_offset as * const * const u8);
-                                let gba_state = std::ptr::read_unaligned(struct_with_gba_state.add(0x3F8) as  * const * mut u8);
-                                on_game_load(
-                                    game_version,
-                                    gba_state,
-                                )
-                            }
-                        },
-                    )?
+                    .initialize(std::mem::transmute(on_game_load_ptr), {
+                        move |game_version| {
+                            // let gba_state = std::mem::transmute::<u64, * mut u8>(0x80200040);
+                            // Get the gba state offset every time in case this struct moves
+                            let struct_with_gba_state =
+                                std::ptr::read_unaligned(struct_offset as *const *const u8);
+                            let gba_state = std::ptr::read_unaligned(
+                                struct_with_gba_state.add(0x3F8) as *const *mut u8,
+                            );
+                            on_game_load(game_version, gba_state)
+                        }
+                    })?
                     .enable()?;
             }
         }
@@ -287,24 +294,21 @@ pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::E
     unsafe {
         if let Some(data) = game_env.sections.text {
             // This pattern is enough to find the function in all releases of both collections (at 0x14000A5C0 Vol1 / 0x14000BD20 Vol2 for latest releases)
-            let pck_load_pattern: [u8; 24] = [0x40, 0x53, 0x55, 0x56, 0x57, 0x41, 0x56, 0x48, 0x81, 0xEC, 0x80, 0x00, 0x00, 0x00, 0x48, 0xC7, 0x44, 0x24, 0x38, 0xFE, 0xFF, 0xFF, 0xFF, 0x48];
-            if let Some(offset) = data.windows(pck_load_pattern.len()).position(|window| window == pck_load_pattern) {
+            let pck_load_pattern: [u8; 24] = [
+                0x40, 0x53, 0x55, 0x56, 0x57, 0x41, 0x56, 0x48, 0x81, 0xEC, 0x80, 0x00, 0x00, 0x00,
+                0x48, 0xC7, 0x44, 0x24, 0x38, 0xFE, 0xFF, 0xFF, 0xFF, 0x48,
+            ];
+            if let Some(offset) = data
+                .windows(pck_load_pattern.len())
+                .position(|window| window == pck_load_pattern)
+            {
                 let pck_load_ptr = data.as_ptr().add(offset);
                 LoadFilePackage
-                    .initialize(
-                        std::mem::transmute(pck_load_ptr),
-                        {
-                            move |sound_engine_class,
-                                  pck_file_name,
-                                  unk_pck_ptr| {
-                                on_pck_load(
-                                    sound_engine_class,
-                                    pck_file_name,
-                                    unk_pck_ptr
-                                )
-                            }
-                        },
-                    )?
+                    .initialize(std::mem::transmute(pck_load_ptr), {
+                        move |sound_engine_class, pck_file_name, unk_pck_ptr| {
+                            on_pck_load(sound_engine_class, pck_file_name, unk_pck_ptr)
+                        }
+                    })?
                     .enable()?;
             }
         }

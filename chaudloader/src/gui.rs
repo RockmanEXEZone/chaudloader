@@ -1,4 +1,4 @@
-use fltk::{prelude::*};
+use fltk::prelude::*;
 
 use crate::{config, console, mods, path};
 
@@ -26,7 +26,6 @@ pub struct Host {
 pub struct Client {
     ready_receiver: Option<oneshot::Receiver<()>>,
     start_receiver: Option<oneshot::Receiver<StartRequest>>,
-    message_sender: fltk::app::Sender<Message>,
 }
 
 impl Client {
@@ -47,7 +46,7 @@ impl Client {
 pub fn make_host_and_client() -> (Host, Client) {
     let (ready_sender, ready_receiver) = oneshot::channel();
     let (start_sender, start_receiver) = oneshot::channel();
-    let (message_sender, message_receiver) = fltk::app::channel();
+    let (_, message_receiver) = fltk::app::channel();
     (
         Host {
             ready_sender,
@@ -57,7 +56,6 @@ pub fn make_host_and_client() -> (Host, Client) {
         Client {
             ready_receiver: Some(ready_receiver),
             start_receiver: Some(start_receiver),
-            message_sender,
         },
     )
 }

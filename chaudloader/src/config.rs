@@ -1,6 +1,8 @@
 use std::io::Write;
 
-pub const fn default_bool<const V: bool>() -> bool { V }
+pub const fn default_bool<const V: bool>() -> bool {
+    V
+}
 pub const fn empty_btreeset<T>() -> std::collections::BTreeSet<T> {
     std::collections::BTreeSet::new()
 }
@@ -11,7 +13,7 @@ pub struct Config {
     pub disable_autostart: bool,
     #[serde(default = "empty_btreeset::<String>")]
     pub enabled_mods: std::collections::BTreeSet<String>,
-    
+
     // Secret options
     pub developer_mode: Option<bool>,
     pub enable_hook_guards: Option<bool>, // requires developer_mode

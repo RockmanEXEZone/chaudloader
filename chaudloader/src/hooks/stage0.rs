@@ -1,6 +1,7 @@
-use std::io::{Read, Seek, Write};
-
-use crate::{assets, config, gui, mods::{self, ModAudioFiles, ModFunctions, MODFUNCTIONS, MODAUDIOFILES}};
+use crate::{
+    assets, config, gui,
+    mods::{self, ModAudioFiles, ModFunctions, MODAUDIOFILES, MODFUNCTIONS},
+};
 use byteorder::WriteBytesExt;
 use retour::static_detour;
 
@@ -258,9 +259,22 @@ unsafe fn get_proc_address_hook(
         INACTIVE,
         ACTIVE,
     }
-    static mut TRIGGER_COUNT: u64 = 0;
-    static mut HIDE_STATE: HideState = HideState::INACTIVE;
-    static mut PREV_PROC_NAME: String = String::new();
+    struct DevModeState {
+        pub trigger_count: u64,
+        pub hide_state: HideState,
+        pub prev_proc_name: String,
+    }
+    impl DevModeState {
+        pub fn new() -> Self {
+            Self {
+                trigger_count: 0,
+                hide_state: HideState::INACTIVE,
+                prev_proc_name: String::new(),
+            }
+        }
+    }
+    static DEV_MODE_STATE: std::sync::LazyLock<std::sync::Mutex<DevModeState>> =
+        std::sync::LazyLock::new(|| std::sync::Mutex::new(DevModeState::new()));
 
     let mut proc_address: usize = kernelbase_GetProcAddress.call(h_module, lp_proc_name) as usize;
 
@@ -277,30 +291,36 @@ unsafe fn get_proc_address_hook(
     };
 
     if config.developer_mode == Some(true) && config.enable_hook_guards == Some(true) {
+        let mut dev_mode_state = DEV_MODE_STATE.lock().unwrap();
+
         // disclaimer: ultra mega jank, likely will break in the future
-        match &HIDE_STATE {
+        match dev_mode_state.hide_state {
             HideState::INACTIVE => {
                 // Trigger on this call pattern:
                 // GetProcAddress(kernel32, "GetProcAddress")
                 // GetProcAddress(ntdll, ...)
-                if h_module == NTDLL.get_base_address() && PREV_PROC_NAME == "GetProcAddress" {
-                    HIDE_STATE = HideState::ACTIVE;
-                    TRIGGER_COUNT += 1;
+                if h_module == NTDLL.get_base_address()
+                    && dev_mode_state.prev_proc_name == "GetProcAddress"
+                {
+                    dev_mode_state.hide_state = HideState::ACTIVE;
+                    dev_mode_state.trigger_count += 1;
                 }
             }
             HideState::ACTIVE => {
                 if h_module != NTDLL.get_base_address() {
-                    HIDE_STATE = HideState::INACTIVE;
+                    dev_mode_state.hide_state = HideState::INACTIVE;
                 }
             }
         }
         // If we return 0 on the first set of calls, we crash
         // Only do it on the second set of calls
-        if HIDE_STATE == HideState::ACTIVE && TRIGGER_COUNT == 2 {
+        if dev_mode_state.hide_state == HideState::ACTIVE && dev_mode_state.trigger_count == 2 {
             // For some reason using std::ptr::null_mut() causes a crash when resuming from break?
             // So instead we directly mutate the pointer as an integer
             proc_address = 0;
         }
+
+        dev_mode_state.prev_proc_name = proc_name.to_string();
     }
 
     // Avoid NtProtectVirtualMemory from being disabled
@@ -308,7 +328,6 @@ unsafe fn get_proc_address_hook(
         proc_address = 0;
     }
 
-    PREV_PROC_NAME = proc_name.to_string();
     proc_address as winapi::shared::minwindef::FARPROC
 }
 
@@ -390,7 +409,8 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                                 // Only initialize this once. It should be initialized on the main window being created.
                                 static INITIALIZED: std::sync::atomic::AtomicBool =
                                     std::sync::atomic::AtomicBool::new(false);
-                                if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
+                                if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst)
+                                {
                                     init(game_volume, CONFIG.clone()).unwrap();
 
                                     let hwnd = CreateWindowExA.call(
@@ -498,7 +518,9 @@ fn process_game_sections() -> Result<mods::Sections, anyhow::Error> {
     })
 }
 
-fn init_mod_functions(loaded_mods: &std::collections::HashMap<String, mods::State>) -> Result<bool, anyhow::Error> {
+fn init_mod_functions(
+    loaded_mods: &std::collections::HashMap<String, mods::State>,
+) -> Result<bool, anyhow::Error> {
     assert!(MODFUNCTIONS
         .set(std::sync::Mutex::new(ModFunctions::new()))
         .is_ok());
@@ -506,9 +528,14 @@ fn init_mod_functions(loaded_mods: &std::collections::HashMap<String, mods::Stat
     let mut mod_funcs = MODFUNCTIONS.get().unwrap().lock().unwrap();
     for mod_state in loaded_mods.values() {
         for dll in mod_state.dlls.values() {
-            unsafe{
+            unsafe {
                 if let Ok(on_game_load_symbol_address) = dll.get_symbol_address("on_game_load") {
-                    mod_funcs.on_game_load_functions.push(std::mem::transmute::<winapi::shared::minwindef::FARPROC, fn(u32, *const u8)>(on_game_load_symbol_address));
+                    mod_funcs.on_game_load_functions.push(std::mem::transmute::<
+                        winapi::shared::minwindef::FARPROC,
+                        fn(u32, *const u8),
+                    >(
+                        on_game_load_symbol_address
+                    ));
                     on_game_load_hook_needed = true;
                 }
             }
@@ -522,18 +549,18 @@ fn init_mod_audio() -> Result<bool, anyhow::Error> {
     let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
     if !mod_audio.wems.is_empty() {
         let audio_path = std::path::Path::new("..\\exe\\audio\\chaudloader.pck");
-        assets_replacer.add(
-            &audio_path,
-            move |writer| {
-                generate_chaudloader_pck(writer)
-            });
-        mod_audio.pcks.push(std::ffi::OsString::from("chaudloader.pck"));
+        assets_replacer.add(&audio_path, move |writer| generate_chaudloader_pck(writer));
+        mod_audio
+            .pcks
+            .push(std::ffi::OsString::from("chaudloader.pck"));
     }
     // pcks.is_empty is checked here because pcks could either be added in the lua script or here if any wems were replaced in the lua script
     return Ok(!mod_audio.pcks.is_empty());
 }
 
-fn generate_chaudloader_pck(mod_pck_file: &mut dyn assets::WriteSeek) -> Result<(), std::io::Error>{
+fn generate_chaudloader_pck(
+    mod_pck_file: &mut dyn assets::WriteSeek,
+) -> Result<(), std::io::Error> {
     let mod_audio = MODAUDIOFILES.get().unwrap().lock().unwrap();
     // Generate chaudloader.pck from replacement wems
     let num_wem = mod_audio.wems.len() as u32;
@@ -543,14 +570,14 @@ fn generate_chaudloader_pck(mod_pck_file: &mut dyn assets::WriteSeek) -> Result<
     // Write Pck header length
     mod_pck_file.write_u32::<byteorder::LittleEndian>(wem_file_offset)?;
     // Write next part of header
-    mod_pck_file.write_all( &[
+    mod_pck_file.write_all(&[
         0x01, 0x00, 0x00, 0x00, // PCK version
         0x68, 0x00, 0x00, 0x00, // Language Map Length
         0x04, 0x00, 0x00, 0x00, // Banks table Length
     ])?;
     // Write length of entries
     mod_pck_file.write_u32::<byteorder::LittleEndian>(num_wem * 20)?; // Stream table Length
-    // Write next part of header
+                                                                      // Write next part of header
     mod_pck_file.write_all(&[
         0x04, 0x00, 0x00, 0x00, // "externalLUT" Length
         // Language Map
@@ -559,13 +586,16 @@ fn generate_chaudloader_pck(mod_pck_file: &mut dyn assets::WriteSeek) -> Result<
         0x34, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, // English offset + language ID
         0x4C, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, // Japanese offset + language ID
         0x5E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // SFX offset + language ID
-        0x63, 0x00, 0x68, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65, 0x00, 0x00, 0x00, // "chinese" string
-        0x65, 0x00, 0x6E, 0x00, 0x67, 0x00, 0x6C, 0x00, 0x69, 0x00, 0x73, 0x00, 0x68, 0x00, 0x28, 0x00, 0x75, 0x00, 0x73, 0x00, 0x29, 0x00, 0x00, 0x00, // "english(us)" string
-        0x6A, 0x00, 0x61, 0x00, 0x70, 0x00, 0x61, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65, 0x00, 0x00, 0x00, // "japanese" string
+        0x63, 0x00, 0x68, 0x00, 0x69, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65, 0x00, 0x00,
+        0x00, // "chinese" string
+        0x65, 0x00, 0x6E, 0x00, 0x67, 0x00, 0x6C, 0x00, 0x69, 0x00, 0x73, 0x00, 0x68, 0x00, 0x28,
+        0x00, 0x75, 0x00, 0x73, 0x00, 0x29, 0x00, 0x00, 0x00, // "english(us)" string
+        0x6A, 0x00, 0x61, 0x00, 0x70, 0x00, 0x61, 0x00, 0x6E, 0x00, 0x65, 0x00, 0x73, 0x00, 0x65,
+        0x00, 0x00, 0x00, // "japanese" string
         0x73, 0x00, 0x66, 0x00, 0x78, 0x00, 0x00, 0x00, // "sfx" string
         0x00, 0x00, // padding
         // Banks table
-        0x00, 0x00, 0x00, 0x00 // Number of files
+        0x00, 0x00, 0x00, 0x00, // Number of files
     ])?;
     // Stream table
     // Write number of entries
@@ -576,10 +606,10 @@ fn generate_chaudloader_pck(mod_pck_file: &mut dyn assets::WriteSeek) -> Result<
     // Skip entries and write wem files first
     mod_pck_file.seek(std::io::SeekFrom::Start(wem_file_offset as u64))?;
     // Write the actual wems and keep track and offsets and lengths
-    let mut wem_offset_lens : Vec<(u32, u32)> = Vec::with_capacity(hashes.len());
+    let mut wem_offset_lens: Vec<(u32, u32)> = Vec::with_capacity(hashes.len());
     for hash in &hashes {
         let path = &mod_audio.wems.get(hash).unwrap().path;
-        let wem_contents : Vec<u8> = std::fs::read(path)?;
+        let wem_contents: Vec<u8> = std::fs::read(path)?;
         mod_pck_file.write_all(wem_contents.as_slice())?;
         wem_offset_lens.push((wem_file_offset, wem_contents.len() as u32));
         wem_file_offset += wem_contents.len() as u32;

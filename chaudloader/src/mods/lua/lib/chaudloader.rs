@@ -50,7 +50,6 @@ pub fn new<'a>(
     game_env: &mods::GameEnv,
     name: &'a str,
     info: &mods::Info,
-    state: std::rc::Rc<std::cell::RefCell<mods::State>>,
     overlays: std::collections::HashMap<
         String,
         std::rc::Rc<std::cell::RefCell<assets::exedat::Overlay>>,
@@ -70,10 +69,7 @@ pub fn new<'a>(
     table.set("pck", pck::new(lua, &mod_path)?)?;
 
     if info.r#unsafe {
-        table.set(
-            "unsafe",
-            r#unsafe::new(lua, &mod_path, std::rc::Rc::clone(&state))?,
-        )?;
+        table.set("unsafe", r#unsafe::new(lua)?)?;
     }
 
     table.set(

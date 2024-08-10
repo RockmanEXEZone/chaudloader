@@ -50,7 +50,7 @@ impl State {
 }
 
 pub struct ModFunctions {
-    pub on_game_load_functions: Vec<fn(u32, * const u8)>,
+    pub on_game_load_functions: Vec<fn(u32, *const u8)>,
 }
 
 impl ModFunctions {
@@ -172,5 +172,7 @@ pub fn scan() -> Result<std::collections::BTreeMap<String, std::sync::Arc<Mod>>,
     }
     Ok(mods)
 }
-pub static MODFUNCTIONS: std::sync::OnceLock<std::sync::Mutex<ModFunctions>> = std::sync::OnceLock::new();
-pub static MODAUDIOFILES: std::sync::OnceLock<std::sync::Mutex<ModAudioFiles>> = std::sync::OnceLock::new();
+pub static MODFUNCTIONS: std::sync::OnceLock<std::sync::Mutex<ModFunctions>> =
+    std::sync::OnceLock::new();
+pub static MODAUDIOFILES: std::sync::OnceLock<std::sync::Mutex<ModAudioFiles>> =
+    std::sync::OnceLock::new();

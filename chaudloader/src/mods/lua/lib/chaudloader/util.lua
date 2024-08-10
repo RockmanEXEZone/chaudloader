@@ -2,10 +2,7 @@ local exports = {}
 
 -- Unpacks an .map and .mpak for loading, calls a function on it, then writes it back when complete.
 function exports.edit_mpak(dat, name, cb)
-    local mpak = chaudloader.mpak.unpack(
-        dat:read_file(name .. ".map"),
-        dat:read_file(name .. ".mpak")
-    )
+    local mpak = chaudloader.mpak.unpack(dat:read_file(name .. ".map"), dat:read_file(name .. ".mpak"))
     cb(mpak)
     local raw_map, raw_mpak = mpak:pack()
     dat:write_file(name .. ".map", raw_map)
@@ -42,7 +39,7 @@ function exports.merge_msgs_from_mod_directory(mpak, dir)
             goto continue
         end
         local addr = tonumber(raw_addr, 16) | 0x08000000
-        exports.edit_msg(mpak, addr, function (msg)
+        exports.edit_msg(mpak, addr, function(msg)
             exports.merge_msg(msg, chaudloader.msg.unpack(chaudloader.modfiles.read_file(dir .. '/' .. filename)))
         end)
         ::continue::
