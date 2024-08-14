@@ -22,7 +22,7 @@ pub fn new<'a>(
                 }
 
                 let base_filename = bnk_path.file_name().unwrap().to_str().unwrap();
-                const INVALID_BNK_NAMES: &[&str] = &["Init.bnk","Global.bnk","Vol1Global.bnk","Vol2Global.bnk","Voice1.bnk","DLC1.bnk","DLC2.bnk","EXE1.bnk","EXE2.bnk","EXE3.bnk","EXE4.bnk","EXE5.bnk","EXE6.bnk"];
+                const INVALID_BNK_NAMES: &[&str] = &["Init.bnk","Global.bnk","Vol1Global.bnk","Vol2Global.bnk","Voice1.bnk","DLC1.bnk","DLC2.bnk","EXE1.bnk","EXE2.bnk","EXE3.bnk","EXE4.bnk","EXE5.bnk","EXE6.bnk", "chaudloader.bnk"];
                 if INVALID_BNK_NAMES.contains(&base_filename) {
                     return Err(anyhow::anyhow!("cannot use the names: Init.bnk, Global.bnk, Vol1Global.bnk, Vol2Global.bnk, Voice1.bnk, DLC1.bnk, DLC2.bnk, EXE1.bnk, EXE2.bnk, EXE3.bnk, EXE4.bnk, EXE5.bnk, or EXE6.bnk").into_lua_err());
                 }
