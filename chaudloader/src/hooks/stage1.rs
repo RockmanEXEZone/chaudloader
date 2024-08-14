@@ -152,7 +152,7 @@ unsafe fn on_pck_load(
     let return_val = LoadFilePackage.call(sound_engine_class, pck_file_name, out_pck_id);
     match pck_wstr.to_str() {
         Some("Vol1.pck") | Some("Vol2.pck") => {
-            // Only initialize this once in case both Vol1.pck and Vol2.pck is loaded
+            // If both Vol1.pck and Vol2.pck are loaded, don't initialize again.
             static INITIALIZED: std::sync::atomic::AtomicBool =
                 std::sync::atomic::AtomicBool::new(false);
             if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
@@ -195,7 +195,7 @@ unsafe fn on_bnk_load(
     let return_val = LoadBank.call(bnk_file_name, out_bnk_id);
     match bnk_str.as_str() {
         "Vol1Global.bnk" | "Vol2Global.bnk" => {
-            // Only initialize this once in case both Vol1Global.bnk and Vol2Global.bnk is loaded
+            // If both Vol1Global.bnk and Vol2Global.bnk are loaded, don't initialize again.
             static INITIALIZED: std::sync::atomic::AtomicBool =
                 std::sync::atomic::AtomicBool::new(false);
             if !INITIALIZED.fetch_or(true, std::sync::atomic::Ordering::SeqCst) {
@@ -343,7 +343,7 @@ pub unsafe fn install_on_game_load(game_env: &mods::GameEnv) -> Result<(), anyho
 pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::Error> {
     unsafe {
         if let Some(data) = game_env.sections.text {
-            // This pattern is enough to find the function in all releases of both collections (at 0x14000A5C0 Vol1 / 0x14000BD20 Vol2 for latest releases)
+            // This pattern is enough to find the function in all releases of both collections (at 0x14000A5C0 Vol1 / 0x14000BD20 Vol2 for the October 2023 releases)
             let pck_load_pattern: [u8; 24] = [
                 0x40, 0x53, 0x55, 0x56, 0x57, 0x41, 0x56, 0x48, 0x81, 0xEC, 0x80, 0x00, 0x00, 0x00,
                 0x48, 0xC7, 0x44, 0x24, 0x38, 0xFE, 0xFF, 0xFF, 0xFF, 0x48,
@@ -370,7 +370,7 @@ pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::E
 pub unsafe fn install_bnk_load(game_env: &mods::GameEnv) -> Result<(), anyhow::Error> {
     unsafe {
         if let Some(data) = game_env.sections.text {
-            // This pattern is enough to find the function in all releases of both collections (at 0x141CC27E0 Vol1 / 0x14302C310 Vol2 for latest releases)
+            // This pattern is enough to find the function in all releases of both collections (at 0x141CC27E0 Vol1 / 0x14302C310 Vol2 for the October 2023 releases)
             let bnk_load_pattern: [u8; 32] = [
                 0x48, 0x89, 0x5C, 0x24, 0x08, 0x48, 0x89, 0x74, 0x24, 0x10, 0x48, 0x89, 0x7C, 0x24,
                 0x18, 0x55, 0x48, 0x8D, 0x6C, 0x24, 0xA9, 0x48, 0x81, 0xEC, 0xE0, 0x00, 0x00, 0x00,
