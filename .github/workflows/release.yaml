@@ -15,14 +15,14 @@ jobs:
             run:
                 shell: powershell
         steps:
-            - uses: actions/checkout@v2
+            - uses: actions/checkout@v4
               with:
                   submodules: recursive
             - uses: ilammy/msvc-dev-cmd@v1
             - uses: dtolnay/rust-toolchain@nightly
               with:
                   targets: x86_64-unknown-linux-musl
-            - uses: actions/setup-python@v4
+            - uses: actions/setup-python@v5
               with:
                   python-version: "3.11"
             - run: ./download_and_build_lua.ps1
@@ -30,27 +30,12 @@ jobs:
             - run: cargo build --release --target x86_64-unknown-linux-musl --bin install
             - run: Move-Item build/lua54/lua54.dll ./lua54.dll
             - run: python make_dist.py
-            - uses: actions/upload-release-asset@v1
-              env:
-                  GITHUB_TOKEN: ${{ github.token }}
+            - run: mv dist.zip chaudloader-${{ github.ref_name }}-windows.zip
+            - run: mv dist.tar.bz2 chaudloader-${{ github.ref_name }}-linux.tar.bz2
+            - uses: softprops/action-gh-release@v2
               with:
-                  upload_url: ${{ github.event.release.upload_url }}
-                  asset_path: target/release/chaudloader.dll
-                  asset_name: chaudloader.dll
-                  asset_content_type: application/octet-stream
-            - uses: actions/upload-release-asset@v1
-              env:
-                  GITHUB_TOKEN: ${{ github.token }}
-              with:
-                  upload_url: ${{ github.event.release.upload_url }}
-                  asset_path: dist.zip
-                  asset_name: chaudloader-${{ github.ref_name }}-windows.zip
-                  asset_content_type: application/octet-stream
-            - uses: actions/upload-release-asset@v1
-              env:
-                  GITHUB_TOKEN: ${{ github.token }}
-              with:
-                  upload_url: ${{ github.event.release.upload_url }}
-                  asset_path: dist.tar.bz2
-                  asset_name: chaudloader-${{ github.ref_name }}-linux.tar.bz2
-                  asset_content_type: application/octet-stream
+                  token: ${{ github.token }}
+                  files: |
+                    target/release/chaudloader.dll
+                    chaudloader-${{ github.ref_name }}-windows.zip
+                    chaudloader-${{ github.ref_name }}-linux.tar.bz2
