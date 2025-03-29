@@ -2,11 +2,11 @@ use fltk::prelude::*;
 
 use crate::{config, console, mods, path};
 
-struct ConsoleWriter<'a>(&'a mut fltk::text::SimpleTerminal);
+struct ConsoleWriter<'a>(&'a mut fltk::terminal::Terminal);
 
 impl<'a> std::io::Write for ConsoleWriter<'a> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.append2(buf);
+        self.0.append_u8(buf);
         Ok(buf.len())
     }
 
@@ -598,10 +598,9 @@ fn make_window(
         ));
     wind.make_resizable(true);
 
-    let mut console = fltk::text::SimpleTerminal::default_fill();
+    let mut console = fltk::terminal::Terminal::default_fill();
     wind.resizable(&console);
     console.set_ansi(true);
-    console.set_stay_at_bottom(true);
     console.hide();
 
     let start_sender = std::sync::Arc::new(std::sync::Mutex::new(Some(start_sender)));
