@@ -1,6 +1,4 @@
 #![windows_subsystem = "windows"]
-#![feature(lazy_cell)]
-#![feature(fs_try_exists)]
 
 mod assets;
 mod config;

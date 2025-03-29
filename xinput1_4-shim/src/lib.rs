@@ -1,6 +1,5 @@
 //! Contains shim functions that just forward xinput1_4.dll calls to the system xinput1_4.dll.
 #![cfg(windows)]
-#![feature(lazy_cell)]
 
 static XINPUT1_4: std::sync::LazyLock<windows_libloader::ModuleHandle> =
     std::sync::LazyLock::new(|| unsafe {
