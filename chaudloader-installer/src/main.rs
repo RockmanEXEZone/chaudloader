@@ -35,22 +35,19 @@ fn main() -> Result<(), anyhow::Error> {
         println!("Welcome to the chaudloader installer.");
         println!();
 
-        let mut steamdir = steamlocate::SteamDir::locate()
-            .ok_or_else(|| anyhow::anyhow!("could not initialize steam dir"))?;
-
-        let apps = steamdir.apps();
-
-        let mut paths = vec![];
+        let steamdir = steamlocate::SteamDir::locate()
+            .map_err(|_| anyhow::anyhow!("could not initialize steam dir"))?;
 
         println!("Found games:");
-        if let Some(app) = apps.get(&1798010).and_then(|v| v.as_ref()) {
-            println!(" - Vol. 1: {}", app.path.display());
-            paths.push(app.path.clone())
-        }
-        if let Some(app) = apps.get(&1798020).and_then(|v| v.as_ref()) {
-            println!(" - Vol. 2: {}", app.path.display());
-            paths.push(app.path.clone())
-        }
+        let paths = &[(1798010, "Vol. 1"), (1798020, "Vol. 2")]
+            .iter()
+            .filter_map(|(app_id, game_name)| {
+                steamdir.find_app(*app_id).ok().flatten().map(|(app, lib)| {
+                    let path = lib.resolve_app_dir(&app);
+                    println!(" - {game_name}: {}", path.display());
+                    path.to_owned()
+                })
+            }).collect::<Vec<_>>();
 
         if paths.is_empty() {
             println!(

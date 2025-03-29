@@ -8,6 +8,6 @@ name = "install"
 path = "src/main.rs"
 
 [dependencies]
-steamlocate = "1.2"
+steamlocate = "2"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
