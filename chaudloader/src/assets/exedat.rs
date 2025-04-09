@@ -1,5 +1,7 @@
 use std::io::{Read, Write};
 
+use zip::{read::ZipFile, result::ZipError};
+
 pub struct Reader {
     zr: zip::ZipArchive<Box<dyn super::ReadSeek + Send>>,
 }
@@ -33,28 +35,53 @@ impl Overlay {
             overlaid_files: std::collections::HashMap::new(),
         }
     }
+    fn normalizePath<'a>(&'a mut self,path: &'a str)->String {
+        let filecheck=self.base.get(path);
+        
+        match  filecheck{
+            Ok(ZipFile)=>return path.to_string(),
+            ZipError=>{
+           
+                if path.contains("/"){
+                   return path.replace("/", "\\")
+                }
+              
+                   return path.replace("\\", "/")
+             
+              
+          
+
+            }
+
+        }
+
+    }
 
     pub fn read<'a>(
         &'a mut self,
         path: &str,
     ) -> Result<std::borrow::Cow<'a, [u8]>, std::io::Error> {
-        if let Some(contents) = self.overlaid_files.get(path) {
+        let normalPath=self.normalizePath(path);
+       
+        if let Some(contents) = self.overlaid_files.get(normalPath.as_str()) {
+         
             return Ok(std::borrow::Cow::Borrowed(&contents));
         }
-        let mut zf = self.base.get(path)?;
+        let mut zf = self.base.get(normalPath.as_str())?;
         let mut buf = vec![];
         zf.read_to_end(&mut buf)?;
         Ok(std::borrow::Cow::Owned(buf))
     }
 
     pub fn write<'a>(&'a mut self, path: &str, contents: Vec<u8>) -> Result<(), std::io::Error> {
-        if self.base.get(path)?.is_dir() {
+        let normalPath=self.normalizePath(path);
+        if self.base.get(normalPath.as_str())?.is_dir() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
                 "cannot replace directory",
             ));
         }
-        self.overlaid_files.insert(path.to_string(), contents);
+        self.overlaid_files.insert(normalPath, contents);
         Ok(())
     }
 
