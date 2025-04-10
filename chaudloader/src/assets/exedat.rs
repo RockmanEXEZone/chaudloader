@@ -37,13 +37,13 @@ impl Overlay {
         let filecheck = self.base.get(path);
 
         match filecheck {
-            Ok(_) => return path.into(),
+            Ok(_) => path.into(),
             Err(_) => {
                 if path.contains("/") {
                     return path.replace("/", "\\");
                 }
 
-                return path.replace("\\", "/");
+                path.replace("\\", "/")
             }
         }
     }
