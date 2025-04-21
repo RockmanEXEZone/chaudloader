@@ -1,12 +1,24 @@
+use std::fs::File;
+
 use fltk::prelude::*;
 
 use crate::{config, console, mods, path};
 
 struct ConsoleWriter<'a>(&'a mut fltk::terminal::Terminal);
 
+impl<'a> ConsoleWriter<'a> {
+    fn new(terminal: &'a mut fltk::terminal::Terminal) -> ConsoleWriter<'a> {
+        let _f = File::create("chaud.log").unwrap();
+        ConsoleWriter(terminal)
+    }
+}
+
 impl<'a> std::io::Write for ConsoleWriter<'a> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.0.append_u8(buf);
+        let mut f = File::options().append(true).open("chaud.log").unwrap();
+        f.write(buf).unwrap();
+
         Ok(buf.len())
     }
 
@@ -620,7 +632,8 @@ fn make_window(
             std::thread::spawn({
                 let mut console = console.clone();
                 move || {
-                    std::io::copy(&mut console_reader, &mut ConsoleWriter(&mut console)).unwrap();
+                    std::io::copy(&mut console_reader, &mut ConsoleWriter::new(&mut console))
+                        .unwrap();
                 }
             });
             console.show();
