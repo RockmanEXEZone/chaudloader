@@ -21,7 +21,7 @@ impl<'a> std::io::Write for ConsoleWriter<'a> {
         self.terminal.append_u8(buf);
         if let Some(f) = self.log_file.as_mut() {
             // Try to write to log file, but do not crash if that fails
-            let _ = f.write(buf);
+            let _ = f.write(&strip_ansi_escapes::strip(buf));
         }
 
         Ok(buf.len())
