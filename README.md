@@ -31,7 +31,7 @@ Mods consists of the following files in a directory inside the `mods` folder:
 
 ### Developer mode
 
-chaudloader has some development options which can be enabled to aid with mod development. These options have to be manually set in `chaudloader.toml`.
+chaudloader has some development options which can be enabled to aid with mod development. These options have to be manually set in `chaudloader.toml`. Having developer mode enabled also enables a debug console while the game is running.
 
 **These options are purely for development purposes. For users it is strongly recommended not to enable them.**
 
