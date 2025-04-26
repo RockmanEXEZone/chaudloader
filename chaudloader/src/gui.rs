@@ -1,36 +1,27 @@
-use std::fs::File;
-
 use fltk::prelude::*;
 
 use crate::{config, console, mods, path};
 
-struct ConsoleWriter<'a>(&'a mut fltk::terminal::Terminal, &'a config::Config);
+struct ConsoleWriter<'a> {
+    terminal: &'a mut fltk::terminal::Terminal,
+    log_file: Option<std::fs::File>,
+}
 
 impl<'a> ConsoleWriter<'a> {
-    fn new(
-        terminal: &'a mut fltk::terminal::Terminal,
-        config: &'a config::Config,
-    ) -> ConsoleWriter<'a> {
-        if match config.developer_mode {
-            Some(val) => !val,
-            _ => true,
-        } {
-            let _f = File::create("chaud.log").unwrap();
-        }
+    fn new(terminal: &'a mut fltk::terminal::Terminal) -> ConsoleWriter<'a> {
+        // Try to create log file, but do not block launch if that fails
+        let log_file = std::fs::File::create("chaud.log").ok();
 
-        ConsoleWriter(terminal, config)
+        ConsoleWriter { terminal, log_file }
     }
 }
 
 impl<'a> std::io::Write for ConsoleWriter<'a> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.0.append_u8(buf);
-        if match self.1.developer_mode {
-            Some(val) => !val,
-            _ => true,
-        } {
-            let mut f = File::options().append(true).open("chaud.log").unwrap();
-            f.write(buf).unwrap();
+        self.terminal.append_u8(buf);
+        if let Some(f) = self.log_file.as_mut() {
+            // Try to write to log file, but do not crash if that fails
+            let _ = f.write(buf);
         }
 
         Ok(buf.len())
@@ -647,11 +638,10 @@ fn make_window(
             let mut console_reader = console::Console::hijack().unwrap();
             std::thread::spawn({
                 let mut console = console.clone();
-                let config = config.clone();
                 move || {
                     std::io::copy(
                         &mut console_reader,
-                        &mut ConsoleWriter::new(&mut console, &config),
+                        &mut ConsoleWriter::new(&mut console),
                     )
                     .unwrap();
                 }
@@ -660,10 +650,7 @@ fn make_window(
             console.show();
 
             start_sender.send(start_request).unwrap();
-            if match config.developer_mode {
-                Some(val) => !val,
-                _ => true,
-            } {
+            if config.developer_mode != Some(true) {
                 wind.platform_hide();
             }
         }
