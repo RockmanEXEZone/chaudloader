@@ -75,6 +75,11 @@ impl Overlay {
         Ok(())
     }
 
+    pub fn add<'a>(&'a mut self,path: &str,contents: Vec<u8>) -> Result<(),std::io::Error> {
+        self.overlaid_files.insert(path.to_string(), contents);
+        Ok(())
+    }
+
     pub fn has_overlaid_files(&self) -> bool {
         !self.overlaid_files.is_empty()
     }
@@ -84,6 +89,7 @@ impl Overlay {
         writer: impl std::io::Write + std::io::Seek,
     ) -> Result<(), std::io::Error> {
         let mut zw = zip::ZipWriter::new(writer);
+        
         for i in 0..self.base.zr.len() {
             let entry = self.base.zr.by_index_raw(i)?;
             if let Some(contents) = self.overlaid_files.get(entry.name()) {
@@ -97,6 +103,22 @@ impl Overlay {
                 zw.raw_copy_file(entry)?;
             }
         }
+       
+        for file in self.overlaid_files.keys() {
+        if let None=self.base.zr.file_names().find(|&x| x==file)
+        
+        {
+        log::info!("adding {}", file);
+        zw.start_file(
+            file,
+            zip::write::FileOptions::default(),
+            )?;
+        zw.write_all(self.overlaid_files.get(file).unwrap())?;
+        }
+    }
+       
+        
+
         Ok(())
     }
 }
@@ -120,5 +142,6 @@ pub fn scan() -> Result<std::collections::HashMap<String, Overlay>, std::io::Err
         let overlay = Overlay::new(reader);
         overlays.insert(file_name, overlay);
     }
+    
     Ok(overlays)
 }
