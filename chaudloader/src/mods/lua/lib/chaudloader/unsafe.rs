@@ -83,7 +83,7 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
                 );
                 return Err(get_last_error::Win32Error::get_last_error().into_lua_err());
             }
-            Ok(std::mem::transmute::<_, usize>(out_buf))
+            Ok(out_buf.expose_provenance())
         })?,
     )?;
 
@@ -91,7 +91,7 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
         "free_executable_memory",
         lua.create_function(|_, (addr,): (usize,)| unsafe {
             if winapi::um::memoryapi::VirtualFree(
-                std::mem::transmute(addr),
+                std::ptr::with_exposed_provenance_mut(addr),
                 0,
                 winapi::um::winnt::MEM_FREE,
             ) != winapi::shared::minwindef::TRUE
