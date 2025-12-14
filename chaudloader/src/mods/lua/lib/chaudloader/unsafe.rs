@@ -66,7 +66,7 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
             }
 
             std::slice::from_raw_parts_mut::<'_, u8>(std::mem::transmute(out_buf), buf.len())
-                .copy_from_slice(&*buf);
+                .copy_from_slice(&buf);
 
             let mut dummy = 0;
             if winapi::um::memoryapi::VirtualProtect(

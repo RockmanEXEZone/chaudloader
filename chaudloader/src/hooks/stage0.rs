@@ -190,7 +190,7 @@ fn init(
             Option<
                 std::collections::HashMap<String, mods::State>,
             >,
-        > = std::cell::RefCell::new(None);
+        > = const { std::cell::RefCell::new(None) };
     }
     LOADED_MODS.set(Some(loaded_mods));
 
@@ -216,7 +216,7 @@ fn init(
             let dat_path = std::path::Path::new("..\\exe\\data").join(&dat_filename);
             assets_replacer.add(&dat_path, move |writer| {
                 let mut overlay = overlay.borrow_mut();
-                Ok(overlay.pack_into(writer)?)
+                overlay.pack_into(writer)
             });
         }
     }
@@ -259,8 +259,8 @@ unsafe fn get_proc_address_hook(
 ) -> winapi::shared::minwindef::FARPROC {
     #[derive(PartialEq)]
     enum HideState {
-        INACTIVE,
-        ACTIVE,
+        Inactive,
+        Active,
     }
     struct DevModeState {
         pub trigger_count: u64,
@@ -271,7 +271,7 @@ unsafe fn get_proc_address_hook(
         pub fn new() -> Self {
             Self {
                 trigger_count: 0,
-                hide_state: HideState::INACTIVE,
+                hide_state: HideState::Inactive,
                 prev_proc_name: String::new(),
             }
         }
@@ -298,26 +298,26 @@ unsafe fn get_proc_address_hook(
 
         // disclaimer: ultra mega jank, likely will break in the future
         match dev_mode_state.hide_state {
-            HideState::INACTIVE => {
+            HideState::Inactive => {
                 // Trigger on this call pattern:
                 // GetProcAddress(kernel32, "GetProcAddress")
                 // GetProcAddress(ntdll, ...)
                 if h_module == NTDLL.get_base_address()
                     && dev_mode_state.prev_proc_name == "GetProcAddress"
                 {
-                    dev_mode_state.hide_state = HideState::ACTIVE;
+                    dev_mode_state.hide_state = HideState::Active;
                     dev_mode_state.trigger_count += 1;
                 }
             }
-            HideState::ACTIVE => {
+            HideState::Active => {
                 if h_module != NTDLL.get_base_address() {
-                    dev_mode_state.hide_state = HideState::INACTIVE;
+                    dev_mode_state.hide_state = HideState::Inactive;
                 }
             }
         }
         // If we return 0 on the first set of calls, we crash
         // Only do it on the second set of calls
-        if dev_mode_state.hide_state == HideState::ACTIVE && dev_mode_state.trigger_count == 2 {
+        if dev_mode_state.hide_state == HideState::Active && dev_mode_state.trigger_count == 2 {
             // For some reason using std::ptr::null_mut() causes a crash when resuming from break?
             // So instead we directly mutate the pointer as an integer
             proc_address = 0;
@@ -544,7 +544,7 @@ fn init_mod_functions(
             }
         }
     }
-    return Ok(on_game_load_hook_needed);
+    Ok(on_game_load_hook_needed)
 }
 
 fn init_mod_audio() -> Result<(bool, bool), anyhow::Error> {
@@ -552,13 +552,13 @@ fn init_mod_audio() -> Result<(bool, bool), anyhow::Error> {
     let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
     if !mod_audio.wems.is_empty() {
         let audio_path = std::path::Path::new("..\\exe\\audio\\chaudloader.pck");
-        assets_replacer.add(&audio_path, move |writer| generate_chaudloader_pck(writer));
+        assets_replacer.add(audio_path, move |writer| generate_chaudloader_pck(writer));
         mod_audio
             .pcks
             .push(std::ffi::OsString::from("chaudloader.pck"));
     }
     // pcks.is_empty is checked here because pcks could either be added in the lua script or here if any wems were replaced in the lua script
-    return Ok((!mod_audio.pcks.is_empty(), !mod_audio.bnks.is_empty()));
+    Ok((!mod_audio.pcks.is_empty(), !mod_audio.bnks.is_empty()))
 }
 
 fn generate_chaudloader_pck(
@@ -618,7 +618,7 @@ fn generate_chaudloader_pck(
         wem_file_offset += wem_contents.len() as u32;
     }
     // Go back to write the actual entries
-    mod_pck_file.seek(std::io::SeekFrom::Start(0x8C as u64))?;
+    mod_pck_file.seek(std::io::SeekFrom::Start(0x8C))?;
     for (&hash, &(wem_offset, wem_size)) in hashes.iter().zip(wem_offset_lens.iter()) {
         let lanugage_id = mod_audio.wems.get(&hash).unwrap().language_id;
         mod_pck_file.write_u32::<byteorder::LittleEndian>(hash)?; // Hash / ID
@@ -627,5 +627,5 @@ fn generate_chaudloader_pck(
         mod_pck_file.write_u32::<byteorder::LittleEndian>(wem_offset)?;
         mod_pck_file.write_u32::<byteorder::LittleEndian>(lanugage_id)?; // Language ID
     }
-    return Ok(());
+    Ok(())
 }

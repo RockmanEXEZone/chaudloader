@@ -103,7 +103,7 @@ impl Compatibility {
 
 pub fn check_compatibility(game_env: &GameEnv, info: &Info) -> Compatibility {
     Compatibility {
-        loader_version: info.requires_loader_version.matches(&*crate::VERSION),
+        loader_version: info.requires_loader_version.matches(&crate::VERSION),
         game: info
             .requires_game
             .as_ref()

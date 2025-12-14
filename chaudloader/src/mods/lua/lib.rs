@@ -21,7 +21,7 @@ fn load<'lua>(
     Ok(
         if extension.as_ref().map(|ext| ext == "lua").unwrap_or(false) {
             lua.load(&std::fs::read_to_string(&full_path)?)
-                .set_name(&format!("={}", path.display()))
+                .set_name(format!("={}", path.display()))
                 .set_mode(mlua::ChunkMode::Text)
                 .call::<_, mlua::Value>(())?
         } else if extension.as_ref().map(|ext| ext == "dll").unwrap_or(false) {
@@ -93,7 +93,7 @@ pub fn set_globals(
     )?;
 
     let loaded = lua.create_registry_value(lua.create_table()?)?;
-    let mod_path = std::path::Path::new("mods").join(&name);
+    let mod_path = std::path::Path::new("mods").join(name);
 
     globals.set(
         "require",
@@ -234,7 +234,7 @@ pub fn set_globals(
 
     globals.set(
         "chaudloader",
-        chaudloader::new(&lua, game_env, name, info, overlays)?,
+        chaudloader::new(lua, game_env, name, info, overlays)?,
     )?;
 
     lua.load(include_str!("compat.lua"))

@@ -38,7 +38,7 @@ pub fn new<'a>(
         lua.create_function({
             move |_, (name,): (String,)| {
                 let overlay = if let Some(overlay) = overlays.get(&name) {
-                    std::rc::Rc::clone(&overlay)
+                    std::rc::Rc::clone(overlay)
                 } else {
                     return Err(anyhow::format_err!("no such dat file: {}", name).into_lua_err());
                 };

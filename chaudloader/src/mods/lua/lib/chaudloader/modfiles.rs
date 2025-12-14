@@ -28,9 +28,8 @@ pub fn new<'a>(
                 let path = path::ensure_safe(std::path::Path::new(&path))
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.into_lua_err())?;
-                Ok(lua.create_sequence_from(
+                lua.create_sequence_from(
                     std::fs::read_dir(mod_path.join(path))?
-                        .into_iter()
                         .map(|entry| {
                             let path = entry?.path();
                             let file_name = path.file_name().ok_or_else(|| {
@@ -48,7 +47,7 @@ pub fn new<'a>(
                         })
                         .collect::<Result<Vec<_>, anyhow::Error>>()
                         .map_err(|e| e.into_lua_err())?,
-                )?)
+                )
             }
         })?,
     )?;
@@ -62,7 +61,7 @@ pub fn new<'a>(
                     .ok_or_else(|| anyhow::anyhow!("cannot read files outside of mod directory"))
                     .map_err(|e| e.into_lua_err())?;
                 let metadata = std::fs::metadata(mod_path.join(path))?;
-                Ok(lua.create_table_from([
+                lua.create_table_from([
                     (
                         "type",
                         mlua::Value::String(lua.create_string(if metadata.is_dir() {
@@ -72,7 +71,7 @@ pub fn new<'a>(
                         })?),
                     ),
                     ("size", mlua::Value::Integer(metadata.len() as i64)),
-                ])?)
+                ])
             }
         })?,
     )?;

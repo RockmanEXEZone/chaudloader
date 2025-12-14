@@ -54,7 +54,7 @@ impl mlua::UserData for Builder {
         methods.add_method("build", |_, this, (): ()| Ok(Buffer::new(this.0.clone())));
 
         methods.add_method_mut("write", |_, this, (buf,): (mlua::UserDataRef<Buffer>,)| {
-            this.0.write_all(&*buf.borrow())?;
+            this.0.write_all(&buf.borrow())?;
             Ok(())
         });
 
@@ -130,9 +130,7 @@ impl Buffer {
     }
 
     pub fn slice(&self, range: std::ops::Range<usize>) -> Option<Self> {
-        if self.vec.borrow().get(range.clone()).is_none() {
-            return None;
-        }
+        self.vec.borrow().get(range.clone())?;
         Some(Self {
             vec: std::rc::Rc::clone(&self.vec),
             range,
@@ -149,24 +147,22 @@ impl mlua::UserData for Buffer {
                 let other = other.borrow();
 
                 let mut out = vec![0u8; this.len() + other.len()];
-                out[..this.len()].copy_from_slice(&*this);
-                out[this.len()..].copy_from_slice(&*other);
+                out[..this.len()].copy_from_slice(&this);
+                out[this.len()..].copy_from_slice(&other);
                 Ok(Buffer::new(out))
             },
         );
 
         methods.add_meta_method(
             mlua::MetaMethod::Eq,
-            |_, this, (other,): (mlua::UserDataRef<Buffer>,)| {
-                Ok(&*this.borrow() == &*other.borrow())
-            },
+            |_, this, (other,): (mlua::UserDataRef<Buffer>,)| Ok(*this.borrow() == *other.borrow()),
         );
 
         methods.add_method("len", |_, this, (): ()| Ok(this.range.len()));
 
         methods.add_method("to_string", |lua, this, (): ()| {
             let this = this.borrow();
-            Ok(lua.create_string(&*this)?)
+            lua.create_string(&*this)
         });
 
         methods.add_method("clone", |_, this, (): ()| {
@@ -175,9 +171,8 @@ impl mlua::UserData for Buffer {
         });
 
         methods.add_method("slice", |_, this, (i, n): (usize, usize)| {
-            Ok(this
-                .slice(i..i + n)
-                .ok_or_else(|| anyhow::anyhow!("out of bounds").into_lua_err())?)
+            this.slice(i..i + n)
+                .ok_or_else(|| anyhow::anyhow!("out of bounds").into_lua_err())
         });
 
         methods.add_method("get", |_, this, (i, n): (usize, usize)| {
@@ -197,18 +192,17 @@ impl mlua::UserData for Buffer {
                 let slice = this
                     .get_mut(i..i + buf.len())
                     .ok_or_else(|| anyhow::anyhow!("out of bounds").into_lua_err())?;
-                slice.copy_from_slice(&*buf);
+                slice.copy_from_slice(&buf);
                 Ok(())
             },
         );
 
         methods.add_method("get_string", |lua, this, (i, n): (usize, usize)| {
             let this = this.borrow();
-            Ok(lua.create_string(
-                &this
-                    .get(i..i + n)
+            lua.create_string(
+                this.get(i..i + n)
                     .ok_or_else(|| anyhow::anyhow!("out of bounds").into_lua_err())?,
-            )?)
+            )
         });
 
         methods.add_method_mut("set_string", |_, this, (i, s): (usize, mlua::String)| {

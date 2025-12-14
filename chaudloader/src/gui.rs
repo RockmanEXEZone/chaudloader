@@ -215,13 +215,12 @@ fn make_main_tile(
                                     path::ensure_safe(std::path::Path::new(&*url))
                                         .and_then(|path| {
                                             base_path.join(path).to_str().map(|s| {
-                                                s.to_string()
-                                                    .split(std::path::MAIN_SEPARATOR_STR)
+                                                s.split(std::path::MAIN_SEPARATOR_STR)
                                                     .collect::<Vec<_>>()
                                                     .join("/")
                                             })
                                         })
-                                        .unwrap_or_else(|| "".to_string())
+                                        .unwrap_or_default()
                                         .into_boxed_str(),
                                 )
                             }
@@ -405,7 +404,7 @@ fn make_main_tile(
                     return;
                 }
             };
-            update_browser_items(&*mod_bindings);
+            update_browser_items(&mod_bindings);
         }
     };
     let browser_previous_selection = std::cell::Cell::new(None);
@@ -427,7 +426,7 @@ fn make_main_tile(
                     .nth((selected_index.unwrap() - 1) as usize)
                 {
                     binding.enabled = !binding.enabled;
-                    update_browser_items(&*mod_bindings);
+                    update_browser_items(&mod_bindings);
                 }
             }
 
@@ -476,7 +475,7 @@ fn make_main_tile(
                         name.clone(),
                         ModBinding {
                             r#mod: std::sync::Arc::clone(&r#mod),
-                            enabled: mods::check_compatibility(&game_env, &r#mod.info)
+                            enabled: mods::check_compatibility(game_env, &r#mod.info)
                                 .is_compatible()
                                 && config.enabled_mods.contains(&name),
                         },
@@ -485,7 +484,7 @@ fn make_main_tile(
                 .collect(),
             Err(_e) => std::collections::BTreeMap::new(),
         };
-        update_browser_items(&*mod_bindings);
+        update_browser_items(&mod_bindings);
     }
 
     refresh_button.set_callback({
@@ -514,7 +513,7 @@ fn make_main_tile(
             };
 
             binding.enabled = cbox.value();
-            update_browser_items(&*mod_bindings);
+            update_browser_items(&mod_bindings);
         }
     });
 
@@ -639,11 +638,8 @@ fn make_window(
             std::thread::spawn({
                 let mut console = console.clone();
                 move || {
-                    std::io::copy(
-                        &mut console_reader,
-                        &mut ConsoleWriter::new(&mut console),
-                    )
-                    .unwrap();
+                    std::io::copy(&mut console_reader, &mut ConsoleWriter::new(&mut console))
+                        .unwrap();
                 }
             });
 

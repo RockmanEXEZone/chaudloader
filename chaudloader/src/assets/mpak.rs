@@ -76,11 +76,11 @@ impl Mpak {
         self.entries.remove(&rom_addr)
     }
 
-    pub fn get<'a>(&'a self, rom_addr: u32) -> Option<&'a [u8]> {
+    pub fn get(&self, rom_addr: u32) -> Option<&[u8]> {
         self.entries.get(&rom_addr).map(|v| &v[..])
     }
 
-    pub fn get_index<'a>(&'a self, index: usize) -> Option<(u32, &'a [u8])> {
+    pub fn get_index(&self, index: usize) -> Option<(u32, &[u8])> {
         self.entries
             .get_index(index)
             .map(|(k, v)| (*k, v.as_slice()))
@@ -93,8 +93,8 @@ impl Mpak {
     ) -> Result<(), std::io::Error> {
         MapHeader {
             count: self.entries.len() as u32,
-            rom_addr_min: self.entries.keys().min().map(|v| *v).unwrap_or(0),
-            rom_addr_max: self.entries.keys().max().map(|v| *v).unwrap_or(0),
+            rom_addr_min: self.entries.keys().min().copied().unwrap_or(0),
+            rom_addr_max: self.entries.keys().max().copied().unwrap_or(0),
         }
         .write_into(&mut map_writer)?;
 

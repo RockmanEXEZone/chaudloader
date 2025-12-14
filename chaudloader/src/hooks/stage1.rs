@@ -181,7 +181,7 @@ unsafe fn on_pck_load(
         }
         _ => (),
     }
-    return return_val;
+    return_val
 }
 
 unsafe fn on_bnk_load(
@@ -221,7 +221,7 @@ unsafe fn on_bnk_load(
         }
         _ => (),
     }
-    return return_val;
+    return_val
 }
 
 /// Install hooks into the process.

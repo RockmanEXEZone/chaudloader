@@ -17,6 +17,6 @@ pub fn new(
     } else {
         mlua::Lua::new()
     };
-    lib::set_globals(&lua, game_env, &name, info, state, overlays)?;
+    lib::set_globals(&lua, game_env, name, info, state, overlays)?;
     Ok(lua)
 }

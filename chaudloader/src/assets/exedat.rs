@@ -17,7 +17,7 @@ impl Reader {
         &'a mut self,
         path: &str,
     ) -> Result<zip::read::ZipFile<'a>, zip::result::ZipError> {
-        Ok(self.zr.by_name(path)?)
+        self.zr.by_name(path)
     }
 }
 
@@ -48,14 +48,11 @@ impl Overlay {
         }
     }
 
-    pub fn read<'a>(
-        &'a mut self,
-        path: &str,
-    ) -> Result<std::borrow::Cow<'a, [u8]>, std::io::Error> {
+    pub fn read(&mut self, path: &str) -> Result<std::borrow::Cow<'_, [u8]>, std::io::Error> {
         let correctpath = self.correct_path(path);
 
         if let Some(contents) = self.overlaid_files.get(correctpath.as_str()) {
-            return Ok(std::borrow::Cow::Borrowed(&contents));
+            return Ok(std::borrow::Cow::Borrowed(contents));
         }
         let mut zf = self.base.get(correctpath.as_str())?;
         let mut buf = vec![];
@@ -63,7 +60,7 @@ impl Overlay {
         Ok(std::borrow::Cow::Owned(buf))
     }
 
-    pub fn write<'a>(&'a mut self, path: &str, contents: Vec<u8>) -> Result<(), std::io::Error> {
+    pub fn write(&mut self, path: &str, contents: Vec<u8>) -> Result<(), std::io::Error> {
         let correctpath = self.correct_path(path);
         if self.base.get(correctpath.as_str())?.is_dir() {
             return Err(std::io::Error::new(
@@ -92,7 +89,7 @@ impl Overlay {
                     entry.name(),
                     zip::write::FileOptions::default().compression_method(entry.compression()),
                 )?;
-                zw.write_all(&contents)?;
+                zw.write_all(contents)?;
             } else {
                 zw.raw_copy_file(entry)?;
             }
@@ -105,7 +102,7 @@ pub fn scan() -> Result<std::collections::HashMap<String, Overlay>, std::io::Err
     let mut overlays = std::collections::HashMap::new();
     for entry in std::fs::read_dir("data")? {
         let entry = entry?;
-        if entry.path().extension() != Some(&std::ffi::OsStr::new("dat")) {
+        if entry.path().extension() != Some(std::ffi::OsStr::new("dat")) {
             continue;
         }
 
@@ -114,7 +111,7 @@ pub fn scan() -> Result<std::collections::HashMap<String, Overlay>, std::io::Err
             continue;
         }
 
-        let src_f = std::fs::File::open(&entry.path())?;
+        let src_f = std::fs::File::open(entry.path())?;
         let reader = Reader::new(src_f)?;
 
         let overlay = Overlay::new(reader);

@@ -8,7 +8,7 @@ pub fn new<'a>(lua: &'a mlua::Lua) -> Result<mlua::Value<'a>, mlua::Error> {
         lua.create_function(|_, (raw,): (mlua::UserDataRef<Buffer>,)| {
             Ok(assets::msg::unpack(std::io::Cursor::new(&*raw.borrow()))?
                 .into_iter()
-                .map(|v| Buffer::new(v))
+                .map(Buffer::new)
                 .collect::<Vec<_>>())
         })?,
     )?;

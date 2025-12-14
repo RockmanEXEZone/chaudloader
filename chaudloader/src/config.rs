@@ -32,8 +32,8 @@ pub fn load() -> Result<Config, std::io::Error> {
 }
 
 pub fn save(config: &Config) -> Result<(), std::io::Error> {
-    Ok(std::fs::File::create(CONFIG_FILE_NAME)?.write_all(
+    std::fs::File::create(CONFIG_FILE_NAME)?.write_all(
         &toml::to_vec(config)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?,
-    )?)
+    )
 }

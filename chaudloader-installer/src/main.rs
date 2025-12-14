@@ -47,7 +47,8 @@ fn main() -> Result<(), anyhow::Error> {
                     println!(" - {game_name}: {}", path.display());
                     path.to_owned()
                 })
-            }).collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
         if paths.is_empty() {
             println!(
@@ -108,7 +109,7 @@ fn main() -> Result<(), anyhow::Error> {
             for (filename, contents) in files.iter() {
                 let path = exe_path.join(filename);
                 let mut f = std::fs::File::create(&path)?;
-                f.write_all(&contents)?;
+                f.write_all(contents)?;
                 println!("COPY   {}", path.display());
             }
 

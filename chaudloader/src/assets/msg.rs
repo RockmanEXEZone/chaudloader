@@ -14,7 +14,7 @@ pub fn unpack(mut r: impl std::io::Read) -> Result<Vec<Vec<u8>>, std::io::Error>
     // Read entries.
     let mut entries = Vec::with_capacity(n);
     for (i, len) in std::iter::zip(offsets.iter(), offsets[1..].iter())
-        .map(|(x, y)| y.checked_sub(*x).map(|v| Some(v)))
+        .map(|(x, y)| y.checked_sub(*x).map(Some))
         .chain(std::iter::once(Some(None)))
         .enumerate()
     {
@@ -42,7 +42,7 @@ pub fn unpack(mut r: impl std::io::Read) -> Result<Vec<Vec<u8>>, std::io::Error>
 }
 
 pub fn pack(entries: &[&[u8]], mut w: impl std::io::Write) -> Result<(), std::io::Error> {
-    let mut offset = (entries.len() * std::mem::size_of::<u16>()) as usize;
+    let mut offset = entries.len() * std::mem::size_of::<u16>();
 
     // Write offsets table.
     for entry in entries.iter() {

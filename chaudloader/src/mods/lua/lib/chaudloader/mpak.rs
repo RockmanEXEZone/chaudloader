@@ -28,7 +28,7 @@ impl mlua::UserData for Mpak {
         });
 
         methods.add_meta_method(mlua::MetaMethod::Pairs, |lua, this, (): ()| {
-            Ok(lua.create_function({
+            lua.create_function({
                 let i = std::rc::Rc::new(std::cell::RefCell::new(0usize));
                 let this = std::rc::Rc::clone(&this.0);
                 move |_, (): ()| {
@@ -39,10 +39,10 @@ impl mlua::UserData for Mpak {
                     } else {
                         return Ok((None, None));
                     };
-                    *i = *i + 1;
+                    *i += 1;
                     Ok((Some(k), Some(Buffer::new(v.to_vec()))))
                 }
-            })?)
+            })
         });
 
         methods.add_method("pack", |_, this, (): ()| {

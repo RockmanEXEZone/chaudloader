@@ -24,21 +24,21 @@ pub fn new<'a>(
                 const INVALID_PCK_NAMES: &[&str] = &["Vol1.pck", "Vol2.pck", "DLC1.pck", "DLC2.pck", "chaudloader.pck"];
                 let base_filename = pck_path.file_name().unwrap().to_str().unwrap();
                 if INVALID_PCK_NAMES.contains(&base_filename){
-                    return Err(anyhow::anyhow!("cannot use the names: Vol1.pck, Vol2.pck, DLC1.pck, DLC2.pck, or chaudloader.pck").into_lua_err());
+                    Err(anyhow::anyhow!("cannot use the names: Vol1.pck, Vol2.pck, DLC1.pck, DLC2.pck, or chaudloader.pck").into_lua_err())
                 } else {
                     let mut mod_audio = mods::MODAUDIOFILES.get().unwrap().lock().unwrap();
                     let base_filename_osstr = std::ffi::OsString::from(base_filename);
                     // Check if a pck with this file name is already being loaded because the pck load function only takes the base file name.
                     if mod_audio.pcks.contains(&base_filename_osstr) {
-                        return Err(anyhow::anyhow!("a pck file named {} is already being loaded", base_filename).into_lua_err());
+                        Err(anyhow::anyhow!("a pck file named {} is already being loaded", base_filename).into_lua_err())
                     } else {
                         // The game will only try to load pck files from the audio folder.
                         // Use the asset replacer to reroute it to the mod's folder.
-                        let dst_pck_path = std::path::PathBuf::from("..\\exe\\audio").join(&base_filename);
+                        let dst_pck_path = std::path::PathBuf::from("..\\exe\\audio").join(base_filename);
                         let mut assets_replacer = assets::REPLACER.get().unwrap().lock().unwrap();
                         assets_replacer.add_path(&dst_pck_path, &pck_path);
                         mod_audio.pcks.push(base_filename_osstr);
-                        return Ok(());
+                        Ok(())
                     }
                 }
             }
@@ -75,7 +75,7 @@ pub fn new<'a>(
                         mod_audio.wems[&hash].path.display()
                     );
                 }
-                return Ok(());
+                Ok(())
             }
         })?,
     )?;
