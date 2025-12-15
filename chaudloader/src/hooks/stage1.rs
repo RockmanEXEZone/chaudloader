@@ -69,8 +69,8 @@ struct HooksDisableGuard {
 impl HooksDisableGuard {
     unsafe fn new() -> Result<Self, retour::Error> {
         Ok(Self {
-            _create_file_w_guard: hooks::HookDisableGuard::new(&CreateFileWHook)?,
-            _create_file_a_guard: hooks::HookDisableGuard::new(&CreateFileAHook)?,
+            _create_file_w_guard: unsafe { hooks::HookDisableGuard::new(&CreateFileWHook)? },
+            _create_file_a_guard: unsafe { hooks::HookDisableGuard::new(&CreateFileAHook)? },
         })
     }
 }
@@ -84,7 +84,7 @@ unsafe fn on_create_file(
     dw_flags_and_attributes: winapi::shared::minwindef::DWORD,
     handle: winapi::shared::ntdef::HANDLE,
 ) -> winapi::shared::ntdef::HANDLE {
-    let _hooks_disable_guard: HooksDisableGuard = HooksDisableGuard::new().unwrap();
+    let _hooks_disable_guard: HooksDisableGuard = unsafe { HooksDisableGuard::new().unwrap() };
 
     // FIXME: This path is relative to the exe folder, but is sometimes something like ..\exe\data\exe1.dat. We should canonicalize it in all cases to intercept all reads.
     let path = clean_path::clean(path);
@@ -98,15 +98,17 @@ unsafe fn on_create_file(
             .encode_wide()
             .chain(std::iter::once(0))
             .collect::<Vec<_>>();
-        return CreateFileWHook.call(
-            path_wstr[..].as_ptr(),
-            dw_desired_access,
-            dw_share_mode,
-            lp_security_attributes,
-            dw_creation_disposition,
-            dw_flags_and_attributes,
-            handle,
-        );
+        return unsafe {
+            CreateFileWHook.call(
+                path_wstr[..].as_ptr(),
+                dw_desired_access,
+                dw_share_mode,
+                lp_security_attributes,
+                dw_creation_disposition,
+                dw_flags_and_attributes,
+                handle,
+            )
+        };
     };
 
     log::info!(
@@ -120,19 +122,21 @@ unsafe fn on_create_file(
         .encode_wide()
         .chain(std::iter::once(0))
         .collect::<Vec<_>>();
-    CreateFileWHook.call(
-        path_wstr[..].as_ptr(),
-        dw_desired_access,
-        dw_share_mode,
-        lp_security_attributes,
-        dw_creation_disposition,
-        dw_flags_and_attributes,
-        handle,
-    )
+    unsafe {
+        CreateFileWHook.call(
+            path_wstr[..].as_ptr(),
+            dw_desired_access,
+            dw_share_mode,
+            lp_security_attributes,
+            dw_creation_disposition,
+            dw_flags_and_attributes,
+            handle,
+        )
+    }
 }
 
 unsafe fn on_game_load(game_version: u32, gba_state: *mut u8) {
-    mmbnlc_OnGameLoad.call(game_version);
+    unsafe { mmbnlc_OnGameLoad.call(game_version) };
     let mod_funcs = mods::MODFUNCTIONS.get().unwrap().lock().unwrap();
     for on_game_load_functions in &mod_funcs.on_game_load_functions {
         on_game_load_functions(game_version, gba_state);
@@ -144,12 +148,16 @@ unsafe fn on_pck_load(
     pck_file_name: *const winapi::shared::ntdef::WCHAR,
     out_pck_id: *mut u32,
 ) -> i32 {
-    let pck_wstr = std::ffi::OsString::from_wide(std::slice::from_raw_parts(
-        pck_file_name,
-        winapi::um::winbase::lstrlenW(pck_file_name) as usize,
-    ));
+    let pck_wstr;
+    let return_val;
+    unsafe {
+        pck_wstr = std::ffi::OsString::from_wide(std::slice::from_raw_parts(
+            pck_file_name,
+            winapi::um::winbase::lstrlenW(pck_file_name) as usize,
+        ));
 
-    let return_val = LoadFilePackage.call(sound_engine_class, pck_file_name, out_pck_id);
+        return_val = LoadFilePackage.call(sound_engine_class, pck_file_name, out_pck_id);
+    }
     match pck_wstr.to_str() {
         Some("Vol1.pck") | Some("Vol2.pck") => {
             // If both Vol1.pck and Vol2.pck are loaded, don't initialize again.
@@ -169,8 +177,9 @@ unsafe fn on_pck_load(
                         .chain(std::iter::once(0))
                         .collect::<Vec<_>>();
                     let mod_pck_wstr_ptr = mod_pck_wstr.as_ptr();
-                    let load_mod_pck_res =
-                        LoadFilePackage.call(sound_engine_class, mod_pck_wstr_ptr, out_pck_id);
+                    let load_mod_pck_res = unsafe {
+                        LoadFilePackage.call(sound_engine_class, mod_pck_wstr_ptr, out_pck_id)
+                    };
                     log::info!(
                         "{} LoadFilePackage Result: {}",
                         pck.to_str().unwrap(),
@@ -188,11 +197,15 @@ unsafe fn on_bnk_load(
     bnk_file_name: *const winapi::shared::ntdef::CHAR,
     out_bnk_id: *mut u32,
 ) -> i32 {
-    let bnk_str = std::ffi::CStr::from_ptr(bnk_file_name)
-        .to_string_lossy()
-        .to_string();
+    let bnk_str;
+    let return_val;
+    unsafe {
+        bnk_str = std::ffi::CStr::from_ptr(bnk_file_name)
+            .to_string_lossy()
+            .to_string();
 
-    let return_val = LoadBank.call(bnk_file_name, out_bnk_id);
+        return_val = LoadBank.call(bnk_file_name, out_bnk_id);
+    }
     match bnk_str.as_str() {
         "Vol1Global.bnk" | "Vol2Global.bnk" => {
             // If both Vol1Global.bnk and Vol2Global.bnk are loaded, don't initialize again.
@@ -209,7 +222,8 @@ unsafe fn on_bnk_load(
                 for bnk in &mod_bnks {
                     let mod_bnk_cstr = std::ffi::CString::new(bnk.as_encoded_bytes());
                     if let Ok(mod_bnk_cstr) = mod_bnk_cstr {
-                        let load_mod_bnk_res = LoadBank.call(mod_bnk_cstr.as_ptr(), out_bnk_id);
+                        let load_mod_bnk_res =
+                            unsafe { LoadBank.call(mod_bnk_cstr.as_ptr(), out_bnk_id) };
                         log::info!(
                             "{} BankLoad Result: {}",
                             bnk.to_str().unwrap(),

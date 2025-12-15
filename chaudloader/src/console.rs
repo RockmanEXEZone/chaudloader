@@ -9,7 +9,7 @@ impl HandleRestorer {
     unsafe fn new(
         std_handle: winapi::shared::minwindef::DWORD,
     ) -> Result<Self, get_last_error::Win32Error> {
-        let handle = winapi::um::processenv::GetStdHandle(std_handle);
+        let handle = unsafe { winapi::um::processenv::GetStdHandle(std_handle) };
         if handle == winapi::um::handleapi::INVALID_HANDLE_VALUE {
             return Err(get_last_error::Win32Error::get_last_error());
         }

@@ -1,6 +1,6 @@
 use crate::{
     assets, config, gui,
-    mods::{self, ModAudioFiles, ModFunctions, MODAUDIOFILES, MODFUNCTIONS},
+    mods::{self, MODAUDIOFILES, MODFUNCTIONS, ModAudioFiles, ModFunctions},
 };
 use byteorder::WriteBytesExt;
 use retour::static_detour;
@@ -118,14 +118,18 @@ fn init(
     config::save(&config)?;
 
     let mut loaded_mods = std::collections::HashMap::<String, mods::State>::new();
-    assert!(assets::REPLACER
-        .set(std::sync::Mutex::new(assets::Replacer::new(
-            &serde_plain::to_string(&game_volume).unwrap()
-        )?))
-        .is_ok());
-    assert!(MODAUDIOFILES
-        .set(std::sync::Mutex::new(ModAudioFiles::new()))
-        .is_ok());
+    assert!(
+        assets::REPLACER
+            .set(std::sync::Mutex::new(assets::Replacer::new(
+                &serde_plain::to_string(&game_volume).unwrap()
+            )?))
+            .is_ok()
+    );
+    assert!(
+        MODAUDIOFILES
+            .set(std::sync::Mutex::new(ModAudioFiles::new()))
+            .is_ok()
+    );
 
     for (mod_name, r#mod) in start_request.enabled_mods {
         if let Err(e) = (|| -> Result<(), anyhow::Error> {
@@ -279,16 +283,19 @@ unsafe fn get_proc_address_hook(
     static DEV_MODE_STATE: std::sync::LazyLock<std::sync::Mutex<DevModeState>> =
         std::sync::LazyLock::new(|| std::sync::Mutex::new(DevModeState::new()));
 
-    let mut proc_address: usize = kernelbase_GetProcAddress.call(h_module, lp_proc_name) as usize;
+    let mut proc_address: usize =
+        unsafe { kernelbase_GetProcAddress.call(h_module, lp_proc_name) as usize };
 
     // If we always do this, we crash for some reason, so just do it for relevant modules
     let proc_name = if h_module == KERNEL32.get_base_address()
         || h_module == KERNELBASE.get_base_address()
         || h_module == NTDLL.get_base_address()
     {
-        std::ffi::CStr::from_ptr(lp_proc_name)
-            .to_str()
-            .unwrap_or("")
+        unsafe {
+            std::ffi::CStr::from_ptr(lp_proc_name)
+                .to_str()
+                .unwrap_or("")
+        }
     } else {
         ""
     };
@@ -524,9 +531,11 @@ fn process_game_sections() -> Result<mods::Sections, anyhow::Error> {
 fn init_mod_functions(
     loaded_mods: &std::collections::HashMap<String, mods::State>,
 ) -> Result<bool, anyhow::Error> {
-    assert!(MODFUNCTIONS
-        .set(std::sync::Mutex::new(ModFunctions::new()))
-        .is_ok());
+    assert!(
+        MODFUNCTIONS
+            .set(std::sync::Mutex::new(ModFunctions::new()))
+            .is_ok()
+    );
     let mut on_game_load_hook_needed = false;
     let mut mod_funcs = MODFUNCTIONS.get().unwrap().lock().unwrap();
     for mod_state in loaded_mods.values() {
@@ -580,7 +589,7 @@ fn generate_chaudloader_pck(
     ])?;
     // Write length of entries
     mod_pck_file.write_u32::<byteorder::LittleEndian>(num_wem * 20)?; // Stream table Length
-                                                                      // Write next part of header
+    // Write next part of header
     mod_pck_file.write_all(&[
         0x04, 0x00, 0x00, 0x00, // "externalLUT" Length
         // Language Map

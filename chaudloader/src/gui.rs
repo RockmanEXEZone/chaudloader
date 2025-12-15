@@ -419,15 +419,11 @@ fn make_main_tile(
 
             // Toggle mod enabled when you double click on it in the mod list
             if browser_previous_selection.replace(selected_index) == selected_index
-                && selected_index.is_some()
+                && let Some(selected_index) = selected_index
+                && let Some(binding) = mod_bindings.values_mut().nth((selected_index - 1) as usize)
             {
-                if let Some(binding) = mod_bindings
-                    .values_mut()
-                    .nth((selected_index.unwrap() - 1) as usize)
-                {
-                    binding.enabled = !binding.enabled;
-                    update_browser_items(&mod_bindings);
-                }
+                binding.enabled = !binding.enabled;
+                update_browser_items(&mod_bindings);
             }
 
             set_selection(

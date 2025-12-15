@@ -17,7 +17,7 @@ pub enum GameVolume {
     Vol2,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "system" fn DllMain(
     _module: winapi::shared::minwindef::HINSTANCE,
     call_reason: winapi::shared::minwindef::DWORD,
@@ -25,7 +25,7 @@ pub unsafe extern "system" fn DllMain(
 ) -> winapi::shared::minwindef::BOOL {
     match call_reason {
         winapi::um::winnt::DLL_PROCESS_ATTACH => {
-            hooks::stage0::install().unwrap();
+            unsafe { hooks::stage0::install() }.unwrap();
         }
         winapi::um::winnt::DLL_PROCESS_DETACH => {
             // Maybe run destructors here, if we're feeling spicy.

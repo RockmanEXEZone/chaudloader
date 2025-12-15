@@ -19,7 +19,7 @@ where
             detour,
         };
         if guard.enabled {
-            detour.disable()?;
+            unsafe { detour.disable()? };
         }
         Ok(guard)
     }
