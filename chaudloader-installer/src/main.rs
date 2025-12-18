@@ -55,7 +55,9 @@ fn main() -> Result<(), anyhow::Error> {
                 " ! Mega Man Battle Network Legacy Collection could not be detected on your computer."
             );
             println!();
-            println!("It is possible that the installer was not able to detect your installation automatically. If this is the case, please copy the following files into the same directory as MMBN_LC1.exe and MMBN_LC2.exe:");
+            println!(
+                "It is possible that the installer was not able to detect your installation automatically. If this is the case, please copy the following files into the same directory as MMBN_LC1.exe and MMBN_LC2.exe:"
+            );
             for filename in FILES_TO_COPY.iter() {
                 println!(" - {}", filename);
             }
@@ -86,7 +88,11 @@ fn main() -> Result<(), anyhow::Error> {
         let files = FILES_TO_COPY
             .iter()
             .map(|filename| {
-                Ok::<_, anyhow::Error>((filename, std::fs::read(src_path.join(filename))?))
+                Ok::<_, anyhow::Error>((
+                    filename,
+                    std::fs::read(src_path.join(filename))
+                        .map_err(|e| anyhow::anyhow!("cannot open file: {filename}: {e}"))?,
+                ))
             })
             .collect::<Result<std::collections::BTreeMap<_, _>, _>>()?;
 
