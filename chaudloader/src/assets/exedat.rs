@@ -23,13 +23,25 @@ impl Reader {
 
 pub struct Overlay {
     base: Reader,
+    root_folder_name: String,
     overlaid_files: std::collections::HashMap<String, Vec<u8>>,
 }
 
 impl Overlay {
-    pub fn new(base: Reader) -> Self {
+    pub fn new(mut base: Reader) -> Self {
+        // At the root should be a single folder containing all other files
+        // Just get the first file entry and extract the root folder name
+        let root_folder_name = base
+            .zr
+            .by_index_raw(0)
+            .unwrap()
+            .name()
+            .split(&['/', '\\'])
+            .take(1)
+            .collect();
         Self {
             base,
+            root_folder_name,
             overlaid_files: std::collections::HashMap::new(),
         }
     }
@@ -70,6 +82,10 @@ impl Overlay {
         }
         self.overlaid_files.insert(correctpath, contents);
         Ok(())
+    }
+
+    pub fn get_root_folder_name(&self) -> &str {
+        self.root_folder_name.as_str()
     }
 
     pub fn has_overlaid_files(&self) -> bool {
