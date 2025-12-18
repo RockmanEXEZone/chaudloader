@@ -11,3 +11,6 @@ path = "src/main.rs"
 steamlocate = "2"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
+
+[build-dependencies]
+omnicopy_to_output = "0.3.0"

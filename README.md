@@ -50,10 +50,8 @@ chaudloader has some development options which can be enabled to aid with mod de
 
 3. Build Lua 5.4 using `powershell -executionpolicy bypass .\download_and_build_lua.ps1` from a VS x64 command prompt. You only need to do this one time, and it will produce a dynamically linkable Lua library in `build\lua54`, as well as headers in `build\lua54\include`.
 
-4. Copy `build\lua54\lua54.dll` into your BNLC `exe` folder.
-
 ### Every time
 
 1. Build the binary with `cargo build --release`.
 
-2. Copy `dxgi.dll` and `chaudloader.dll` from `target\release` into your BNLC `exe` folder.
+2. Run `cargo install --release` to build and install chaudloader into the BNLC `exe` folders.
