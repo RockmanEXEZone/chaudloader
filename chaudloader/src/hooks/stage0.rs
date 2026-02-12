@@ -1,6 +1,7 @@
 use crate::{
-    assets, config, gui,
+    assets, config, gui, make_pattern,
     mods::{self, MODAUDIOFILES, MODFUNCTIONS, ModAudioFiles, ModFunctions},
+    pattern_search::{self, find_pattern},
 };
 use byteorder::WriteBytesExt;
 use retour::static_detour;
@@ -21,19 +22,12 @@ static_detour! {
         /* lp_param: */ winapi::shared::minwindef::LPVOID
     ) -> winapi::shared::windef::HWND;
 }
-static_detour! {
-    static kernelbase_GetProcAddress: unsafe extern "system" fn(
-        /* h_module: */ winapi::shared::minwindef::HMODULE,
-        /* lp_proc_name: */ winapi::shared::ntdef::LPCSTR
-    ) -> winapi::shared::minwindef::FARPROC;
-}
-static_detour! {
-    static kernel32_GetProcAddress: unsafe extern "system" fn(
-        /* h_module: */ winapi::shared::minwindef::HMODULE,
-        /* lp_proc_name: */ winapi::shared::ntdef::LPCSTR
-    ) -> winapi::shared::minwindef::FARPROC;
-}
 
+static_detour! {
+    static kernel32_GetModuleHandleA: unsafe extern "system" fn(
+        /* lpModuleName: */ winapi::shared::ntdef::LPCSTR
+    ) -> winapi::shared::minwindef::HMODULE;
+}
 struct HashWriter<T: std::hash::Hasher>(T);
 
 impl<T: std::hash::Hasher> std::io::Write for HashWriter<T> {
@@ -256,89 +250,38 @@ static USER32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
         windows_libloader::ModuleHandle::get("user32.dll").unwrap()
     });
 
-unsafe fn get_proc_address_hook(
-    h_module: winapi::shared::minwindef::HMODULE,
-    lp_proc_name: winapi::shared::ntdef::LPCSTR,
-    config: &config::Config,
-) -> winapi::shared::minwindef::FARPROC {
-    #[derive(PartialEq)]
-    enum HideState {
-        Inactive,
-        Active,
-    }
-    struct DevModeState {
-        pub trigger_count: u64,
-        pub hide_state: HideState,
-        pub prev_proc_name: String,
-    }
-    impl DevModeState {
-        pub fn new() -> Self {
-            Self {
-                trigger_count: 0,
-                hide_state: HideState::Inactive,
-                prev_proc_name: String::new(),
-            }
-        }
-    }
-    static DEV_MODE_STATE: std::sync::LazyLock<std::sync::Mutex<DevModeState>> =
-        std::sync::LazyLock::new(|| std::sync::Mutex::new(DevModeState::new()));
-
-    let mut proc_address: usize =
-        unsafe { kernelbase_GetProcAddress.call(h_module, lp_proc_name) as usize };
-
-    // If we always do this, we crash for some reason, so just do it for relevant modules
-    let proc_name = if h_module == KERNEL32.get_base_address()
-        || h_module == KERNELBASE.get_base_address()
-        || h_module == NTDLL.get_base_address()
-    {
-        unsafe {
-            std::ffi::CStr::from_ptr(lp_proc_name)
-                .to_str()
-                .unwrap_or("")
-        }
-    } else {
-        ""
-    };
-
-    if config.developer_mode == Some(true) && config.enable_hook_guards == Some(true) {
-        let mut dev_mode_state = DEV_MODE_STATE.lock().unwrap();
-
-        // disclaimer: ultra mega jank, likely will break in the future
-        match dev_mode_state.hide_state {
-            HideState::Inactive => {
-                // Trigger on this call pattern:
-                // GetProcAddress(kernel32, "GetProcAddress")
-                // GetProcAddress(ntdll, ...)
-                if h_module == NTDLL.get_base_address()
-                    && dev_mode_state.prev_proc_name == "GetProcAddress"
-                {
-                    dev_mode_state.hide_state = HideState::Active;
-                    dev_mode_state.trigger_count += 1;
+unsafe fn get_module_handle_hook(
+    lp_module_name: winapi::shared::ntdef::LPCSTR,
+    target_section_start: usize,
+    target_section_size: usize,
+) -> winapi::shared::minwindef::HMODULE {
+    unsafe {
+        let h_module: winapi::shared::minwindef::HMODULE =
+            kernel32_GetModuleHandleA.call(lp_module_name);
+        if !lp_module_name.is_null() {
+            let module_name = std::ffi::CStr::from_ptr(lp_module_name).to_string_lossy();
+            match module_name.as_ref() {
+                "ntdll.dll" => {
+                    let pattern = make_pattern!(
+                        "55 48 89 E5 48 8D A4 24 ?? ?? ?? ?? 48 89 9D ?? ?? ?? ?? B8 01 00 00 00"
+                    );
+                    let data = std::slice::from_raw_parts_mut(
+                        target_section_start as *mut u8,
+                        target_section_size,
+                    );
+                    if let Some(search_result) = find_pattern(data, &pattern) {
+                        data[search_result] = 0xC3;
+                    }
+                    // (0x14AED6270 as *mut u8).write(0xC3);
+                    if kernel32_GetModuleHandleA.disable().is_err() {
+                        log::error!("Failed to unhook GetModuleHandleA");
+                    }
                 }
-            }
-            HideState::Active => {
-                if h_module != NTDLL.get_base_address() {
-                    dev_mode_state.hide_state = HideState::Inactive;
-                }
+                _ => {}
             }
         }
-        // If we return 0 on the first set of calls, we crash
-        // Only do it on the second set of calls
-        if dev_mode_state.hide_state == HideState::Active && dev_mode_state.trigger_count == 2 {
-            // For some reason using std::ptr::null_mut() causes a crash when resuming from break?
-            // So instead we directly mutate the pointer as an integer
-            proc_address = 0;
-        }
-
-        dev_mode_state.prev_proc_name = proc_name.to_string();
+        return h_module;
     }
-
-    // Avoid NtProtectVirtualMemory from being disabled
-    if proc_name == "ZwProtectVirtualMemory" || proc_name == "NtProtectVirtualMemory" {
-        proc_address = 0;
-    }
-
-    proc_address as winapi::shared::minwindef::FARPROC
 }
 
 pub unsafe fn install() -> Result<(), anyhow::Error> {
@@ -356,36 +299,6 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
     }
 
     unsafe {
-        // Hook GetProcAddress to avoid ntdll.dll hooks being installed.
-        //
-        // The function exists in both kernel32 and kernelbase; the one in kernel32 will call
-        // kernelbase.GetProcAddressForCaller rather than kernelbase.GetProcAddress.
-        // So we have to hook both of them to ensure our hook gets hit.
-        // kernelbase.GetProcAddressForCaller doesn't exist in Wine/Proton, so we can't use that one.
-        //
-        // Hook the kernelbase variant first, because that's the one we call in our hook function.
-        // Otherwise we will get infinite recursion!
-        kernelbase_GetProcAddress
-            .initialize(
-                std::mem::transmute(KERNELBASE.get_symbol_address("GetProcAddress").unwrap()),
-                {
-                    move |h_module, lp_proc_name| {
-                        get_proc_address_hook(h_module, lp_proc_name, &CONFIG)
-                    }
-                },
-            )?
-            .enable()?;
-        kernel32_GetProcAddress
-            .initialize(
-                std::mem::transmute(KERNEL32.get_symbol_address("GetProcAddress").unwrap()),
-                {
-                    move |h_module, lp_proc_name| {
-                        get_proc_address_hook(h_module, lp_proc_name, &CONFIG)
-                    }
-                },
-            )?
-            .enable()?;
-
         // We hook CreateWindowExA specifically because BNLC may re-execute itself if not running under Steam. We don't want to go to all the trouble of repacking .dat files if we're just going to get re-executed.
         CreateWindowExA
             .initialize(
@@ -471,6 +384,47 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                 },
             )?
             .enable()?;
+
+        let module = unsafe {
+            windows_libloader::ModuleHandle::get(&std::env::current_exe()?.to_string_lossy())?
+                .get_base_address() as *const u8
+        };
+        let sections = object::read::pe::PeFile64::parse(unsafe {
+            std::slice::from_raw_parts(module, 0x1000)
+        })?
+        .section_table();
+        // If the first section name is cleared, the exe is protected
+        if sections.section(1).unwrap().name[0] == 0x00 {
+            // The section after .rsrc contains the target function
+            if let Some(rcsc_index) = sections.iter().position(|s| {
+                return s.raw_name() == b".rsrc";
+            }) {
+                // section index is 1 based but the search result was 0 based so +2 instead of +1
+                if let Ok(next_section) = sections.section(rcsc_index + 2) {
+                    let target_section_size =
+                        next_section.virtual_size.get(object::LittleEndian) as usize;
+                    let target_section_start = module
+                        .add(next_section.virtual_address.get(object::LittleEndian) as usize)
+                        as usize;
+                    kernel32_GetModuleHandleA
+                        .initialize(
+                            std::mem::transmute(
+                                KERNEL32.get_symbol_address("GetModuleHandleA").unwrap(),
+                            ),
+                            {
+                                move |lp_module_name| {
+                                    get_module_handle_hook(
+                                        lp_module_name,
+                                        target_section_start,
+                                        target_section_size,
+                                    )
+                                }
+                            },
+                        )?
+                        .enable()?;
+                }
+            }
+        }
     }
     Ok(())
 }

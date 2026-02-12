@@ -7,6 +7,7 @@ mod gui;
 mod hooks;
 mod mods;
 mod path;
+mod pattern_search;
 
 pub static VERSION: std::sync::LazyLock<semver::Version> =
     std::sync::LazyLock::new(|| semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap());
