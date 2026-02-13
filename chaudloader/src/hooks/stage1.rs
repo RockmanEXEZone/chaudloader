@@ -312,14 +312,15 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
     Ok(())
 }
 
-/// Install optional on_game_laod hook into the process.
+/// Install optional on_game_load hook into the process.
 pub unsafe fn install_on_game_load(game_env: &mods::GameEnv) -> Result<(), anyhow::Error> {
     unsafe {
-        if let Some(data) = game_env.sections.text {
+        if let Some(section) = game_env.sections.text {
             // This pattern is enough to find the function in all releases of both collections (at 0x141dde120 Vol1 / 0x143147c10 Vol2 for latest releases)
             let on_game_load_pattern: [u8; 12] = [
                 0x48, 0x89, 0x5c, 0x24, 0x10, 0x56, 0x48, 0x83, 0xec, 0x20, 0x8b, 0xd9,
             ];
+            let data = section.get_mut(0..section.len()).unwrap();
             if let Some(offset) = data
                 .windows(on_game_load_pattern.len())
                 .position(|window| window == on_game_load_pattern)
@@ -356,12 +357,13 @@ pub unsafe fn install_on_game_load(game_env: &mods::GameEnv) -> Result<(), anyho
 /// Install optional PCK File load hook into the process.
 pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::Error> {
     unsafe {
-        if let Some(data) = game_env.sections.text {
+        if let Some(section) = game_env.sections.text {
             // This pattern is enough to find the function in all releases of both collections (at 0x14000A5C0 Vol1 / 0x14000BD20 Vol2 for the October 2023 releases)
             let pck_load_pattern: [u8; 24] = [
                 0x40, 0x53, 0x55, 0x56, 0x57, 0x41, 0x56, 0x48, 0x81, 0xEC, 0x80, 0x00, 0x00, 0x00,
                 0x48, 0xC7, 0x44, 0x24, 0x38, 0xFE, 0xFF, 0xFF, 0xFF, 0x48,
             ];
+            let data = section.get_mut(0..section.len()).unwrap();
             if let Some(offset) = data
                 .windows(pck_load_pattern.len())
                 .position(|window| window == pck_load_pattern)
@@ -383,13 +385,14 @@ pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::E
 /// Install optional BNK File load hook into the process.
 pub unsafe fn install_bnk_load(game_env: &mods::GameEnv) -> Result<(), anyhow::Error> {
     unsafe {
-        if let Some(data) = game_env.sections.text {
+        if let Some(section) = game_env.sections.text {
             // This pattern is enough to find the function in all releases of both collections (at 0x141CC27E0 Vol1 / 0x14302C310 Vol2 for the October 2023 releases)
             let bnk_load_pattern: [u8; 32] = [
                 0x48, 0x89, 0x5C, 0x24, 0x08, 0x48, 0x89, 0x74, 0x24, 0x10, 0x48, 0x89, 0x7C, 0x24,
                 0x18, 0x55, 0x48, 0x8D, 0x6C, 0x24, 0xA9, 0x48, 0x81, 0xEC, 0xE0, 0x00, 0x00, 0x00,
                 0x48, 0x8B, 0xFA, 0x4C,
             ];
+            let data = section.get_mut(0..section.len()).unwrap();
             if let Some(offset) = data
                 .windows(bnk_load_pattern.len())
                 .position(|window| window == bnk_load_pattern)

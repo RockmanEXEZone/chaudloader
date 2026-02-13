@@ -27,7 +27,8 @@ pub struct Info {
 
 #[derive(Clone, Default)]
 pub struct Sections {
-    pub text: Option<&'static [u8]>,
+    pub text: Option<unsafe_cell_slice::UnsafeCellSlice<'static, u8>>,
+    pub text_enigma: Option<unsafe_cell_slice::UnsafeCellSlice<'static, u8>>,
 }
 
 #[derive(Clone)]

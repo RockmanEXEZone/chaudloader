@@ -4,6 +4,7 @@ use crate::{
     pattern_search::{self, find_pattern},
 };
 use byteorder::WriteBytesExt;
+use object::{Object, ObjectSection};
 use retour::static_detour;
 
 static_detour! {
@@ -51,17 +52,12 @@ fn init(
 ) -> Result<(), anyhow::Error> {
     let (gui_host, mut gui_client) = gui::make_host_and_client();
 
-    let exe_crc32 = {
-        let mut exe_f = std::fs::File::open(&std::env::current_exe()?)?;
-        let mut hasher = crc32fast::Hasher::new();
-        std::io::copy(&mut exe_f, &mut HashWriter(&mut hasher))?;
-        hasher.finalize()
-    };
-
     let game_env = mods::GameEnv {
         volume: game_volume,
-        exe_crc32: exe_crc32,
-        sections: process_game_sections()
+        exe_crc32: calc_exe_crc32()
+            .inspect_err(|e| log::warn!("error while calculating game crc32: {e}"))
+            .unwrap_or_default(),
+        sections: process_game_sections(true)
             .inspect_err(|e| log::warn!("error while processing game sections: {e}"))
             .unwrap_or_default(),
     };
@@ -237,14 +233,6 @@ static KERNEL32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
     std::sync::LazyLock::new(|| unsafe {
         windows_libloader::ModuleHandle::get("kernel32.dll").unwrap()
     });
-static KERNELBASE: std::sync::LazyLock<windows_libloader::ModuleHandle> =
-    std::sync::LazyLock::new(|| unsafe {
-        windows_libloader::ModuleHandle::get("kernelbase.dll").unwrap()
-    });
-static NTDLL: std::sync::LazyLock<windows_libloader::ModuleHandle> =
-    std::sync::LazyLock::new(|| unsafe {
-        windows_libloader::ModuleHandle::get("ntdll.dll").unwrap()
-    });
 static USER32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
     std::sync::LazyLock::new(|| unsafe {
         windows_libloader::ModuleHandle::get("user32.dll").unwrap()
@@ -252,8 +240,7 @@ static USER32: std::sync::LazyLock<windows_libloader::ModuleHandle> =
 
 unsafe fn get_module_handle_hook(
     lp_module_name: winapi::shared::ntdef::LPCSTR,
-    target_section_start: usize,
-    target_section_size: usize,
+    section: &mut [u8],
 ) -> winapi::shared::minwindef::HMODULE {
     unsafe {
         let h_module: winapi::shared::minwindef::HMODULE =
@@ -265,16 +252,11 @@ unsafe fn get_module_handle_hook(
                     let pattern = make_pattern!(
                         "55 48 89 E5 48 8D A4 24 ?? ?? ?? ?? 48 89 9D ?? ?? ?? ?? B8 01 00 00 00"
                     );
-                    let data = std::slice::from_raw_parts_mut(
-                        target_section_start as *mut u8,
-                        target_section_size,
-                    );
-                    if let Some(search_result) = find_pattern(data, &pattern) {
-                        data[search_result] = 0xC3;
-                    }
-                    // (0x14AED6270 as *mut u8).write(0xC3);
-                    if kernel32_GetModuleHandleA.disable().is_err() {
-                        log::error!("Failed to unhook GetModuleHandleA");
+                    if let Some(search_result) = find_pattern(section, &pattern) {
+                        section[search_result] = 0xC3;
+                        if kernel32_GetModuleHandleA.disable().is_err() {
+                            log::error!("Failed to unhook GetModuleHandleA");
+                        }
                     }
                 }
                 _ => {}
@@ -385,100 +367,119 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
             )?
             .enable()?;
 
-        let module = unsafe {
-            windows_libloader::ModuleHandle::get(&std::env::current_exe()?.to_string_lossy())?
-                .get_base_address() as *const u8
-        };
-        let sections = object::read::pe::PeFile64::parse(unsafe {
-            std::slice::from_raw_parts(module, 0x1000)
-        })?
-        .section_table();
-        // If the first section name is cleared, the exe is protected
-        if sections.section(1).unwrap().name[0] == 0x00 {
-            // The section after .rsrc contains the target function
-            if let Some(rcsc_index) = sections.iter().position(|s| {
-                return s.raw_name() == b".rsrc";
-            }) {
-                // section index is 1 based but the search result was 0 based so +2 instead of +1
-                if let Ok(next_section) = sections.section(rcsc_index + 2) {
-                    let target_section_size =
-                        next_section.virtual_size.get(object::LittleEndian) as usize;
-                    let target_section_start = module
-                        .add(next_section.virtual_address.get(object::LittleEndian) as usize)
-                        as usize;
-                    kernel32_GetModuleHandleA
-                        .initialize(
-                            std::mem::transmute(
-                                KERNEL32.get_symbol_address("GetModuleHandleA").unwrap(),
-                            ),
-                            {
-                                move |lp_module_name| {
-                                    get_module_handle_hook(
-                                        lp_module_name,
-                                        target_section_start,
-                                        target_section_size,
-                                    )
-                                }
-                            },
-                        )?
-                        .enable()?;
-                }
+        if CONFIG.developer_mode == Some(true) && CONFIG.enable_hook_guards == Some(true) {
+            if let Some(section) = process_game_sections(false)
+                .ok()
+                .and_then(|e| e.text_enigma)
+            {
+                kernel32_GetModuleHandleA
+                    .initialize(
+                        std::mem::transmute(
+                            KERNEL32.get_symbol_address("GetModuleHandleA").unwrap(),
+                        ),
+                        move |lp_module_name| {
+                            get_module_handle_hook(
+                                lp_module_name,
+                                section.get_mut(0..section.len()).unwrap(),
+                            )
+                        },
+                    )?
+                    .enable()?;
             }
         }
     }
     Ok(())
 }
 
-fn process_game_sections() -> Result<mods::Sections, anyhow::Error> {
+fn calc_exe_crc32() -> Result<u32, anyhow::Error> {
+    let mut exe_f = std::fs::File::open(&std::env::current_exe()?)?;
+    let mut hasher = crc32fast::Hasher::new();
+    std::io::copy(&mut exe_f, &mut HashWriter(&mut hasher))?;
+    Ok(hasher.finalize())
+}
+
+fn process_game_sections(do_unprotect: bool) -> Result<mods::Sections, anyhow::Error> {
     // Get sections of game executable
     let module = unsafe {
         windows_libloader::ModuleHandle::get(&std::env::current_exe()?.to_string_lossy())?
             .get_base_address() as *const u8
     };
-    let sections = object::read::pe::PeFile64::parse(unsafe {
+    let pe = object::read::pe::PeFile64::parse(unsafe {
         std::slice::from_raw_parts(
             module, 0x1000, // probably enough
         )
-    })?
-    .section_table();
+    })?;
 
     // Make all sections read/write
-    unsafe {
-        for section in sections.iter() {
-            let address = module.add(section.virtual_address.get(object::LittleEndian) as usize);
-            if let Err(e) = region::protect(
-                address,
-                section.virtual_size.get(object::LittleEndian) as usize,
-                region::Protection::READ_WRITE_EXECUTE,
-            ) {
-                log::warn!("Cannot unprotect section @ {:#?}: {e}", address);
+    if do_unprotect {
+        unsafe {
+            for section in pe.sections() {
+                if let Err(e) = region::protect(
+                    section.address() as *const u8,
+                    section.size() as usize,
+                    region::Protection::READ_WRITE_EXECUTE,
+                ) {
+                    log::warn!("Cannot unprotect section @ {:#?}: {e}", section.address());
+                }
             }
         }
     }
 
     // Return all recognized sections
     Ok(mods::Sections {
-        // For text section, get the first section and check that it has the correct flags
-        text: sections
-            .section(1)
-            .map_err(Into::into)
-            .and_then(|s| {
-                if (s.characteristics.get(object::LittleEndian)
-                    & (object::pe::IMAGE_SCN_CNT_CODE
+        // For text section, get the first section with the correct flags
+        text: pe
+            .sections()
+            .filter(|s| match s.flags() {
+                object::SectionFlags::Coff { characteristics } => {
+                    let flags = object::pe::IMAGE_SCN_CNT_CODE
                         | object::pe::IMAGE_SCN_MEM_EXECUTE
-                        | object::pe::IMAGE_SCN_MEM_READ))
-                    != 0
-                {
-                    let (start, size) = s.pe_address_range();
-                    Ok(unsafe {
-                        std::slice::from_raw_parts(module.add(start as usize), size as usize)
-                    })
-                } else {
-                    Err(anyhow::anyhow!("segment does not have correct flags"))
+                        | object::pe::IMAGE_SCN_MEM_READ;
+                    characteristics & flags == flags
                 }
+                _ => false,
             })
-            .inspect_err(|e| log::error!("cannot find .text segment: {e}"))
-            .ok(),
+            .next()
+            .and_then(|s| unsafe {
+                Some(unsafe_cell_slice::UnsafeCellSlice::new(
+                    std::slice::from_raw_parts_mut(s.address() as *mut u8, s.size() as usize),
+                ))
+            })
+            .or_else(|| {
+                log::error!("Cannot find .text segment");
+                None
+            }),
+
+        text_enigma: {
+            // Check if the first section has a name, this indicates the exe is protected
+            if pe
+                .sections()
+                .next()
+                .is_some_and(|s| s.name().is_ok_and(|n| n.is_empty()))
+            {
+                // Get the section after .rsrc
+                pe.section_by_name(".rsrc")
+                    .and_then(|s| {
+                        pe.section_by_index(object::SectionIndex(s.index().0 + 1))
+                            .ok()
+                    })
+                    .and_then(|s| unsafe {
+                        Some(unsafe_cell_slice::UnsafeCellSlice::new(
+                            std::slice::from_raw_parts_mut(
+                                s.address() as *mut u8,
+                                s.size() as usize,
+                            ),
+                        ))
+                    })
+                    .or_else(|| {
+                        log::error!("Cannot find Enigma .text segment");
+                        None
+                    })
+            } else {
+                // exe is not protected
+                None
+            }
+        },
     })
 }
 

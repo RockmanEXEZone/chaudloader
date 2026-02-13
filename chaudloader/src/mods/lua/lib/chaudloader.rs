@@ -18,7 +18,7 @@ fn new_game_env<'a>(
 
     if let Some(text_section) = env.sections.text {
         let text_section_table = lua.create_table()?;
-        text_section_table.set("address", text_section.as_ptr() as usize)?;
+        text_section_table.set("address", unsafe { *(text_section.get_mut(0).unwrap()) as usize })?;
         text_section_table.set("size", text_section.len())?;
         sections_table.set("text", text_section_table)?;
     } else {
