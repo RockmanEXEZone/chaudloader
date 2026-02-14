@@ -348,6 +348,9 @@ pub unsafe fn install_on_game_load(game_env: &mods::GameEnv) -> Result<(), anyho
                         }
                     })?
                     .enable()?;
+                log::info!("installed on_game_load hook");
+            } else {
+                log::error!("failed to install on_game_load hook!");
             }
         }
     }
@@ -376,6 +379,9 @@ pub unsafe fn install_pck_load(game_env: &mods::GameEnv) -> Result<(), anyhow::E
                         }
                     })?
                     .enable()?;
+                log::info!("installed pck_load hook");
+            } else {
+                log::error!("failed to install pck_load hook!");
             }
         }
     }
@@ -403,6 +409,9 @@ pub unsafe fn install_bnk_load(game_env: &mods::GameEnv) -> Result<(), anyhow::E
                         move |bnk_file_name, out_bnk_id| on_bnk_load(bnk_file_name, out_bnk_id)
                     })?
                     .enable()?;
+                log::info!("installed bnk_load hook");
+            } else {
+                log::error!("failed to install bnk_load hook!");
             }
         }
     }

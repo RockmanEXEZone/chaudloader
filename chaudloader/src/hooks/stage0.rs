@@ -254,6 +254,7 @@ unsafe fn get_module_handle_hook(
                     );
                     if let Some(search_result) = find_pattern(section, &pattern) {
                         section[search_result] = 0xC3;
+                        clear_cache::clear_cache(section.as_ptr(), section.as_ptr().add(section.len()));
                         if kernel32_GetModuleHandleA.disable().is_err() {
                             log::error!("Failed to unhook GetModuleHandleA");
                         }
