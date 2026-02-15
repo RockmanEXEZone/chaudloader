@@ -4,6 +4,25 @@ use crate::{
 };
 use byteorder::WriteBytesExt;
 use retour::static_detour;
+use std::{io::Write, os::windows::ffi::OsStringExt};
+
+static STAGE0_LOG_FILE: &'static str = "chaud_stage0.log";
+
+#[macro_export]
+macro_rules! stage0_log {
+    ( $line:expr ) => {
+        // TODO not thread safe, some lines may be out of order
+        if let Ok(mut logfile) = std::fs::File::options()
+            .append(true)
+            .create(true)
+            .open(STAGE0_LOG_FILE)
+        {
+            // Use write(format!()) rather than write_fmt(format_args!())
+            // This will format the string and then write it in one go
+            let _ = logfile.write($line.as_bytes());
+        }
+    };
+}
 
 static_detour! {
     static CreateWindowExA: unsafe extern "system" fn(
@@ -286,6 +305,51 @@ unsafe fn get_proc_address_hook(
     let mut proc_address: usize =
         unsafe { kernelbase_GetProcAddress.call(h_module, lp_proc_name) as usize };
 
+    if config.developer_mode == Some(true) {
+        unsafe {
+            // Resolve module name
+            let mut buf = std::mem::MaybeUninit::<
+                [std::mem::MaybeUninit<winapi::shared::ntdef::WCHAR>; 1024],
+            >::uninit()
+            .assume_init();
+            let len = winapi::um::libloaderapi::GetModuleFileNameW(
+                h_module,
+                buf[..].as_mut_ptr().cast(),
+                1024,
+            ) as usize;
+            let module_name = if len == 0 {
+                format!("0x{:X}", h_module as usize).to_string()
+            } else {
+                // GetModuleFileNameW gets the file path, trim to just the DLL filename
+                std::ffi::OsString::from_wide(&*(&buf[..len] as *const [_] as *const [u16]))
+                    .into_string()
+                    .map(|s| {
+                        std::path::Path::new::<std::ffi::OsStr>(s.as_ref())
+                            .file_name()
+                            .map(|f| f.to_os_string())
+                            .map(|f| f.into_string().unwrap_or(s.clone()))
+                            .unwrap_or(s.clone())
+                    })
+                    .unwrap_or(format!("0x{:X}", h_module as usize).to_string())
+            };
+
+            // Resolve proc name
+            let proc_name = if (lp_proc_name as usize) <= 0xFFFF {
+                format!("#{}", lp_proc_name as usize)
+            } else {
+                std::ffi::CStr::from_ptr(lp_proc_name)
+                    .to_str()
+                    .map(|s| s.to_string())
+                    .unwrap_or(format!("0x{:X}", (lp_proc_name as usize)))
+            };
+
+            stage0_log!(format!(
+                "h_module={}, lp_proc_name={}\n",
+                module_name, proc_name
+            ));
+        }
+    }
+
     // If we always do this, we crash for some reason, so just do it for relevant modules
     let proc_name = if h_module == KERNEL32.get_base_address()
         || h_module == KERNELBASE.get_base_address()
@@ -312,19 +376,31 @@ unsafe fn get_proc_address_hook(
                 if h_module == NTDLL.get_base_address()
                     && dev_mode_state.prev_proc_name == "GetProcAddress"
                 {
-                    dev_mode_state.hide_state = HideState::Active;
                     dev_mode_state.trigger_count += 1;
+
+                    // If we return 0 on the first set of calls, we crash
+                    // Only do it on the second set of calls
+                    if dev_mode_state.trigger_count == 2 {
+                        dev_mode_state.hide_state = HideState::Active;
+
+                        stage0_log!(format!("--- START HIDING ---\n"));
+                    }
                 }
             }
             HideState::Active => {
-                if h_module != NTDLL.get_base_address() {
+                // Trigger on this call pattern
+                // GetProcAddress(ntdll, ...)
+                // GetProcAddress(kernel32, ...)
+                if h_module == KERNEL32.get_base_address()
+                    || h_module == KERNELBASE.get_base_address()
+                {
                     dev_mode_state.hide_state = HideState::Inactive;
+
+                    stage0_log!(format!("--- STOP HIDING ---\n"));
                 }
             }
         }
-        // If we return 0 on the first set of calls, we crash
-        // Only do it on the second set of calls
-        if dev_mode_state.hide_state == HideState::Active && dev_mode_state.trigger_count == 2 {
+        if dev_mode_state.hide_state == HideState::Active {
             // For some reason using std::ptr::null_mut() causes a crash when resuming from break?
             // So instead we directly mutate the pointer as an integer
             proc_address = 0;
@@ -353,6 +429,8 @@ pub unsafe fn install() -> Result<(), anyhow::Error> {
                 log::error!("Command {cmd} exited with code {code}");
             }
         }
+
+        let _ = std::fs::File::create(STAGE0_LOG_FILE);
     }
 
     unsafe {
