@@ -121,7 +121,7 @@ pub fn scan() -> Result<std::collections::BTreeMap<String, std::sync::Arc<Mod>>,
     let mut mods = std::collections::BTreeMap::new();
     for entry in std::fs::read_dir("mods")? {
         let entry = entry?;
-        if !entry.file_type()?.is_dir() {
+        if !(entry.file_type()?.is_dir() || entry.file_type()?.is_symlink()) {
             continue;
         }
 
