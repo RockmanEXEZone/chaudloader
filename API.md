@@ -118,6 +118,14 @@ Writes the file data into the .dat file.
 
 Note that this does not mutate the original .dat file on disk, but for all intents and purposes to both the game and the mod loader it does.
 
+### `ExeDat:add_file`
+
+```lua
+function ExeDat:add_file(path: string, contents: Buffer)
+```
+
+appends the file data into the .dat file.
+
 ## `chaudloader.mpak`
 
 ### `chaudloader.mpak.unpack`

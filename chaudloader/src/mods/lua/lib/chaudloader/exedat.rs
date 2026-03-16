@@ -20,6 +20,16 @@ impl mlua::UserData for ExeDat {
                     .map_err(|e| e.into_lua_err())?;
                 Ok(())
             },
+            
+        );
+        methods.add_method(
+            "add_file",
+            |_, this, (path, contents): (String, mlua::UserDataRef<Buffer>)| {
+                let mut this = this.0.borrow_mut();
+                this.add(&path, contents.borrow().to_vec())
+                    .map_err(|e| e.into_lua_err())?;
+                Ok(())
+            },
         );
     }
 }
